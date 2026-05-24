@@ -64,7 +64,7 @@
 }
 
 .delivery-v2-theme [class*="bg-[#121212]"] {
-  background: linear-gradient(160deg, #15498b 0%, #000000 100%) !important;
+  background-color: var(--dv-primary) !important;
 }
 
 .delivery-v2-theme [class*="text-primary"],
@@ -169,7 +169,7 @@
 .delivery-v2-theme .from-amber-500,
 .delivery-v2-theme .to-amber-500 {
   --tw-gradient-from: var(--dv-primary) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: color-mix(in srgb, var(--dv-primary-strong) 82%, #15498b) var(--tw-gradient-to-position) !important;
+  --tw-gradient-to: color-mix(in srgb, var(--dv-primary-strong) 82%, var(--dv-primary)) var(--tw-gradient-to-position) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 

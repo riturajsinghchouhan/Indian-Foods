@@ -138,3 +138,48 @@
   border-color: color-mix(in srgb, var(--rt-primary) 55%, #ffffff) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--rt-primary) 15%, transparent) !important;
 }
+
+/* Dynamic overrides for hardcoded restaurant hex colors found in pages */
+.restaurant-theme [class*="bg-[#6a2f56]"] {
+  background-color: var(--rt-primary-strong) !important;
+}
+
+.restaurant-theme [class*="hover:bg-[#6a2f56]"]:hover {
+  background-color: var(--rt-primary-strong) !important;
+}
+
+.restaurant-theme [class*="bg-[#f6e9dc]"] {
+  background-color: color-mix(in srgb, var(--rt-primary) 8%, #ffffff) !important;
+}
+
+.restaurant-theme [class*="bg-[#fcf7fb]"] {
+  background-color: color-mix(in srgb, var(--rt-primary) 3%, #ffffff) !important;
+}
+
+.restaurant-theme [class*="bg-[#f9f0f7]"],
+.restaurant-theme [class*="hover:bg-[#f9f0f7]"]:hover {
+  background-color: color-mix(in srgb, var(--rt-primary) 6%, #ffffff) !important;
+}
+
+.restaurant-theme [class*="border-[#e7d5e0]"] {
+  border-color: color-mix(in srgb, var(--rt-primary) 15%, #ffffff) !important;
+}
+
+.restaurant-theme [class*="border-[#d5bdd0]"],
+.restaurant-theme [class*="hover:border-[#d5bdd0]"]:hover {
+  border-color: color-mix(in srgb, var(--rt-primary) 25%, #ffffff) !important;
+}
+
+.restaurant-theme [class*="text-[#6d6470]"] {
+  color: var(--rt-muted) !important;
+}
+
+.restaurant-theme [class*="text-[#6b4d62]"] {
+  color: color-mix(in srgb, var(--rt-primary-strong) 40%, var(--rt-muted)) !important;
+}
+
+/* Override inline accent colors */
+.restaurant-theme [style*="accent-color"] {
+  accent-color: var(--rt-primary-strong) !important;
+}
+
