@@ -260,6 +260,13 @@ const restaurantSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    zoneRank: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null,
+      index: true,
+    },
   },
   {
     collection: "food_restaurants",

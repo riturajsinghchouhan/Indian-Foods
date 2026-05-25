@@ -36,6 +36,7 @@ router.delete('/notifications/broadcast/:id', notificationBroadcastController.de
 router.get('/customers', adminController.getCustomers);
 router.get('/customers/:id', adminController.getCustomerById);
 router.patch('/customers/:id/status', adminController.updateCustomerStatus);
+router.post('/customers/:id/wallet-topup', adminController.topupCustomerWallet);
 
 // ----- Safety / Emergency Reports -----
 router.get('/safety-emergency-reports', adminController.getSafetyEmergencyReports);
@@ -72,6 +73,7 @@ router.patch('/restaurants/:id/location', adminController.updateRestaurantLocati
 router.patch('/restaurants/:id/menu', adminController.updateRestaurantMenuById);
 router.patch('/restaurants/:id/approve', adminController.approveRestaurant);
 router.patch('/restaurants/:id/reject', adminController.rejectRestaurant);
+router.patch('/restaurants/:id/zone-rank', adminController.updateRestaurantZoneRank);
 router.delete('/restaurants/:id', adminController.deleteRestaurant);
 
 // ----- Restaurant Commission -----

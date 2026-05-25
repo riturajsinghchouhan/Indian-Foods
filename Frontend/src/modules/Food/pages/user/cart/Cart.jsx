@@ -22,7 +22,7 @@ import { calculateDistance } from "@food/utils/common"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 import { getRestaurantAvailabilityStatus } from "@food/utils/restaurantAvailability"
 import useAppBackNavigation from "@food/hooks/useAppBackNavigation"
-const zoopSound = "/zomato_sms.mp3"
+import zoopSound from "@food/assets/audio/zomato_sms.mp3"
 const debugLog = (...args) => { }
 const debugWarn = (...args) => { }
 const debugError = (...args) => { }

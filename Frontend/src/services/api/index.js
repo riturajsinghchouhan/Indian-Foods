@@ -351,6 +351,9 @@ export const adminAPI = {
   /** Update restaurant location (admin). Body includes lat/lng + address fields. */
   updateRestaurantLocation: (id, body) =>
     adminClient.patch(`/food/admin/restaurants/${String(id)}/location`, body ?? {}),
+  /** Update restaurant zone rank (admin) */
+  updateRestaurantZoneRank: (id, rank) =>
+    adminClient.patch(`/food/admin/restaurants/${String(id)}/zone-rank`, { rank }),
   /** Restaurant menu (admin) */
   getRestaurantMenuById: (id, config = {}) =>
     adminClient.get(`/food/admin/restaurants/${id}/menu`, config),
@@ -382,6 +385,8 @@ export const adminAPI = {
     adminClient.get(`/food/admin/customers/${String(id)}`),
   updateCustomerStatus: (id, isActive) =>
     adminClient.patch(`/food/admin/customers/${String(id)}/status`, { isActive: isActive !== false }),
+  topupCustomerWallet: (id, amount, description) =>
+    adminClient.post(`/food/admin/customers/${String(id)}/wallet-topup`, { amount: Number(amount), description }),
   /** Orders (admin) – list, get by id, assign delivery partner */
   getOrders: (params = {}) =>
     adminClient.get("/food/admin/orders", { params: { limit: 50, page: 1, ...params } }),

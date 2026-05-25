@@ -285,12 +285,15 @@ export async function getRestaurants(query) {
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
         filter.status = status;
     }
+    if (query.zoneId) {
+        filter.zoneId = query.zoneId;
+    }
     const [restaurants, total] = await Promise.all([
         FoodRestaurant.find(filter)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
-            .select('restaurantName location area city profileImage coverImages menuImages menuPdf status ownerName ownerPhone zoneId')
+            .select('restaurantName location area city profileImage coverImages menuImages menuPdf status ownerName ownerPhone zoneId zoneRank rating')
             .populate('zoneId', 'name zoneName')
             .lean(),
         FoodRestaurant.countDocuments(filter)
@@ -5100,3 +5103,32 @@ export async function getSidebarBadges() {
     }
 }
 
+export async function updateRestaurantZoneRank(restaurantId, rank) {
+    if (!restaurantId || !mongoose.Types.ObjectId.isValid(restaurantId)) {
+        throw new ValidationError('Invalid restaurant ID');
+    }
+    
+    const parsedRank = rank === null || rank === '' ? null : parseInt(rank, 10);
+    
+    if (parsedRank !== null && (isNaN(parsedRank) || parsedRank < 1 || parsedRank > 5)) {
+        throw new ValidationError('Rank must be between 1 and 5');
+    }
+
+    const restaurant = await FoodRestaurant.findById(restaurantId);
+    if (!restaurant) {
+        throw new ValidationError('Restaurant not found');
+    }
+
+    // If assigning a rank, ensure no other restaurant in the same zone has this rank
+    if (parsedRank !== null && restaurant.zoneId) {
+        await FoodRestaurant.updateMany(
+            { zoneId: restaurant.zoneId, zoneRank: parsedRank, _id: { $ne: restaurantId } },
+            { $set: { zoneRank: null } }
+        );
+    }
+
+    restaurant.zoneRank = parsedRank;
+    await restaurant.save();
+
+    return restaurant;
+}

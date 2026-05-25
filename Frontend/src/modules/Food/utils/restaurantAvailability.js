@@ -108,6 +108,7 @@ const formatTimeLabel = (timeValue) => {
 
 const formatClosingCountdown = (minutesUntilClose, closingTime) => {
   if (minutesUntilClose === null || minutesUntilClose === undefined) return null
+  if (minutesUntilClose > 120) return null // Hide if more than 2 hours remaining
 
   if (minutesUntilClose <= 0) {
     const closingLabel = formatTimeLabel(closingTime)

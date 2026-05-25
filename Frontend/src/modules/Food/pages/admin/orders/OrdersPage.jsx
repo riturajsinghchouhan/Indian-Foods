@@ -16,8 +16,8 @@ import { useOrdersManagement } from "@food/components/admin/orders/useOrdersMana
 import { Loader2 } from "lucide-react"
 import { OrdersDashboardSkeleton } from "@food/components/ui/loading-skeletons"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
-const alertSound = "/alert.mp3"
-const originalSound = "/original.mp3"
+import alertSound from "@food/assets/audio/zomato_sms.mp3"
+import originalSound from "@food/assets/audio/original.mp3"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -73,10 +73,7 @@ export default function OrdersPage({ statusKey = "all" }) {
   }, [])
 
   const playDeliveryStyleBuzz = useCallback(async () => {
-    const selectedSound = localStorage.getItem("delivery_alert_sound") || "zomato_tone"
-    const soundFile = selectedSound === "original"
-      ? resolveAudioSource(originalSound, "admin-original")
-      : resolveAudioSource(alertSound, "admin-alert")
+    const soundFile = resolveAudioSource(alertSound, "admin-alert")
 
     try {
       if (!notificationAudioRef.current) {
@@ -247,10 +244,7 @@ export default function OrdersPage({ statusKey = "all" }) {
         fallbackAudioRef.current.muted = false
 
         if (!notificationAudioRef.current) {
-          const selectedSound = localStorage.getItem("delivery_alert_sound") || "zomato_tone"
-          const soundFile = selectedSound === "original"
-            ? resolveAudioSource(originalSound, "admin-original")
-            : resolveAudioSource(alertSound, "admin-alert")
+          const soundFile = resolveAudioSource(alertSound, "admin-alert")
           notificationAudioRef.current = new Audio(soundFile)
           notificationAudioRef.current.preload = "auto"
           notificationAudioRef.current.volume = 1

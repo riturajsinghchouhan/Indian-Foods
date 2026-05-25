@@ -9,6 +9,8 @@ import { validateDeliveryCommissionRuleDto, validateOptionalStatusDto, validateR
 import { validateFeeSettingsUpsertDto } from '../validators/feeSettings.validator.js';
 import { validateDeliveryEmergencyHelpUpsertDto } from '../validators/deliveryEmergencyHelp.validator.js';
 import { validateReferralSettingsUpsertDto } from '../validators/referralSettings.validator.js';
+import { topupUserWalletByAdmin } from '../../user/services/userWallet.service.js';
+import { invalidateCache } from '../../../../middleware/cache.js';
 
 // ----- Customers / Users -----
 export async function getCustomers(req, res, next) {
@@ -44,6 +46,27 @@ export async function updateCustomerStatus(req, res, next) {
         const updated = await adminService.updateCustomerStatus(id, isActive);
         if (!updated) return res.status(404).json({ success: false, message: 'Customer not found' });
         res.status(200).json({ success: true, message: 'Customer status updated successfully', data: { user: updated, customer: updated } });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function topupCustomerWallet(req, res, next) {
+    try {
+        const { id } = req.params;
+        const { amount, description } = req.body;
+        
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid customer id' });
+        }
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ success: false, message: 'Invalid amount' });
+        }
+
+        const adminId = req.user ? req.user.id : null;
+        
+        const result = await topupUserWalletByAdmin(id, amount, adminId, description);
+        res.status(200).json({ success: true, message: 'Wallet topped up successfully', data: result });
     } catch (error) {
         next(error);
     }
@@ -1581,6 +1604,18 @@ export async function getExpiredFssaiNotifications(req, res, next) {
             message: 'Expired FSSAI notifications fetched successfully',
             data: { items }
         });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function updateRestaurantZoneRank(req, res, next) {
+    try {
+        const { id } = req.params;
+        const { rank } = req.body;
+        const updated = await adminService.updateRestaurantZoneRank(id, rank);
+        await invalidateCache('restaurants:*');
+        res.status(200).json({ success: true, message: 'Restaurant zone rank updated successfully', data: { restaurant: updated } });
     } catch (error) {
         next(error);
     }

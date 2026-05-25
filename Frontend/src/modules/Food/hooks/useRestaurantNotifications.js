@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, useContext } from 'react';
 import io from 'socket.io-client';
 import { API_BASE_URL } from '@food/api/config';
 import { restaurantAPI } from '@food/api';
-const alertSound = '/zomato_sms.mp3';
+import alertSound from '@food/assets/audio/alert.mp3';
 import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInbox';
 import { RestaurantNotificationContext } from '../context/RestaurantNotificationContext';
 const debugLog = (...args) => {}

@@ -2,8 +2,7 @@ import { toast } from "sonner";
 import { userAPI, restaurantAPI, deliveryAPI, adminAPI } from "@food/api";
 import { initializeApp, getApp, getApps } from "firebase/app";
 import fallbackNotificationSound from "@food/assets/audio/alert.mp3";
-
-const pushNotificationSoundPath = "/zomato_sms.mp3";
+import pushNotificationSoundPath from "@food/assets/audio/zomato_sms.mp3";
 
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "",

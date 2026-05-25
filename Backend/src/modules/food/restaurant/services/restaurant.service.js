@@ -1310,7 +1310,8 @@ export const listApprovedRestaurants = async (query = {}) => {
         location: 1,
         openingTime: 1,
         closingTime: 1,
-        openDays: 1
+        openDays: 1,
+        zoneRank: 1
     };
 
     // Use $geoNear only when geo is explicitly needed (radius filter or nearest sorting).
@@ -1330,21 +1331,22 @@ export const listApprovedRestaurants = async (query = {}) => {
         }
 
         const sortStage = (() => {
-            if (sortBy === 'rating' || sortBy === 'rating-high') return { $sort: { rating: -1, distanceMeters: 1 } };
-            if (sortBy === 'rating-low') return { $sort: { rating: 1, distanceMeters: 1 } };
-            if (sortBy === 'price-low') return { $sort: { featuredPrice: 1, distanceMeters: 1 } };
-            if (sortBy === 'price-high') return { $sort: { featuredPrice: -1, distanceMeters: 1 } };
-            if (sortBy === 'newest') return { $sort: { createdAt: -1 } };
-            if (sortBy === 'deliveryTime') return { $sort: { estimatedDeliveryTimeMinutes: 1, distanceMeters: 1 } };
+            if (sortBy === 'rating' || sortBy === 'rating-high') return { $sort: { computedZoneRank: 1, rating: -1, distanceMeters: 1 } };
+            if (sortBy === 'rating-low') return { $sort: { computedZoneRank: 1, rating: 1, distanceMeters: 1 } };
+            if (sortBy === 'price-low') return { $sort: { computedZoneRank: 1, featuredPrice: 1, distanceMeters: 1 } };
+            if (sortBy === 'price-high') return { $sort: { computedZoneRank: 1, featuredPrice: -1, distanceMeters: 1 } };
+            if (sortBy === 'newest') return { $sort: { computedZoneRank: 1, createdAt: -1 } };
+            if (sortBy === 'deliveryTime') return { $sort: { computedZoneRank: 1, estimatedDeliveryTimeMinutes: 1, distanceMeters: 1 } };
             // nearest (default)
-            return { $sort: { distanceMeters: 1 } };
+            return { $sort: { computedZoneRank: 1, distanceMeters: 1 } };
         })();
 
         const basePipeline = [
             geoNear,
             {
                 $addFields: {
-                    distanceInKm: { $round: [{ $divide: ['$distanceMeters', 1000] }, 2] }
+                    distanceInKm: { $round: [{ $divide: ['$distanceMeters', 1000] }, 2] },
+                    computedZoneRank: { $ifNull: ['$zoneRank', 999] }
                 }
             },
             sortStage
@@ -1364,25 +1366,34 @@ export const listApprovedRestaurants = async (query = {}) => {
         return { restaurants: pageDocs, total, page, limit };
     }
 
-    // Non-geo path: normal query + sort.
+    // Non-geo path: normal query + sort converted to aggregate for computedZoneRank
     const sort = (() => {
-        if (sortBy === 'rating' || sortBy === 'rating-high') return { rating: -1, createdAt: -1 };
-        if (sortBy === 'rating-low') return { rating: 1, createdAt: -1 };
-        if (sortBy === 'price-low') return { featuredPrice: 1, createdAt: -1 };
-        if (sortBy === 'price-high') return { featuredPrice: -1, createdAt: -1 };
-        if (sortBy === 'deliveryTime') return { estimatedDeliveryTimeMinutes: 1, createdAt: -1 };
-        return { createdAt: -1 };
+        if (sortBy === 'rating' || sortBy === 'rating-high') return { $sort: { computedZoneRank: 1, rating: -1, createdAt: -1 } };
+        if (sortBy === 'rating-low') return { $sort: { computedZoneRank: 1, rating: 1, createdAt: -1 } };
+        if (sortBy === 'price-low') return { $sort: { computedZoneRank: 1, featuredPrice: 1, createdAt: -1 } };
+        if (sortBy === 'price-high') return { $sort: { computedZoneRank: 1, featuredPrice: -1, createdAt: -1 } };
+        if (sortBy === 'deliveryTime') return { $sort: { computedZoneRank: 1, estimatedDeliveryTimeMinutes: 1, createdAt: -1 } };
+        return { $sort: { computedZoneRank: 1, createdAt: -1 } };
     })();
 
-    const [restaurantsRaw, total] = await Promise.all([
-        FoodRestaurant.find(filter)
-            .select(Object.keys(projection).join(' '))
-            .sort(sort)
-            .skip(skip)
-            .limit(limit)
-            .lean(),
-        FoodRestaurant.countDocuments(filter)
+    const basePipeline = [
+        { $match: filter },
+        { $addFields: { computedZoneRank: { $ifNull: ['$zoneRank', 999] } } },
+        sort
+    ];
+
+    const [pageDocs, totalDocs] = await Promise.all([
+        FoodRestaurant.aggregate([
+            ...basePipeline,
+            { $project: projection },
+            { $skip: skip },
+            { $limit: limit }
+        ]),
+        FoodRestaurant.aggregate([...basePipeline, { $count: 'count' }])
     ]);
+
+    const total = totalDocs?.[0]?.count || 0;
+    const restaurantsRaw = pageDocs;
 
     const restaurants = (restaurantsRaw || []).map((r) => ({
         ...r,

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Search, Download, ChevronDown, Eye, FileDown, FileSpreadsheet, FileText, X, Mail, Phone, MapPin, Package, IndianRupee, Calendar as CalendarIcon, User, CheckCircle, XCircle } from "lucide-react"
+import { Search, Download, ChevronDown, Eye, FileDown, FileSpreadsheet, FileText, X, Mail, Phone, MapPin, Package, IndianRupee, Calendar as CalendarIcon, User, CheckCircle, XCircle, Wallet } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@food/components/ui/dropdown-menu"
 import { exportCustomersToCSV, exportCustomersToExcel, exportCustomersToPDF } from "@food/components/admin/customers/customersExportUtils"
 import { adminAPI } from "@food/api"
@@ -20,6 +20,13 @@ export default function Customers() {
   const [userDetails, setUserDetails] = useState(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [showUserDetails, setShowUserDetails] = useState(false)
+  
+  const [showTopupDialog, setShowTopupDialog] = useState(false)
+  const [topupAmount, setTopupAmount] = useState("")
+  const [topupDescription, setTopupDescription] = useState("")
+  const [isToppingUp, setIsToppingUp] = useState(false)
+  const [customerToTopup, setCustomerToTopup] = useState(null)
+
   const [filters, setFilters] = useState({
     orderDate: "",
     joiningDate: "",
@@ -213,6 +220,31 @@ export default function Customers() {
       setShowUserDetails(false)
     } finally {
       setLoadingDetails(false)
+    }
+  }
+
+  const submitTopup = async () => {
+    if (!topupAmount || isNaN(topupAmount) || Number(topupAmount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    try {
+      setIsToppingUp(true);
+      await adminAPI.topupCustomerWallet(customerToTopup, topupAmount, topupDescription);
+      toast.success("Wallet topped up successfully");
+      setShowTopupDialog(false);
+      setTopupAmount("");
+      setTopupDescription("");
+      
+      // refresh user details if they are currently viewing the same user
+      if (showUserDetails && selectedCustomer === customerToTopup) {
+        handleViewDetails(customerToTopup);
+      }
+    } catch (error) {
+      debugError('Error topping up wallet:', error);
+      toast.error('Failed to top up wallet');
+    } finally {
+      setIsToppingUp(false);
     }
   }
 
@@ -508,12 +540,25 @@ export default function Customers() {
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <button
-                          onClick={() => handleViewDetails(customer._id || customer.id || customer.sl)}
-                          className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        <div className="flex justify-center gap-2">
+                          <button
+                            title="Top-up Wallet"
+                            onClick={() => {
+                              setCustomerToTopup(customer._id || customer.id || customer.sl);
+                              setShowTopupDialog(true);
+                            }}
+                            className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors"
+                          >
+                            <Wallet className="w-4 h-4" />
+                          </button>
+                          <button
+                            title="View Details"
+                            onClick={() => handleViewDetails(customer._id || customer.id || customer.sl)}
+                            className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -694,7 +739,71 @@ export default function Customers() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Wallet Top-up Dialog */}
+      <Dialog open={showTopupDialog} onOpenChange={setShowTopupDialog}>
+        <DialogContent className="max-w-md mx-auto p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-200 bg-slate-50">
+            <DialogTitle className="pr-12 text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-blue-600" />
+              Wallet Top-up
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 px-6 py-6">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Amount ({"\u20B9"})
+              </label>
+              <input
+                type="number"
+                value={topupAmount}
+                onChange={(e) => setTopupAmount(e.target.value)}
+                placeholder="Enter amount to add"
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Description (Optional)
+              </label>
+              <input
+                type="text"
+                value={topupDescription}
+                onChange={(e) => setTopupDescription(e.target.value)}
+                placeholder="Ex: Promotional bonus"
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3 rounded-b-lg">
+            <button
+              onClick={() => setShowTopupDialog(false)}
+              className="px-4 py-2.5 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-all"
+              disabled={isToppingUp}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submitTopup}
+              disabled={isToppingUp}
+              className="px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+            >
+              {isToppingUp ? (
+                "Processing..."
+              ) : (
+                <>
+                  <Wallet className="w-4 h-4" />
+                  Top-up Wallet
+                </>
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+
 

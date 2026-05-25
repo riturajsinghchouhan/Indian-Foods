@@ -55,6 +55,12 @@ export const adminSidebarMenu = [
         icon: "MapPin",
       },
       {
+        type: "link",
+        label: "Zone Ranking",
+        path: "/admin/food/zone-ranking",
+        icon: "MapPin",
+      },
+      {
         type: "expandable",
         label: "Restaurants",
         icon: "UtensilsCrossed",

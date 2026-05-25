@@ -1720,6 +1720,7 @@ export default function Home() {
                 outletTimings: restaurant.outletTimings || null,
                 openingTime: restaurant.openingTime || restaurant?.deliveryTimings?.openingTime || null,
                 closingTime: restaurant.closingTime || restaurant?.deliveryTimings?.closingTime || null,
+                zoneRank: restaurant.zoneRank || null,
               };
             },
             );
@@ -1756,8 +1757,20 @@ export default function Home() {
               if (filters.sortBy === "rating-low") {
                 return (a.rating || 0) - (b.rating || 0);
               }
+              if (filters.sortBy === "nearby") {
+                const aDist = a.distanceInKm !== null ? a.distanceInKm : Infinity;
+                const bDist = b.distanceInKm !== null ? b.distanceInKm : Infinity;
+                return aDist - bDist;
+              }
 
-              // Default: sort by distance
+              // Default: sort by zoneRank first, then by distance
+              const aRank = a.zoneRank !== null && a.zoneRank !== undefined ? a.zoneRank : Infinity;
+              const bRank = b.zoneRank !== null && b.zoneRank !== undefined ? b.zoneRank : Infinity;
+              
+              if (aRank !== bRank) {
+                return aRank - bRank;
+              }
+
               const aDistance =
                 a.distanceInKm !== null ? a.distanceInKm : Infinity;
               const bDistance =
@@ -1965,7 +1978,32 @@ export default function Home() {
         return restaurant;
       });
 
-      return hasChanges ? updatedRestaurants : prevData;
+      if (!hasChanges) return prevData;
+
+      // Re-sort data based on updated distances
+      return [...updatedRestaurants].sort((a, b) => {
+        const aAvailable = getRestaurantAvailabilityStatus(a, new Date(), { ignoreOperationalStatus: true }).isOpen;
+        const bAvailable = getRestaurantAvailabilityStatus(b, new Date(), { ignoreOperationalStatus: true }).isOpen;
+        if (aAvailable !== bAvailable) return aAvailable ? -1 : 1;
+
+        if (appliedFilters.sortBy === "price-low") return (a.featuredPrice || 0) - (b.featuredPrice || 0);
+        if (appliedFilters.sortBy === "price-high") return (b.featuredPrice || 0) - (a.featuredPrice || 0);
+        if (appliedFilters.sortBy === "rating-high") return (b.rating || 0) - (a.rating || 0);
+        if (appliedFilters.sortBy === "rating-low") return (a.rating || 0) - (b.rating || 0);
+        if (appliedFilters.sortBy === "nearby") {
+          const aDist = a.distanceInKm !== null ? a.distanceInKm : Infinity;
+          const bDist = b.distanceInKm !== null ? b.distanceInKm : Infinity;
+          return aDist - bDist;
+        }
+
+        const aRank = a.zoneRank !== null && a.zoneRank !== undefined ? a.zoneRank : Infinity;
+        const bRank = b.zoneRank !== null && b.zoneRank !== undefined ? b.zoneRank : Infinity;
+        if (aRank !== bRank) return aRank - bRank;
+
+        const aDistance = a.distanceInKm !== null ? a.distanceInKm : Infinity;
+        const bDistance = b.distanceInKm !== null ? b.distanceInKm : Infinity;
+        return aDistance - bDistance;
+      });
     });
 
     debugLog(
@@ -3485,6 +3523,7 @@ export default function Home() {
                     <div className="flex flex-col gap-3">
                       {[
                         { id: null, label: "Relevance" },
+                        { id: "nearby", label: "Nearby" },
                         { id: "price-low", label: "Price: Low to High" },
                         { id: "price-high", label: "Price: High to Low" },
                         { id: "rating-high", label: "Rating: High to Low" },
