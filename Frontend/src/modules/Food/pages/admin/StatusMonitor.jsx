@@ -4,6 +4,7 @@ import { getGoogleMapsApiKey } from '@food/utils/googleMapsApiKey';
 import { Loader } from '@googlemaps/js-api-loader';
 import { Loader2, MapPin, Clock, Package, CheckCircle2, Navigation, ShoppingBag, Truck } from 'lucide-react';
 import { toast } from 'sonner';
+import { getRestaurantAvailabilityStatus } from '../../utils/restaurantAvailability';
 
 export default function StatusMonitor() {
   const [activeTab, setActiveTab] = useState('restaurants'); // 'restaurants' or 'delivery'
@@ -36,8 +37,30 @@ export default function StatusMonitor() {
     setSelectedItem(null);
   };
 
+  const isRestaurantOpen = (restaurant) => {
+    const status = getRestaurantAvailabilityStatus(restaurant);
+    return status.isOpen;
+  };
+
   const getList = () => {
-    return activeTab === 'restaurants' ? data.restaurants : data.deliveryPartners;
+    let list = activeTab === 'restaurants' ? data.restaurants : data.deliveryPartners;
+    // Sort online to the top
+    if (activeTab === 'restaurants') {
+      list = [...list].sort((a, b) => {
+        const aOpen = isRestaurantOpen(a);
+        const bOpen = isRestaurantOpen(b);
+        if (aOpen === bOpen) return 0;
+        return aOpen ? -1 : 1;
+      });
+    } else {
+      list = [...list].sort((a, b) => {
+        const aOnline = a.availabilityStatus === 'online';
+        const bOnline = b.availabilityStatus === 'online';
+        if (aOnline === bOnline) return 0;
+        return aOnline ? -1 : 1;
+      });
+    }
+    return list;
   };
 
   const list = getList();
@@ -70,7 +93,7 @@ export default function StatusMonitor() {
         {/* Left Panel: List */}
         <div className="w-1/3 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col overflow-hidden">
           <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-            <h2 className="font-semibold text-gray-700">Online {activeTab === 'restaurants' ? 'Restaurants' : 'Partners'}</h2>
+            <h2 className="font-semibold text-gray-700">All {activeTab === 'restaurants' ? 'Restaurants' : 'Partners'}</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {loading && list.length === 0 ? (
@@ -112,7 +135,11 @@ export default function StatusMonitor() {
                         </p>
                       </div>
                       <div className="flex items-center">
-                        <span className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                        {activeTab === 'restaurants' ? (
+                          <span className={`w-2.5 h-2.5 rounded-full ${isRestaurantOpen(item) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`}></span>
+                        ) : (
+                          <span className={`w-2.5 h-2.5 rounded-full ${item.availabilityStatus === 'online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]'}`}></span>
+                        )}
                       </div>
                     </div>
                   </li>
@@ -141,37 +168,59 @@ export default function StatusMonitor() {
 }
 
 function RestaurantDetails({ restaurant }) {
-  const { stats, schedules } = restaurant;
+  const { stats } = restaurant;
+  const isOpen = getRestaurantAvailabilityStatus(restaurant).isOpen;
+
   return (
     <div className="p-6 h-full overflow-y-auto">
       <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
         <div className="w-20 h-20 rounded-xl bg-gray-100 overflow-hidden shadow-sm">
           {restaurant.logo ? <img src={restaurant.logo} className="w-full h-full object-cover" alt="" /> : <ShoppingBag className="w-8 h-8 m-auto text-gray-400 mt-6" />}
         </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">{restaurant.restaurantName}</h2>
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-800">{restaurant.restaurantName}</h2>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${isOpen ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+              {isOpen ? 'Online' : 'Offline'}
+            </span>
+          </div>
           <p className="text-gray-500 flex items-center gap-1 mt-1">
             <MapPin className="w-4 h-4" />
             {restaurant.addressLine1}, {restaurant.area}, {restaurant.city}
           </p>
+          {(restaurant.ownerName || restaurant.ownerPhone) && (
+             <p className="text-sm text-gray-600 mt-2">
+               <strong>Owner:</strong> {restaurant.ownerName} • {restaurant.ownerPhone}
+             </p>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col items-center justify-center">
-          <Package className="w-6 h-6 text-blue-500 mb-2" />
-          <p className="text-sm text-blue-600 font-medium">Total Orders Today</p>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+          <Package className="w-5 h-5 text-blue-500 mb-2" />
+          <p className="text-xs text-blue-600 font-medium">Total</p>
           <p className="text-2xl font-bold text-blue-700">{stats.totalOrders || 0}</p>
         </div>
-        <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex flex-col items-center justify-center">
-          <CheckCircle2 className="w-6 h-6 text-green-500 mb-2" />
-          <p className="text-sm text-green-600 font-medium">Delivered Today</p>
+        <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+          <Clock className="w-5 h-5 text-orange-500 mb-2" />
+          <p className="text-xs text-orange-600 font-medium">Active</p>
+          <p className="text-2xl font-bold text-orange-700">{stats.activeOrders || 0}</p>
+        </div>
+        <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+          <CheckCircle2 className="w-5 h-5 text-green-500 mb-2" />
+          <p className="text-xs text-green-600 font-medium">Delivered</p>
           <p className="text-2xl font-bold text-green-700">{stats.deliveredOrders || 0}</p>
         </div>
-        <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex flex-col items-center justify-center">
-          <Clock className="w-6 h-6 text-orange-500 mb-2" />
-          <p className="text-sm text-orange-600 font-medium">Active Orders</p>
-          <p className="text-2xl font-bold text-orange-700">{stats.activeOrders || 0}</p>
+        <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+          <span className="w-5 h-5 flex items-center justify-center text-red-500 mb-2 font-bold text-lg">X</span>
+          <p className="text-xs text-red-600 font-medium">Cancelled</p>
+          <p className="text-2xl font-bold text-red-700">{stats.cancelledOrders || 0}</p>
+        </div>
+        <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+          <span className="w-5 h-5 flex items-center justify-center text-purple-500 mb-2 font-bold text-lg">₹</span>
+          <p className="text-xs text-purple-600 font-medium">Revenue</p>
+          <p className="text-2xl font-bold text-purple-700">₹{stats.revenue?.toFixed(0) || 0}</p>
         </div>
       </div>
 
@@ -180,19 +229,30 @@ function RestaurantDetails({ restaurant }) {
           <Clock className="w-5 h-5 text-gray-500" />
           Working Hours
         </h3>
-        {schedules && schedules.length > 0 ? (
+        {restaurant.outletTimings?.timings && restaurant.outletTimings.timings.length > 0 ? (
           <div className="grid grid-cols-2 gap-y-3">
-            {schedules.map((schedule, idx) => (
+            {restaurant.outletTimings.timings.map((schedule, idx) => (
               <div key={idx} className="flex flex-col">
-                <span className="text-sm font-medium text-gray-700 capitalize">{schedule.day}</span>
-                <span className="text-sm text-gray-500">
-                  {schedule.slots?.map(slot => `${slot.open} - ${slot.close}`).join(', ') || 'Closed'}
+                <span className="text-sm font-medium text-gray-700 capitalize">
+                  {schedule.day} {schedule.isOpen ? '' : '(Closed)'}
+                </span>
+                <span className={`text-sm ${schedule.isOpen ? 'text-gray-500' : 'text-red-400'}`}>
+                  {schedule.isOpen ? `${schedule.openingTime} - ${schedule.closingTime}` : 'Closed'}
                 </span>
               </div>
             ))}
           </div>
+        ) : restaurant.openDays && restaurant.openDays.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-gray-700">
+              <span className="text-gray-500 font-normal">Timings:</span> {restaurant.openingTime} - {restaurant.closingTime}
+            </p>
+            <p className="text-sm font-medium text-gray-700 mt-1">
+              <span className="text-gray-500 font-normal">Open Days:</span> {restaurant.openDays.join(', ')}
+            </p>
+          </div>
         ) : (
-          <p className="text-sm text-gray-500">No schedule defined</p>
+          <p className="text-sm text-gray-500">No schedule defined (Always Open)</p>
         )}
       </div>
     </div>
@@ -275,7 +335,7 @@ function DeliveryPartnerDetails({ partner }) {
   }, [partner, showMap]);
 
   return (
-    <div className="p-6 h-full flex flex-col">
+    <div className="p-6 h-full flex flex-col overflow-y-auto">
       <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100 flex-shrink-0">
         <div className="w-16 h-16 rounded-full bg-gray-100 overflow-hidden shadow-sm">
           {partner.profilePhoto ? <img src={partner.profilePhoto} className="w-full h-full object-cover" alt="" /> : <Truck className="w-8 h-8 m-auto text-gray-400 mt-4" />}
@@ -286,6 +346,25 @@ function DeliveryPartnerDetails({ partner }) {
           <p className="text-sm text-gray-400">Vehicle: {partner.vehicleType} ({partner.vehicleNumber})</p>
         </div>
       </div>
+
+      {partner.shiftStartPic && (
+        <div className="mb-6 bg-green-50/50 border border-green-100 rounded-xl p-4 flex gap-4 items-center flex-shrink-0">
+          <div className="w-20 h-20 shrink-0 rounded-xl border-2 border-green-400 overflow-hidden shadow-sm bg-gray-100">
+            <img src={partner.shiftStartPic} alt="Shift Verification" className="w-full h-full object-cover" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">Shift Verified</p>
+            <p className="text-sm font-bold text-gray-800 mb-0.5">
+              Started at {new Date(partner.shiftStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            {partner.shiftStartAddress && (
+              <p className="text-xs text-gray-500 line-clamp-2">
+                {partner.shiftStartAddress}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 mb-6 flex-shrink-0">
         <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex flex-col items-center justify-center">
@@ -302,47 +381,92 @@ function DeliveryPartnerDetails({ partner }) {
         </div>
       </div>
 
-      <div className="flex-1 bg-gray-100 rounded-xl overflow-hidden border border-gray-200 relative">
-        {!showMap ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
-            <MapPin className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-gray-500 mb-6 max-w-xs">
-              Click below to view the live location on the map. This helps save map API usage when not needed.
-            </p>
-            <button
-              onClick={() => setShowMap(true)}
-              className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium shadow-sm hover:bg-primary/90 transition-colors flex items-center gap-2"
-            >
-              <Navigation className="w-4 h-4" />
-              Track Location
-            </button>
-          </div>
-        ) : (
-          <>
-            <div ref={mapRef} className="absolute inset-0 w-full h-full" />
-            
-            {mapLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              </div>
-            )}
-
-            {!mapLoading && (!partner.lastLat || !partner.lastLng) && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 backdrop-blur-sm">
-                <div className="text-center bg-white p-4 rounded-lg shadow-sm">
-                  <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Location not available</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+        <div className="flex flex-col h-full overflow-y-auto pr-2">
+          <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Package className="w-5 h-5 text-gray-500" />
+            Today's Orders
+          </h3>
+          {partner.todayOrders && partner.todayOrders.length > 0 ? (
+            <div className="space-y-3 pb-4">
+              {partner.todayOrders.map((order, idx) => (
+                <div key={idx} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <span className="text-sm font-bold text-gray-800">{order.orderId}</span>
+                      <p className="text-xs text-gray-500">{new Date(order.time).toLocaleTimeString()}</p>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      order.status === 'delivered' ? 'bg-green-50 text-green-600' :
+                      order.status === 'cancelled_by_admin' || order.status === 'cancelled_by_user' || order.status === 'cancelled_by_restaurant' ? 'bg-red-50 text-red-600' :
+                      'bg-orange-50 text-orange-600'
+                    }`}>
+                      {order.status.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium">Restaurant</p>
+                      <p className="text-sm text-gray-700 truncate">{order.restaurantName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium">Customer</p>
+                      <p className="text-sm text-gray-700 truncate">{order.userName}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-            
-            {partner.lastLocationAt && (
-              <div className="absolute bottom-4 left-4 bg-white px-3 py-1.5 rounded-md shadow-md text-xs font-medium text-gray-600 z-10 border border-gray-200">
-                Updated: {new Date(partner.lastLocationAt).toLocaleTimeString()}
-              </div>
-            )}
-          </>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-xl p-8 text-center border border-gray-100">
+              <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">No orders assigned today</p>
+            </div>
+          )}
+        </div>
+
+        <div className="h-full min-h-[16rem] bg-gray-100 rounded-xl overflow-hidden border border-gray-200 relative">
+          {!showMap ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
+              <MapPin className="w-12 h-12 text-gray-300 mb-4" />
+              <p className="text-gray-500 mb-6 max-w-xs">
+                Click below to view the live location on the map. This helps save map API usage when not needed.
+              </p>
+              <button
+                onClick={() => setShowMap(true)}
+                className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium shadow-sm hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                <Navigation className="w-4 h-4" />
+                Track Location
+              </button>
+            </div>
+          ) : (
+            <>
+              <div ref={mapRef} className="absolute inset-0 w-full h-full" />
+              
+              {mapLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              )}
+
+              {!mapLoading && (!partner.lastLat || !partner.lastLng) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 backdrop-blur-sm">
+                  <div className="text-center bg-white p-4 rounded-lg shadow-sm">
+                    <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Location not available</p>
+                  </div>
+                </div>
+              )}
+              
+              {partner.lastLocationAt && (
+                <div className="absolute bottom-4 left-4 bg-white px-3 py-1.5 rounded-md shadow-md text-xs font-medium text-gray-600 z-10 border border-gray-200">
+                  Updated: {new Date(partner.lastLocationAt).toLocaleTimeString()}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import { NewOrderModal } from '@/modules/DeliveryV2/components/modals/NewOrderMo
 import { PickupActionModal } from '@/modules/DeliveryV2/components/modals/PickupActionModal';
 import { DeliveryVerificationModal } from '@/modules/DeliveryV2/components/modals/DeliveryVerificationModal';
 import { OrderSummaryModal } from '@/modules/DeliveryV2/components/modals/OrderSummaryModal';
+import { PhotoUploadModal } from '@/modules/DeliveryV2/components/modals/PhotoUploadModal';
 import ActionSlider from '@/modules/DeliveryV2/components/ui/ActionSlider';
 
 // Sub Pages
@@ -77,6 +78,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   const [cashLimitNotice, setCashLimitNotice] = useState(null);
   const [currentTab, setCurrentTab] = useState(tab);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   
   // Track URL changes (Prop changes) to update sub-page content
   useEffect(() => {
@@ -718,14 +720,11 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
               <button 
                 onClick={async () => {
                   const nextState = !isOnline;
-                  toggleOnline(); // Store action
                   if (nextState) {
-                     // Try to get location and sync immediately so we are visible for dispatch right away
-                     navigator.geolocation.getCurrentPosition((pos) => {
-                         deliveryAPI.updateLocation(pos.coords.latitude, pos.coords.longitude, true).catch(() => {});
-                     }, (err) => console.warn('Online sync position failed:', err), { enableHighAccuracy: true });
+                      setShowPhotoModal(true);
                   } else {
-                     deliveryAPI.updateOnlineStatus(false).catch(() => {});
+                      toggleOnline(); // Store action
+                      deliveryAPI.updateOnlineStatus(false).catch(() => {});
                   }
                 }}
                 className={`delivery-online-toggle relative w-[92px] h-8 rounded-full p-1 transition-all duration-500 flex items-center ${isOnline ? 'is-online bg-green-500 shadow-lg shadow-green-500/20' : 'is-offline bg-green-400 shadow-lg shadow-green-400/20'}`}
@@ -833,6 +832,28 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
         </AnimatePresence>
       </div>
       )}
+
+      <PhotoUploadModal 
+        isOpen={showPhotoModal}
+        onClose={() => setShowPhotoModal(false)}
+        onUpload={async (base64Data, address) => {
+          try {
+            await deliveryAPI.updateOnlineStatus(true, base64Data, address);
+            toggleOnline(); // update local store
+            setShowPhotoModal(false);
+            
+            // Sync location immediately
+            navigator.geolocation.getCurrentPosition((pos) => {
+               deliveryAPI.updateLocation(pos.coords.latitude, pos.coords.longitude, true).catch(() => {});
+            }, () => {}, { enableHighAccuracy: true });
+            
+            toast.success("Shift started successfully!");
+          } catch (error) {
+            console.error("Failed to start shift:", error);
+            toast.error("Failed to start shift. Please try again.");
+          }
+        }}
+      />
 
       {/* ─── 2. MAIN CONTENT ─── */}
       <div className={`flex-1 relative overflow-y-auto ${currentTab === 'history' ? 'pt-0' : 'pt-[120px]'} no-scrollbar`}>

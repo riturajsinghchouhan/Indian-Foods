@@ -1328,10 +1328,10 @@ export const deliveryAPI = {
   getSupportTicketById: (id) =>
     deliveryClient.get(`/food/delivery/support-tickets/${id}`),
   /** PATCH /food/delivery/availability - set online/offline (and optional lat/lng). */
-  updateOnlineStatus: (isOnline) =>
+  updateOnlineStatus: (isOnline, shiftStartPicBase64 = null, shiftStartAddress = null) =>
     deliveryClient.patch(
       "/food/delivery/availability",
-      { status: isOnline ? "online" : "offline" }
+      { status: isOnline ? "online" : "offline", shiftStartPicBase64, shiftStartAddress }
     ),
   updateLocation: (latitude, longitude, isOnline, extras = {}) =>
     deliveryClient.patch(

@@ -93,6 +93,9 @@ const deliveryPartnerSchema = new mongoose.Schema(
             enum: ['online', 'offline'],
             default: 'offline'
         },
+        shiftStartPic: { type: String },
+        shiftStartTime: { type: Date },
+        shiftStartAddress: { type: String },
         lastLocation: {
             type: { type: String, enum: ['Point'] },
             coordinates: { type: [Number] }

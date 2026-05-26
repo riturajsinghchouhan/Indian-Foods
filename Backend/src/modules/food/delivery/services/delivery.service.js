@@ -296,12 +296,27 @@ export const updateDeliveryAvailability = async (userId, payload) => {
     if (!partner) {
         throw new ValidationError('Delivery partner not found');
     }
-    const { status, latitude, longitude } = payload || {};
+    const { status, latitude, longitude, shiftStartPicBase64, shiftStartAddress } = payload || {};
     let validStatus = 'offline';
     if (status === 'online' || status === true) validStatus = 'online';
     else if (status === 'offline' || status === false) validStatus = 'offline';
     
     partner.availabilityStatus = validStatus;
+
+    if (validStatus === 'online' && shiftStartPicBase64) {
+        try {
+            const buffer = Buffer.from(shiftStartPicBase64, 'base64');
+            partner.shiftStartPic = await uploadImageBuffer(buffer, 'food/delivery/shift');
+            partner.shiftStartTime = new Date();
+            if (shiftStartAddress) {
+                partner.shiftStartAddress = shiftStartAddress;
+            }
+        } catch (error) {
+            console.error('Error uploading shift start pic:', error);
+            throw new ValidationError('Failed to upload shift start picture');
+        }
+    }
+
     if (typeof latitude === 'number' && typeof longitude === 'number') {
         partner.lastLocation = {
             type: 'Point',

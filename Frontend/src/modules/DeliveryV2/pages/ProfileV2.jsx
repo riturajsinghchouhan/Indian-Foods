@@ -175,6 +175,27 @@ export const ProfileV2 = () => {
 
         {/* Sections */}
         <div className="space-y-4">
+          {/* Shift Details */}
+          {profile?.shiftStartPic && (
+            <div className="bg-white rounded-xl p-4 flex flex-col gap-3">
+              <h3 className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Current Shift Verification</h3>
+              <div className="flex gap-4 items-center">
+                <div className="w-20 h-20 shrink-0 rounded-xl border-2 border-green-500 overflow-hidden shadow-sm">
+                  <img src={profile.shiftStartPic} alt="Shift Start" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900 mb-1">
+                    Started at {new Date(profile.shiftStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  {profile.shiftStartAddress && (
+                    <p className="text-xs text-gray-500 font-medium line-clamp-2">
+                      {profile.shiftStartAddress}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           {/* Share & Earn */}
           <div className="bg-white rounded-xl p-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
