@@ -36,15 +36,21 @@ export function generateFourDigitDeliveryOtp() {
 export function sanitizeOrderForExternal(orderDoc) {
   const o = orderDoc?.toObject ? orderDoc.toObject() : { ...(orderDoc || {}) };
   delete o.deliveryOtp;
+  delete o.pickupOtp;
   const dv = o.deliveryVerification;
-  if (dv && dv.dropOtp != null) {
-    const d = dv.dropOtp;
+  if (dv) {
+    const d = dv.dropOtp || {};
+    const p = dv.pickupOtp || {};
     o.deliveryVerification = {
       ...dv,
       dropOtp: {
         required: Boolean(d.required),
         verified: Boolean(d.verified),
       },
+      pickupOtp: {
+        required: Boolean(p.required !== false),
+        verified: Boolean(p.verified),
+      }
     };
   }
   o.orderMongoId = (o._id || orderDoc?._id || "").toString();

@@ -343,7 +343,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                         <div className="flex items-center space-x-24">
                             {/* Delivery Tab */}
                             <Link
-                                to="/"
+                                to="/food/user/"
                                 className={`flex flex-col items-center gap-1 px-2 py-1 transition-colors relative group ${isDelivery
                                     ? "text-primary"
                                     : "text-gray-600 dark:text-gray-400 hover:text-primary"

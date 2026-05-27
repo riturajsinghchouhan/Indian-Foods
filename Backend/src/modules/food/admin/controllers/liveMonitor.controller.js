@@ -4,8 +4,8 @@ import { FoodOrder } from '../../orders/models/order.model.js';
 
 export async function getLiveMonitorStatus(req, res, next) {
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Use a 24-hour rolling window instead of midnight to avoid timezone issues
+        const today = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
         // Fetch All Approved Restaurants
         const restaurants = await FoodRestaurant.find({ status: 'approved' })
@@ -72,8 +72,8 @@ export async function getLiveMonitorStatus(req, res, next) {
         const dpIds = deliveryPartners.map(dp => dp._id);
         const activeOrdersForDp = await FoodOrder.find({
             'dispatch.deliveryPartnerId': { $in: dpIds },
-            status: 'food-on-the-way'
-        }).select('_id status deliveryAddress restaurantId dispatch.deliveryPartnerId').lean();
+            orderStatus: { $in: ['created', 'confirmed', 'preparing', 'ready_for_pickup', 'reached_pickup', 'picked_up', 'reached_drop'] }
+        }).select('_id orderStatus deliveryAddress restaurantId dispatch.deliveryPartnerId').lean();
 
         const activeOrdersMap = {};
         activeOrdersForDp.forEach(o => {
@@ -87,7 +87,7 @@ export async function getLiveMonitorStatus(req, res, next) {
             createdAt: { $gte: today },
             'dispatch.deliveryPartnerId': { $in: dpIds }
         })
-        .select('_id orderId order_id orderStatus customerName createdAt pricing')
+        .select('_id orderId order_id orderStatus customerName createdAt pricing dispatch')
         .populate('restaurantId', 'restaurantName')
         .populate('userId', 'fullName name')
         .lean();

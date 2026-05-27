@@ -1467,7 +1467,13 @@ export const deliveryAPI = {
         latitude: location.lat,
         longitude: location.lng,
         billImageUrl: data.billImageUrl,
+        otp: data.otp,
       }
+    ),
+  requestPickupOtp: (orderId) =>
+    deliveryClient.post(
+      `/food/delivery/orders/${String(orderId)}/request-pickup-otp`,
+      {}
     ),
   confirmReachedDrop: (orderId) =>
     deliveryClient.patch(

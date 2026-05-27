@@ -48,7 +48,7 @@ export default function BottomNavigation() {
       <div className="flex items-center justify-around h-auto px-2 sm:px-4">
         {/* Delivery Tab */}
         <Link
-          to="/"
+          to="/food/user/"
           className={`flex flex-1 flex-col items-center gap-1.5 px-2 sm:px-3 py-2 transition-all duration-200 relative ${isDelivery
               ? "text-primary"
               : "text-gray-600 dark:text-gray-400"

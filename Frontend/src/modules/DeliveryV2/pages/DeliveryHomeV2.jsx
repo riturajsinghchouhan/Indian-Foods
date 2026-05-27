@@ -1059,7 +1059,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                     distanceToTarget={distanceToTarget}
                     eta={eta}
                     onReachedPickup={reachPickup} 
-                    onPickedUp={(billImageUrl) => pickUpOrder(billImageUrl)} 
+                    onPickedUp={(billImageUrl, otp) => pickUpOrder(billImageUrl, otp)} 
                     onMinimize={() => setIsModalMinimized(true)}
                   />
                 )}

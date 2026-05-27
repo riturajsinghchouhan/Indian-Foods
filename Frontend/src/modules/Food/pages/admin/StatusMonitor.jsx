@@ -7,7 +7,9 @@ import { toast } from 'sonner';
 import { getRestaurantAvailabilityStatus } from '../../utils/restaurantAvailability';
 
 export default function StatusMonitor() {
-  const [activeTab, setActiveTab] = useState('restaurants'); // 'restaurants' or 'delivery'
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('statusMonitorTab') || 'restaurants';
+  }); // 'restaurants' or 'delivery'
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ restaurants: [], deliveryPartners: [] });
   const [selectedItem, setSelectedItem] = useState(null);
@@ -34,6 +36,7 @@ export default function StatusMonitor() {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
+    localStorage.setItem('statusMonitorTab', tab);
     setSelectedItem(null);
   };
 
@@ -464,6 +467,13 @@ function DeliveryPartnerDetails({ partner }) {
                   Updated: {new Date(partner.lastLocationAt).toLocaleTimeString()}
                 </div>
               )}
+              
+              <button
+                onClick={() => setShowMap(false)}
+                className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-md shadow-lg text-xs font-medium text-gray-700 z-[1000] border border-gray-200 hover:bg-white flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span className="text-red-500 font-bold">X</span> Close Map
+              </button>
             </>
           )}
         </div>

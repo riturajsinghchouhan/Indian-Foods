@@ -124,7 +124,7 @@ export const useOrderManager = () => {
   /**
    * Mark "Picked Up" (Confirm order ID & start delivery)
    */
-  const pickUpOrder = async (billImageUrl) => {
+  const pickUpOrder = async (billImageUrl, otp) => {
     const orderId = resolveOrderId();
     if (!orderId) {
       toast.error('Order id not found. Please refresh current trip.');
@@ -136,7 +136,7 @@ export const useOrderManager = () => {
         orderId, 
         activeOrder.displayOrderId || orderId, 
         riderLocation || {},
-        { billImageUrl }
+        { billImageUrl, otp }
       );
       
       if (response?.data?.success) {

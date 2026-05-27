@@ -527,7 +527,7 @@ export async function getOrderById(
     )
     .populate("dispatch.deliveryPartnerId", "name fullName phone phoneNumber rating totalRatings profileImage avatar")
     .populate("userId", "name fullName phone email")
-    .select("+deliveryOtp")
+    .select("+deliveryOtp +pickupOtp")
     .lean();
   if (!order) throw new NotFoundError("Order not found");
 
@@ -545,7 +545,11 @@ export async function getOrderById(
     throw new ForbiddenError("Not assigned to you");
 
   if (deliveryPartnerId || restaurantId) {
-    return sanitizeOrderForExternal(order);
+    const sanitized = sanitizeOrderForExternal(order);
+    if (restaurantId && order.pickupOtp) {
+      sanitized.pickupOtp = order.pickupOtp;
+    }
+    return sanitized;
   }
 
   if (userId) {
@@ -976,10 +980,15 @@ export async function listOrdersRestaurant(restaurantId, query) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
+      .select('+pickupOtp')
       .lean(),
     FoodOrder.countDocuments(filter),
   ]);
-  return buildPaginatedResult({ docs: docs.map(d => normalizeOrderForClient(d)), total, page, limit });
+  return buildPaginatedResult({ docs: docs.map(d => {
+    const o = normalizeOrderForClient(d);
+    if (d.pickupOtp) o.pickupOtp = d.pickupOtp;
+    return o;
+  }), total, page, limit });
 }
 
 export async function updateOrderStatusRestaurant(
@@ -1289,12 +1298,18 @@ export async function confirmPickupDelivery(
   orderId,
   deliveryPartnerId,
   billImageUrl,
+  otp
 ) {
   return deliveryService.confirmPickupDelivery(
     orderId,
     deliveryPartnerId,
     billImageUrl,
+    otp
   );
+}
+
+export async function requestPickupOtp(orderId, deliveryPartnerId) {
+  return deliveryService.requestPickupOtp(orderId, deliveryPartnerId);
 }
 
 export async function confirmReachedDropDelivery(orderId, deliveryPartnerId) {

@@ -84,6 +84,7 @@ export const useRestaurantNotifications = () => {
   const socketRef = useRef(null);
   const [newOrder, setNewOrder] = useState(null);
   const [newReservation, setNewReservation] = useState(null);
+  const [pickupOtpReveal, setPickupOtpReveal] = useState(null); // { orderId, otp, message }
   const [isConnected, setIsConnected] = useState(false);
   const audioRef = useRef(null);
   const activeOrderRef = useRef(null);
@@ -699,6 +700,17 @@ export const useRestaurantNotifications = () => {
       }
     });
 
+    // Listen for pickup OTP reveal (rider pressed "Request OTP" button)
+    socketRef.current.on('pickup_otp_reveal', (data) => {
+      debugLog('?? Pickup OTP reveal received:', data);
+      setPickupOtpReveal(data);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('restaurantPickupOtpReveal', { detail: data || {} })
+        );
+      }
+    });
+
     socketRef.current.on('admin_notification', (payload) => {
       debugLog('?? Admin broadcast received:', payload);
       dispatchNotificationInboxRefresh();
@@ -820,6 +832,8 @@ export const useRestaurantNotifications = () => {
   return {
     newOrder,
     newReservation,
+    pickupOtpReveal,
+    clearPickupOtpReveal: () => setPickupOtpReveal(null),
     clearNewOrder,
     clearNewReservation: () => {
       setNewReservation(null);

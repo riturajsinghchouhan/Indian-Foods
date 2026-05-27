@@ -225,9 +225,20 @@ export async function confirmPickupDeliveryController(req, res, next) {
     try {
         const deliveryPartnerId = req.user?.userId;
         const orderId = req.params.orderId;
-        const { billImageUrl } = req.body;
-        const order = await orderService.confirmPickupDelivery(orderId, deliveryPartnerId, billImageUrl);
+        const { billImageUrl, otp } = req.body;
+        const order = await orderService.confirmPickupDelivery(orderId, deliveryPartnerId, billImageUrl, otp);
         return sendResponse(res, 200, 'Pickup confirmed', { order });
+    } catch (err) {
+        next(err);
+    }
+}
+
+export async function requestPickupOtpController(req, res, next) {
+    try {
+        const deliveryPartnerId = req.user?.userId;
+        const orderId = req.params.orderId;
+        await orderService.requestPickupOtp(orderId, deliveryPartnerId);
+        return sendResponse(res, 200, 'OTP sent to restaurant');
     } catch (err) {
         next(err);
     }

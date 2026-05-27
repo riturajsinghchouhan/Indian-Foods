@@ -28,6 +28,9 @@ export const PickupActionModal = ({
   const [isUploadingBill, setIsUploadingBill] = useState(false);
   const [billImageUploaded, setBillImageUploaded] = useState(false);
   const [billImageUrl, setBillImageUrl] = useState(null);
+  const [pickupOtp, setPickupOtp] = useState('');
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [isRequestingOtp, setIsRequestingOtp] = useState(false);
   const cameraInputRef = useRef(null);
 
   if (!order) return null;
@@ -201,16 +204,72 @@ export const PickupActionModal = ({
 
               <div>
                 <p className={`text-center text-[10px] font-bold uppercase tracking-widest mb-3 ${billImageUploaded ? 'text-green-600' : 'text-gray-400'}`}>
-                  {billImageUploaded ? "Check the restaurant logo - Swipe to pick up" : "Capture bill to unlock swipe"}
+                  {billImageUploaded ? (otpRequested ? "Enter OTP & Swipe to pick up" : "Request OTP from restaurant") : "Capture bill to unlock"}
                 </p>
-                <ActionSlider 
-                  key="action-pickup"
-                  label="Slide to Pick Up" 
-                  successLabel="Picked Up!"
-                  disabled={!billImageUploaded}
-                  onConfirm={() => onPickedUp(billImageUrl)}
-                  color="bg-orange-500"
-                />
+
+                {/* Step 1: Request OTP button — sends OTP to restaurant via socket */}
+                {billImageUploaded && !otpRequested && (
+                  <button
+                    onClick={async () => {
+                      const orderId = order._id || order.orderId || order.orderMongoId;
+                      if (!orderId) { toast.error('Order ID missing'); return; }
+                      setIsRequestingOtp(true);
+                      try {
+                        const { deliveryAPI } = await import('@food/api');
+                        await deliveryAPI.requestPickupOtp(orderId);
+                        setOtpRequested(true);
+                        toast.success('OTP sent to restaurant! Ask them for the code.');
+                      } catch (err) {
+                        toast.error(err?.response?.data?.error || 'Failed to send OTP to restaurant');
+                      } finally {
+                        setIsRequestingOtp(false);
+                      }
+                    }}
+                    disabled={isRequestingOtp}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-orange-500 text-white font-black text-sm uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-60 mb-3"
+                  >
+                    {isRequestingOtp ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /><span>Sending...</span></>
+                    ) : (
+                      <span>🔔 Request OTP from Restaurant</span>
+                    )}
+                  </button>
+                )}
+
+                {/* Step 2: OTP input + Slider — visible only after OTP requested */}
+                {otpRequested && (
+                  <>
+                    <div className="mb-4 px-2">
+                      <input
+                        type="number"
+                        placeholder="Enter 4-digit Pickup OTP"
+                        value={pickupOtp}
+                        onChange={e => setPickupOtp(e.target.value.slice(0, 4))}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-center text-lg font-black tracking-[0.25em] outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
+                      />
+                    </div>
+                    <ActionSlider
+                      key="action-pickup"
+                      label="Slide to Pick Up"
+                      successLabel="Picked Up!"
+                      disabled={pickupOtp.length !== 4}
+                      onConfirm={() => onPickedUp(billImageUrl, pickupOtp)}
+                      color="bg-orange-500"
+                    />
+                  </>
+                )}
+
+                {/* Slider locked if bill not uploaded */}
+                {!billImageUploaded && (
+                  <ActionSlider
+                    key="action-pickup-locked"
+                    label="Slide to Pick Up"
+                    successLabel="Picked Up!"
+                    disabled={true}
+                    onConfirm={() => {}}
+                    color="bg-orange-500"
+                  />
+                )}
               </div>
             </div>
           )}
