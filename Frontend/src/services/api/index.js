@@ -359,6 +359,16 @@ export const adminAPI = {
     adminClient.get(`/food/admin/restaurants/${id}/menu`, config),
   updateRestaurantMenuById: (id, body) =>
     adminClient.patch(`/food/admin/restaurants/${id}/menu`, body ?? {}),
+  uploadMenuBulk: (restaurantId, file) => {
+    const formData = new FormData();
+    formData.append("restaurantId", restaurantId);
+    formData.append("file", file);
+    return adminClient.post("/food/admin/menu/bulk-upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  regenerateMenuItemImage: (restaurantId, sectionIndex, itemIndex, itemId) =>
+    adminClient.post("/food/admin/menu/regenerate-image", { restaurantId, sectionIndex, itemIndex, itemId }),
   /** Foods (admin) - separate collection */
   getFoods: (params = {}) =>
     adminClient.get("/food/admin/foods", { params }),

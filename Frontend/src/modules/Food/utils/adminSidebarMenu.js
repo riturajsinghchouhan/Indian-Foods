@@ -66,6 +66,7 @@ export const adminSidebarMenu = [
         icon: "UtensilsCrossed",
         subItems: [
           { label: "Restaurants List", path: "/admin/food/restaurants" },
+          { label: "Menu Bulk Upload", path: "/admin/food/restaurants/menu-bulk-upload" },
           { label: "New Joining Request", path: "/admin/food/restaurants/joining-request" },
           { label: "Restaurant Commission", path: "/admin/food/restaurants/commission" },
           { label: "Restaurant Reviews", path: "/admin/food/restaurants/reviews" },

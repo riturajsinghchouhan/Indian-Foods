@@ -11,6 +11,7 @@ export function PhotoUploadModal({ isOpen, onClose, onUpload }) {
   // Camera & Face Detection State
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const isCameraActiveRef = useRef(false); // Use ref to avoid stale closures in async loops
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [faceDetected, setFaceDetected] = useState(false);
@@ -28,14 +29,15 @@ export function PhotoUploadModal({ isOpen, onClose, onUpload }) {
       });
       
       streamRef.current = stream;
+      isCameraActiveRef.current = true;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
       }
       setIsCameraActive(true);
       
-      // Start Face Detection Loop
-      detectFaceLoop();
+      // Start Face Detection Loop after a brief moment for video to load
+      setTimeout(() => detectFaceLoop(), 500);
       
     } catch (err) {
       console.error("Camera error:", err);
@@ -45,6 +47,7 @@ export function PhotoUploadModal({ isOpen, onClose, onUpload }) {
   };
 
   const stopCamera = useCallback(() => {
+    isCameraActiveRef.current = false;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -61,7 +64,8 @@ export function PhotoUploadModal({ isOpen, onClose, onUpload }) {
       try {
         const detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
         const checkFace = async () => {
-          if (!isCameraActive || !videoRef.current) return;
+          // Use ref here (not state) to get fresh value every iteration
+          if (!isCameraActiveRef.current || !videoRef.current) return;
           try {
             const faces = await detector.detect(videoRef.current);
             if (faces.length > 0) {
@@ -81,15 +85,15 @@ export function PhotoUploadModal({ isOpen, onClose, onUpload }) {
         fallbackFaceDetection();
       }
     } else {
-      // Fallback: If Face API not supported, show scanning for 3 seconds then allow capture
+      // Fallback: If Face API not supported, show scanning for 2.5s then allow capture
       fallbackFaceDetection();
     }
   };
 
   const fallbackFaceDetection = () => {
-    // Simulate face scanning delay
+    // Simulate face scanning delay, use ref to check camera is still active
     setTimeout(() => {
-      if (isCameraActive) {
+      if (isCameraActiveRef.current) {
         setFaceDetected(true);
         setDetecting(false);
       }

@@ -12,8 +12,11 @@ import { getAdminPageController, upsertAdminPageController } from '../controller
 import * as liveMonitorController from '../controllers/liveMonitor.controller.js';
 import * as appIntroAdController from '../controllers/appIntroAd.controller.js';
 import { upload } from '../../../../middleware/upload.js';
+import menuBulkRoutes from './menuBulk.routes.js';
 
 const router = express.Router();
+
+router.use('/menu', menuBulkRoutes);
 
 // ----- Public Business Settings (No Admin Required) -----
 router.get('/business-settings/public', businessSettingsController.getBusinessSettings);

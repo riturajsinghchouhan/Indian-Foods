@@ -12,6 +12,7 @@
     "worker:order": "node src/queues/workers/order.worker.js",
     "worker:tracking": "node src/queues/workers/tracking.worker.js",
     "worker:payment": "node src/queues/workers/payment.worker.js",
+    "worker:menu-image": "node src/queues/workers/menuImage.worker.js",
     "migrate:fcm-tokens": "node scripts/migrate-fcm-tokens-to-profile-models.js",
     "migrate:order-payments": "node scripts/migrate-orders-to-transactions.js",
     "cleanup:legacy-collections": "node scripts/cleanup-legacy-collections.js",
@@ -21,6 +22,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google/genai": "^2.7.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.34.5",
@@ -41,6 +43,7 @@
     "razorpay": "^2.9.2",
     "redis": "^4.6.14",
     "socket.io": "^4.7.5",
+    "xlsx": "^0.18.5",
     "xss-clean": "^0.1.4",
     "zod": "^3.23.8"
   },
