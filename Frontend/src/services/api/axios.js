@@ -209,6 +209,13 @@ function getModuleFromUrl(url = "") {
 
 apiClient.interceptors.request.use(
   (config) => {
+    // FormData handling
+    if (config.data instanceof FormData) {
+      if (config.headers && config.headers["Content-Type"]) {
+        delete config.headers["Content-Type"];
+      }
+    }
+
     const module = config.contextModule || getModuleFromUrl(config.url);
     const token = getAccessToken(module);
     if (token) config.headers.Authorization = `Bearer ${token}`;

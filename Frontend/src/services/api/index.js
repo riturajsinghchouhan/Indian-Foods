@@ -363,10 +363,10 @@ export const adminAPI = {
     const formData = new FormData();
     formData.append("restaurantId", restaurantId);
     formData.append("file", file);
-    return adminClient.post("/food/admin/menu/bulk-upload", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    return adminClient.post("/food/admin/menu/bulk-upload", formData);
   },
+  getMenuItemsStatus: (restaurantId) =>
+    adminClient.get(`/food/admin/menu/items-status/${restaurantId}`),
   regenerateMenuItemImage: (restaurantId, sectionIndex, itemIndex, itemId) =>
     adminClient.post("/food/admin/menu/regenerate-image", { restaurantId, sectionIndex, itemIndex, itemId }),
   /** Foods (admin) - separate collection */

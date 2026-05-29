@@ -431,10 +431,11 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           }}
           className={cn(
             "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-300 ease-out menu-item-animate text-left",
-            isInSection ? "text-sm font-semibold" : "text-sm",
+            isInSection ? "text-base font-bold" : "text-base font-bold",
+            item.label === "Log out" ? "text-red-500 hover:bg-red-500/10 hover:text-red-400" :
             isActive(item.path)
-              ? "bg-white/10 text-white border border-white/15 font-semibold"
-              : "text-neutral-300 hover:bg-white/5 hover:text-white",
+              ? "bg-white/10 text-white border border-white/15"
+              : "text-neutral-100 hover:bg-white/5 hover:text-white",
             isCollapsed && "justify-center px-2"
           )}
           style={{ animationDelay: `${index * 0.05}s` }}
@@ -447,7 +448,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           )} />
           {!isCollapsed && (
             <div className="flex-1 flex items-center justify-between overflow-hidden">
-              <span className={cn("text-left truncate", isInSection ? "font-semibold" : "font-medium")}>
+              <span className="text-left truncate font-bold">
                 {item.label}
               </span>
               {getBadgeCount(item.label, item.path) > 0 && (
@@ -475,7 +476,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
             <button
               onClick={() => toggleSection(sectionKey)}
               className={cn(
-                "w-full flex items-center justify-center px-2 py-2 rounded-lg transition-all duration-300 ease-out text-sm font-medium",
+                "w-full flex items-center justify-center px-2 py-2 rounded-lg transition-all duration-300 ease-out text-base font-bold",
                 "text-white hover:bg-white/5"
               )}
               title={item.label}
@@ -496,13 +497,13 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           <button
             onClick={() => toggleSection(sectionKey)}
             className={cn(
-              "w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-all duration-300 ease-out text-sm font-medium text-left",
+              "w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-all duration-300 ease-out text-base font-bold text-left",
               "text-white hover:bg-white/5"
             )}
           >
             <div className="flex items-center gap-2.5 text-left flex-1 min-w-0">
-              <Icon className="w-4 h-4 shrink-0 text-neutral-300 transition-transform duration-300" />
-              <span className="font-medium text-left truncate">{item.label}</span>
+              <Icon className="w-4 h-4 shrink-0 text-neutral-100 transition-transform duration-300" />
+              <span className="font-bold text-left truncate">{item.label}</span>
               {getBadgeCount(item.label, item.path) > 0 && (
                 <span className="shrink-0 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 min-w-[18px] text-center">
                   {getBadgeCount(item.label, item.path) > 99 ? "99+" : getBadgeCount(item.label, item.path)}
@@ -527,10 +528,10 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-300 ease-out text-sm font-normal text-left",
+                      "flex items-center gap-2 px-3 py-1.5 rounded-md transition-all duration-300 ease-out text-base font-bold text-left",
                       isActive(subItem.path, allSubPaths)
-                        ? "bg-white/10 text-white font-semibold"
-                        : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                        ? "bg-white/10 text-white"
+                        : "text-neutral-100 hover:bg-white/5 hover:text-white"
                     )}
                     style={{ animationDelay: `${subIndex * 0.03}s` }}
                   >
@@ -628,18 +629,19 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
       `}</style>
       <div
         className={cn(
-          "border-r border-neutral-800/60 h-screen fixed left-0 top-0 z-50 flex flex-col overflow-hidden",
+          "border-r border-neutral-700/30 h-screen fixed left-0 top-0 z-50 flex flex-col overflow-hidden",
           "transform transition-all duration-300 ease-in-out",
           "lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
-          isCollapsed ? "w-20" : "w-80"
+          isCollapsed ? "w-20" : "w-80",
+          "bg-[#576574]"
         )}
-        style={{ backgroundColor: 'var(--ad-primary, #0a0a0a)' }}
+        style={{ backgroundColor: 'var(--ad-primary, #576574)' }}
       >
         {/* Header with Logo and Brand */}
         <div 
-          className="shrink-0 px-3 py-3 border-b border-neutral-800/60 animate-[fadeIn_0.4s_ease-out]"
-          style={{ backgroundColor: 'var(--ad-primary-strong, #171717)' }}
+          className="shrink-0 px-3 py-3 border-b border-neutral-700/30 animate-[fadeIn_0.4s_ease-out] bg-[#4a5664]"
+          style={{ backgroundColor: 'var(--ad-primary-strong, #4a5664)' }}
         >
           <div className="flex items-center justify-between mb-3">
             {!isCollapsed && (
@@ -728,7 +730,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
-                  "w-full pl-9 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-white/40 transition-all duration-200 text-left",
+                  "w-full pl-9 py-2.5 bg-[#404c59] border border-[#394450] rounded-lg text-base font-bold text-white placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-white/40 transition-all duration-200 text-left",
                   searchQuery ? "pr-9" : "pr-3"
                 )}
               />
@@ -769,7 +771,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                       <div className="px-3 py-2 mb-2 flex items-center justify-between">
-                        <span className="text-neutral-400 font-bold text-sm uppercase tracking-wider text-left">
+                        <span className="text-neutral-300 font-semibold text-base text-left">
                           {item.label}
                         </span>
                         {item.items.some(subItem => {

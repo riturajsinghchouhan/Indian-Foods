@@ -84,7 +84,28 @@ export const useRestaurantNotifications = () => {
   const socketRef = useRef(null);
   const [newOrder, setNewOrder] = useState(null);
   const [newReservation, setNewReservation] = useState(null);
-  const [pickupOtpReveal, setPickupOtpReveal] = useState(null); // { orderId, otp, message }
+  const [pickupOtpReveal, setPickupOtpRevealState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('restaurant_pickupOtpReveal');
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }); // { orderId, otp, message }
+
+  const setPickupOtpReveal = (data) => {
+    setPickupOtpRevealState(data);
+    if (typeof window !== 'undefined') {
+      if (data) {
+        localStorage.setItem('restaurant_pickupOtpReveal', JSON.stringify(data));
+      } else {
+        localStorage.removeItem('restaurant_pickupOtpReveal');
+      }
+    }
+  };
   const [isConnected, setIsConnected] = useState(false);
   const audioRef = useRef(null);
   const activeOrderRef = useRef(null);

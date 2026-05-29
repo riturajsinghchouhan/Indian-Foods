@@ -6,6 +6,8 @@ import { FoodCategory } from '../models/category.model.js';
 import { Queue } from 'bullmq';
 import { getBullMQConnection } from '../../../../queues/connection.js';
 import { MENU_IMAGE_QUEUE } from '../../../../queues/queue.constants.js';
+import { generateMenuImageForItem } from '../../../../queues/processors/menuImage.processor.js';
+import { getSocketIo } from '../../../../utils/socket.js';
 import { logger } from '../../../../utils/logger.js';
 
 const router = express.Router();
@@ -15,9 +17,61 @@ try {
     const connection = getBullMQConnection();
     if (connection) {
         menuImageQueue = new Queue(MENU_IMAGE_QUEUE, { connection });
+        logger.info('Menu Image Queue initialized via BullMQ (Redis mode)');
     }
 } catch (e) {
-    logger.warn('Failed to initialize Menu Image Queue in routes');
+    logger.warn('BullMQ/Redis not available. Will use direct async fallback for image generation.');
+}
+
+/**
+ * Fire-and-forget direct image generation (no Redis needed).
+ * Emits socket events just like the BullMQ worker does.
+ */
+async function generateImageDirect(jobData) {
+    const { restaurantId, itemId, itemName, sectionIndex, itemIndex } = jobData;
+    try {
+        const result = await generateMenuImageForItem(jobData);
+
+        const io = getSocketIo();
+        if (io && result?.success) {
+            io.to('admin').emit('menuImageGenerated', {
+                restaurantId,
+                itemId,
+                sectionIndex,
+                itemIndex,
+                imageUrl: result.imageUrl,
+                itemName
+            });
+            logger.info(`[Direct] Image generated & emitted for "${itemName}"`);
+        }
+    } catch (err) {
+        logger.error(`[Direct] Image generation failed for "${itemName}": ${err.message}`);
+        const io = getSocketIo();
+        if (io) {
+            io.to('admin').emit('menuImageFailed', {
+                restaurantId,
+                itemId,
+                sectionIndex,
+                itemIndex,
+                itemName,
+                error: err.message
+            });
+        }
+    }
+}
+
+/**
+ * Queue a job — uses BullMQ if available, otherwise fires directly in background.
+ */
+async function enqueueImageJob(jobData) {
+    if (menuImageQueue) {
+        await menuImageQueue.add('generateImage', jobData);
+        logger.info(`[BullMQ] Job queued for "${jobData.itemName}"`);
+    } else {
+        // No Redis — run directly in background (non-blocking)
+        setImmediate(() => generateImageDirect(jobData));
+        logger.info(`[Direct Fallback] Generating image for "${jobData.itemName}"`);
+    }
 }
 
 /**
@@ -56,11 +110,10 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
             return res.status(400).json({ success: false, message: 'No valid menu items found in file. Check column names (Category Name, Name, Price).' });
         }
         
-        // 1. Get unique sections/categories
+        // 1. Get unique sections/categories and create if missing
         const uniqueSections = [...new Set(validRows.map(r => (r['Category Name'] || r.Section || r.section || '').trim()))];
-        const categoryMap = {}; // sectionName -> categoryId
+        const categoryMap = {};
 
-        // Find existing categories or create them
         for (const section of uniqueSections) {
             let category = await FoodCategory.findOne({ name: section, restaurantId });
             if (!category) {
@@ -75,7 +128,7 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
             categoryMap[section] = category._id;
         }
 
-        // 2. Create Food Items
+        // 2. Create / find Food Items
         const newItems = [];
         for (const row of validRows) {
             const sectionName = (row['Category Name'] || row.Section || row.section || '').trim();
@@ -96,7 +149,6 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
             
             const imageUrl = (row['Image URL'] || '').trim();
             
-            // Parse Variants (e.g. "Half:180, Full:350")
             const variantsStr = (row['Variants (Name:Price, ...)'] || row.Variants || '').toString().trim();
             const variants = [];
             if (variantsStr) {
@@ -104,38 +156,51 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                 for (const part of parts) {
                     const [vName, vPrice] = part.split(':');
                     if (vName && vPrice && !isNaN(parseFloat(vPrice))) {
-                        variants.push({
-                            name: vName.trim(),
-                            price: parseFloat(vPrice.trim())
-                        });
+                        variants.push({ name: vName.trim(), price: parseFloat(vPrice.trim()) });
                     }
                 }
             }
 
-            const item = await FoodItem.create({
+            // Check if item already exists
+            const existingItem = await FoodItem.findOne({
                 restaurantId,
-                categoryId: categoryMap[sectionName],
-                categoryName: sectionName,
-                name: itemName,
-                description,
-                price,
-                foodType,
-                preparationTime,
-                variants,
-                image: imageUrl, // Uses provided image if any, otherwise will be AI generated
-                isAvailable,
-                approvalStatus: 'approved'
+                name: { $regex: new RegExp(`^${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
             });
+
+            let item;
+            let hasPredefinedImage;
+
+            if (existingItem) {
+                if (existingItem.image) {
+                    logger.info(`Skipping "${itemName}" — already has image`);
+                    newItems.push({ itemDoc: existingItem, sectionName, hasPredefinedImage: true });
+                    continue;
+                } else {
+                    item = existingItem;
+                    hasPredefinedImage = false;
+                }
+            } else {
+                item = await FoodItem.create({
+                    restaurantId,
+                    categoryId: categoryMap[sectionName],
+                    categoryName: sectionName,
+                    name: itemName,
+                    description,
+                    price,
+                    foodType,
+                    preparationTime,
+                    variants,
+                    image: imageUrl,
+                    isAvailable,
+                    approvalStatus: 'approved'
+                });
+                hasPredefinedImage = !!imageUrl;
+            }
             
-            newItems.push({
-                itemDoc: item,
-                sectionName,
-                hasPredefinedImage: !!imageUrl
-            });
+            newItems.push({ itemDoc: item, sectionName, hasPredefinedImage });
         }
         
-        // 3. Structure response for frontend (sections -> items array)
-        // Group new items by section
+        // 3. Build response & enqueue image generation
         const sectionsResponseMap = {};
         let queuedJobsCount = 0;
 
@@ -156,16 +221,19 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
 
             sectionsResponseMap[sectionName].items.push(itemForUI);
             
-            // Queue image generation ONLY if no image was provided in the excel file
-            if (menuImageQueue && !hasPredefinedImage) {
-                await menuImageQueue.add('generateImage', {
+            if (!hasPredefinedImage) {
+                const sectionIndex = Object.keys(sectionsResponseMap).indexOf(sectionName);
+                const itemIndex = sectionsResponseMap[sectionName].items.length - 1;
+
+                await enqueueImageJob({
                     restaurantId,
-                    itemId: itemDoc._id.toString(), // Pass itemId instead of array indices
+                    itemId: itemDoc._id.toString(),
                     itemName: itemDoc.name,
                     itemDescription: itemDoc.description,
-                    // Keeping indices for backward compatibility with frontend socket logic
-                    sectionIndex: Object.keys(sectionsResponseMap).indexOf(sectionName),
-                    itemIndex: sectionsResponseMap[sectionName].items.length - 1
+                    categoryName: itemDoc.categoryName,
+                    foodType: itemDoc.foodType,
+                    sectionIndex,
+                    itemIndex
                 });
                 queuedJobsCount++;
             }
@@ -175,7 +243,7 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
         
         res.status(200).json({
             success: true,
-            message: 'Menu uploaded successfully',
+            message: `Menu uploaded successfully. Generating ${queuedJobsCount} image(s) in background.`,
             queuedJobsCount,
             menu: menuResponse
         });
@@ -191,44 +259,64 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
  */
 router.post('/regenerate-image', async (req, res) => {
     try {
-        // Wait, the frontend passes sectionIndex and itemIndex, but also could pass itemId if we modify it.
-        // Let's modify frontend to pass itemId later, or we can look it up if needed.
-        // Actually it's easier to change frontend to pass `itemId` since it knows `item.id`.
         const { restaurantId, itemId, sectionIndex, itemIndex } = req.body;
         
-        if (!restaurantId || (!itemId && sectionIndex === undefined)) {
-            return res.status(400).json({ success: false, message: 'Missing required fields' });
+        if (!restaurantId || !itemId) {
+            return res.status(400).json({ success: false, message: 'restaurantId and itemId are required' });
         }
         
-        let itemDoc;
-        if (itemId) {
-            itemDoc = await FoodItem.findOne({ _id: itemId, restaurantId });
-        } else {
-            // Fallback for old frontend behavior
-            return res.status(400).json({ success: false, message: 'Please provide itemId to regenerate' });
-        }
-
+        const itemDoc = await FoodItem.findOne({ _id: itemId, restaurantId });
         if (!itemDoc) {
             return res.status(404).json({ success: false, message: 'Item not found' });
         }
+
+        // Clear image so it re-generates fresh
+        itemDoc.image = '';
+        await itemDoc.save();
         
-        if (menuImageQueue) {
-            await menuImageQueue.add('generateImage', {
-                restaurantId,
-                itemId: itemDoc._id.toString(),
-                itemName: itemDoc.name,
-                itemDescription: itemDoc.description,
-                sectionIndex, // Pass along so frontend socket event works
-                itemIndex
-            });
-            return res.status(200).json({ success: true, message: 'Image regeneration queued' });
-        } else {
-            return res.status(500).json({ success: false, message: 'Queue is not initialized' });
-        }
+        await enqueueImageJob({
+            restaurantId,
+            itemId: itemDoc._id.toString(),
+            itemName: itemDoc.name,
+            itemDescription: itemDoc.description,
+            categoryName: itemDoc.categoryName,
+            foodType: itemDoc.foodType,
+            sectionIndex,
+            itemIndex
+        });
+
+        return res.status(200).json({ success: true, message: 'Image regeneration started' });
         
     } catch (error) {
         logger.error(`Regenerate Image Error: ${error.message}`);
-        res.status(500).json({ success: false, message: 'Failed to queue image generation' });
+        res.status(500).json({ success: false, message: 'Failed to regenerate image' });
+    }
+});
+
+/**
+ * Get current image status for all items of a restaurant (polling fallback)
+ */
+router.get('/items-status/:restaurantId', async (req, res) => {
+    try {
+        const { restaurantId } = req.params;
+        if (!restaurantId) {
+            return res.status(400).json({ success: false, message: 'restaurantId is required' });
+        }
+
+        const items = await FoodItem.find({ restaurantId })
+            .select('_id name image categoryName')
+            .lean();
+
+        // Map: itemId -> imageUrl
+        const statusMap = {};
+        for (const item of items) {
+            statusMap[item._id.toString()] = item.image || '';
+        }
+
+        return res.status(200).json({ success: true, data: statusMap });
+    } catch (error) {
+        logger.error(`Items Status Error: ${error.message}`);
+        res.status(500).json({ success: false, message: 'Failed to fetch status' });
     }
 });
 

@@ -278,14 +278,14 @@ export default function AdminNavbar({ onMenuClick }) {
             >
               <Menu className="w-5 h-5" />
             </button>
-            {/* Logo */}
-            <div className="flex items-center gap-2">
-              <div className="w-24 h-12 rounded-lg bg-white flex items-center justify-center ring-neutral-200">
+            {/* Logo and Company Name */}
+            <div className="flex items-center cursor-pointer" onClick={() => navigate('/admin')}>
+              <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center">
                 {businessSettings?.logo?.url ? (
                   <img
                     src={businessSettings.logo.url}
                     alt={businessSettings.companyName || "Company"}
-                    className="w-24 h-10 object-contain"
+                    className="w-10 h-10 object-contain"
                     loading="lazy"
                     onError={(e) => {
                       // Fallback to default logo if company logo fails to load
@@ -293,15 +293,12 @@ export default function AdminNavbar({ onMenuClick }) {
                     }}
                   />
                 ) : (
-                  businessSettings?.companyName ? (
-                    <span className="text-sm font-semibold text-neutral-700 px-2 truncate">
-                      {businessSettings.companyName}
-                    </span>
-                  ) : (
-                    <img src={quickSpicyLogo} alt={businessSettings?.companyName || "Company"} className="w-24 h-10 object-contain" loading="lazy" />
-                  )
+                  <img src={quickSpicyLogo} alt={businessSettings?.companyName || "Company"} className="w-10 h-10 object-contain" loading="lazy" />
                 )}
               </div>
+              <span className="text-red-600 font-extrabold text-xl ml-1 tracking-tight">
+                {businessSettings?.companyName || "Indian Bites"}
+              </span>
             </div>
           </div>
 

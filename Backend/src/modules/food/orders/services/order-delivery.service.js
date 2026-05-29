@@ -797,6 +797,25 @@ export async function requestPickupOtp(orderId, deliveryPartnerId) {
     });
   }
 
+  try {
+    const restaurant = await mongoose.model('FoodRestaurant').findById(order.restaurantId).select('restaurantName').lean();
+    await notifyOwnersSafely(
+      [{ ownerType: 'RESTAURANT', ownerId: order.restaurantId }],
+      {
+        title: 'OTP Requested! 🔐',
+        body: `Delivery partner is requesting the Pickup OTP for Order #${order.order_id || order._id.toString()}. The OTP is: ${otp}`,
+        data: {
+          type: 'pickup_otp_request',
+          orderId: String(order.order_id || order._id.toString()),
+          orderMongoId: String(order._id),
+          otp: String(otp)
+        },
+      },
+    );
+  } catch (error) {
+    logger.error(`Error notifying restaurant about OTP request for ${order._id}: ${error?.message || error}`);
+  }
+
   return { otp };
 }
 

@@ -119,6 +119,7 @@ export const initSocket = async (server) => {
         if (userId && role) {
             if (role === 'RESTAURANT') socket.join(roomNames.restaurant(userId));
             if (role === 'USER') socket.join(roomNames.user(userId));
+            if (role === 'ADMIN') socket.join('admin'); // Admin panel broadcasts
             if (role === 'DELIVERY_PARTNER') {
                 socket.join(roomNames.delivery(userId));
                 socket.join('all_delivery'); // Global delivery broadcast room
@@ -129,6 +130,14 @@ export const initSocket = async (server) => {
                 });
             }
         }
+
+        // Generic joinRoom (used by Admin bulk upload page)
+        socket.on('joinRoom', (roomName) => {
+            if (typeof roomName === 'string' && roomName.trim()) {
+                socket.join(roomName.trim());
+                logger.info(`Socket ${socket.id} (${role}:${userId}) joined room: ${roomName.trim()}`);
+            }
+        });
 
         // Explicit join (used by existing restaurant client hook).
         socket.on('join-restaurant', (restaurantId) => {

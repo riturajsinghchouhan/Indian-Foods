@@ -1,80 +1,117 @@
 import { logger } from '../../utils/logger.js';
 import { FoodItem } from '../../modules/food/admin/models/food.model.js';
-import cloudinary from '../../utils/cloudinary.js';
-import { GoogleGenAI } from '@google/genai';
+import { v2 as cloudinary } from 'cloudinary';
 import { config } from '../../config/env.js';
+import { HfInference } from '@huggingface/inference';
 
-let aiClient = null;
+// Configure cloudinary
+cloudinary.config({
+    cloud_name: config.cloudinaryCloudName,
+    api_key: config.cloudinaryApiKey,
+    api_secret: config.cloudinaryApiSecret
+});
 
-if (process.env.GEMINI_API_KEY) {
+let hfClient = null;
+
+if (process.env.HUGGINGFACE_API_KEY) {
     try {
-        aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        hfClient = new HfInference(process.env.HUGGINGFACE_API_KEY);
     } catch (e) {
-        logger.error('Failed to initialize Google GenAI: ' + e.message);
+        logger.error('Failed to initialize Hugging Face client: ' + e.message);
     }
 }
 
-async function uploadBase64ToCloudinary(base64Data, itemName) {
+async function uploadBufferToCloudinary(buffer, itemName) {
     return new Promise((resolve, reject) => {
-        const uploadStr = `data:image/jpeg;base64,${base64Data}`;
-        const folderName = `restaurants/menu_items`;
-        
-        cloudinary.uploader.upload(uploadStr, {
-            folder: folderName,
-            public_id: `${itemName.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`,
-            quality: 'auto',
-            fetch_format: 'auto'
-        }, (error, result) => {
-            if (error) return reject(error);
-            resolve(result.secure_url);
-        });
+        const publicId = `${itemName.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`;
+        const stream = cloudinary.uploader.upload_stream(
+            {
+                folder: 'restaurants/menu_items',
+                public_id: publicId,
+                quality: 'auto',
+                fetch_format: 'auto',
+                resource_type: 'image'
+            },
+            (error, result) => {
+                if (error) return reject(error);
+                resolve(result.secure_url);
+            }
+        );
+        stream.end(buffer);
     });
 }
 
-export const processMenuImageJob = async (job) => {
-    const { restaurantId, itemId, sectionIndex, itemIndex, itemName, itemDescription } = job.data;
-    
-    if (!aiClient) {
-        throw new Error('Google GenAI client not initialized (Missing GEMINI_API_KEY)');
+/**
+ * Build a highly specific, dish-aware prompt for FLUX.1-schnell
+ */
+export function buildImagePrompt(itemName, itemDescription, categoryName, foodType) {
+    const dishName = itemName.trim();
+    const category = categoryName ? categoryName.trim() : '';
+    const type = foodType === 'Veg' ? 'vegetarian' : 'non-vegetarian';
+    const desc = itemDescription ? itemDescription.trim() : '';
+
+    let prompt = `A professional, highly realistic, appetizing food photography image of the exact Indian dish: "${dishName}".`;
+
+    if (desc) prompt += ` The dish is described as: "${desc}".`;
+    if (category) prompt += ` It belongs to the "${category}" category on an Indian restaurant menu.`;
+
+    prompt += ` This is a ${type} Indian dish.`;
+    prompt += ` The photo must show ONLY this specific dish — "${dishName}" — served in a traditional or modern Indian restaurant style.`;
+    prompt += ` Shot from a 45-degree top-down angle, natural lighting, shallow depth of field, macro lens, 85mm, extremely detailed, garnished beautifully.`;
+    prompt += ` Background: clean white or dark slate plate. No text, no watermarks, no people, no hands, no other dishes visible.`;
+    prompt += ` Ultra-realistic, 8k resolution, cinematic food photography quality.`;
+
+    return prompt;
+}
+
+/**
+ * Core image generation logic — works both from BullMQ worker AND direct call (no-Redis fallback).
+ */
+export async function generateMenuImageForItem({ restaurantId, itemId, itemName, itemDescription, categoryName, foodType, sectionIndex, itemIndex }) {
+    if (!hfClient) {
+        throw new Error('Hugging Face client not initialized (Missing HUGGINGFACE_API_KEY)');
     }
 
+    const prompt = buildImagePrompt(itemName, itemDescription, categoryName, foodType);
+
+    logger.info(`[FLUX] Generating image for "${itemName}" | Category: ${categoryName} | Type: ${foodType}`);
+
+    const blob = await hfClient.textToImage({
+        model: 'black-forest-labs/FLUX.1-schnell',
+        inputs: prompt,
+        parameters: {
+            guidance_scale: 3.5,
+            num_inference_steps: 4,
+            width: 1024,
+            height: 1024
+        }
+    });
+
+    if (!blob) throw new Error('No image blob returned from Hugging Face API');
+
+    const arrayBuffer = await blob.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const imageUrl = await uploadBufferToCloudinary(buffer, itemName);
+
+    // Update DB
+    const itemDoc = await FoodItem.findOne({ _id: itemId, restaurantId });
+    if (!itemDoc) throw new Error(`FoodItem not found for id ${itemId}`);
+
+    itemDoc.image = imageUrl;
+    await itemDoc.save();
+
+    logger.info(`[FLUX] Image saved for "${itemName}" → ${imageUrl}`);
+    return { success: true, imageUrl, restaurantId, itemId, sectionIndex, itemIndex, itemName };
+}
+
+/**
+ * BullMQ job processor wrapper
+ */
+export const processMenuImageJob = async (job) => {
     try {
-        const prompt = `Generate a highly realistic, professional, appetizing food photography shot of an Indian dish called '${itemName}'. Description: '${itemDescription || 'Delicious Indian food'}'. Close-up, well-lit, isolated background, no text.`;
-        
-        logger.info(`Requesting image for ${itemName} (Job ${job.id})`);
-
-        const response = await aiClient.models.generateImages({
-            model: 'imagen-3.0-generate-002',
-            prompt: prompt,
-            config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/jpeg',
-                aspectRatio: '1:1'
-            }
-        });
-
-        if (!response.generatedImages || response.generatedImages.length === 0) {
-            throw new Error('No image returned from Gemini/Imagen API');
-        }
-
-        const base64Image = response.generatedImages[0].image.imageBytes;
-
-        const imageUrl = await uploadBase64ToCloudinary(base64Image, itemName);
-
-        // Update database
-        const itemDoc = await FoodItem.findOne({ _id: itemId, restaurantId });
-        if (!itemDoc) {
-            throw new Error(`Menu item not found for id ${itemId}`);
-        }
-
-        itemDoc.image = imageUrl;
-        await itemDoc.save();
-
-        logger.info(`Successfully generated and saved image for ${itemName}`);
-        return { success: true, imageUrl, restaurantId, itemId, sectionIndex, itemIndex };
-
+        return await generateMenuImageForItem(job.data);
     } catch (error) {
-        logger.error(`Error processing menu image job ${job.id}: ${error.message}`);
+        logger.error(`Image generation failed for job ${job.id} ("${job.data.itemName}"): ${error.message}`);
         throw error;
     }
 };

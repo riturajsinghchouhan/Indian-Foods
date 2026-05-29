@@ -185,7 +185,7 @@ function CompletedOrders({ onSelectOrder, refreshToken = 0 }) {
 
   if (loading) {
     return (
-      <div className="pt-4 pb-6">
+      <div className="pt-1 pb-6">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-base font-semibold text-black">
             Completed orders
@@ -198,7 +198,7 @@ function CompletedOrders({ onSelectOrder, refreshToken = 0 }) {
   }
 
   return (
-    <div className="pt-4 pb-6">
+    <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Completed orders</h2>
         <span className="text-xs text-gray-500">{orders.length} total</span>
@@ -395,7 +395,7 @@ function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
 
   if (loading) {
     return (
-      <div className="pt-4 pb-6">
+      <div className="pt-1 pb-6">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-base font-semibold text-black">
             Cancelled orders
@@ -408,7 +408,7 @@ function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
   }
 
   return (
-    <div className="pt-4 pb-6">
+    <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Cancelled orders</h2>
         <span className="text-xs text-gray-500">{orders.length} total</span>
@@ -616,7 +616,7 @@ function TableBookings() {
     );
 
   return (
-    <div className="pt-4 pb-6 px-1">
+    <div className="pt-1 pb-6 px-1">
       <div className="flex items-baseline justify-between mb-4 px-1">
         <h2 className="text-base font-semibold text-black">Table Bookings</h2>
         <div className="flex items-center gap-3">
@@ -820,7 +820,7 @@ function AllOrders({ onSelectOrder, onCancel }) {
 
   if (loading) {
     return (
-      <div className="pt-4 pb-6">
+      <div className="pt-1 pb-6">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-base font-semibold text-black">All orders</h2>
           <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
@@ -831,7 +831,7 @@ function AllOrders({ onSelectOrder, onCancel }) {
   }
 
   return (
-    <div className="pt-4 pb-6">
+    <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-black">All orders</h2>
@@ -915,7 +915,7 @@ function SearchResults({ query, results, isLoading, onSelectOrder }) {
   const transformedResults = (results || []).map(transformOrderForList);
 
   return (
-    <div className="pt-4 pb-6">
+    <div className="pt-1 pb-6">
       <div className="flex items-center gap-2 mb-4">
         <h2 className="text-base font-semibold text-black">Search results for</h2>
         <span className="bg-gray-200 px-2 py-0.5 rounded text-sm text-gray-700 italic">"{query}"</span>
@@ -999,7 +999,7 @@ function ScheduledOrders({ onSelectOrder, refreshToken }) {
   }
 
   return (
-    <div className="pt-4 pb-6">
+    <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-black">Scheduled orders</h2>
@@ -2394,10 +2394,10 @@ export default function OrdersMain() {
       </AnimatePresence>
 
       {/* Top Filter Bar - Sticky below navbar */}
-      <div className="sticky top-[80px] md:top-[85px] z-40 pb-2 bg-gray-100">
+      <div className="sticky top-[80px] md:top-[85px] z-40 pb-0 bg-gray-100">
         <div
           ref={filterBarRef}
-          className="flex gap-2 overflow-x-auto scrollbar-hide bg-transparent rounded-full px-3 py-2 mt-2"
+          className="flex gap-2 overflow-x-auto scrollbar-hide bg-transparent rounded-full px-3 py-1 mt-1"
           style={{
             scrollbarWidth: "none",
             msOverflowStyle: "none",
@@ -3904,7 +3904,7 @@ function PreparingOrders({
 
   if (loading) {
     return (
-      <div className="pt-4 pb-6">
+      <div className="pt-1 pb-6">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-base font-semibold text-black">
             Preparing orders
@@ -3917,7 +3917,7 @@ function PreparingOrders({
   }
 
   return (
-    <div className="pt-4 pb-6">
+    <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Preparing orders</h2>
         <span className="text-xs text-gray-500">{orders.length} active</span>
@@ -4075,7 +4075,7 @@ function ReadyOrders({ onSelectOrder, refreshToken = 0 }) {
 
   if (loading) {
     return (
-      <div className="pt-4 pb-6">
+      <div className="pt-1 pb-6">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-base font-semibold text-black">
             Ready for pickup
@@ -4088,7 +4088,7 @@ function ReadyOrders({ onSelectOrder, refreshToken = 0 }) {
   }
 
   return (
-    <div className="pt-4 pb-6">
+    <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Ready for pickup</h2>
         <span className="text-xs text-gray-500">{orders.length} active</span>
@@ -4195,7 +4195,7 @@ const OutForDeliveryOrders = ({ onSelectOrder, refreshToken = 0 }) => {
 
   if (loading) {
     return (
-      <div className="pt-4 pb-6">
+      <div className="pt-1 pb-6">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-base font-semibold text-black">
             Out for delivery
@@ -4208,7 +4208,7 @@ const OutForDeliveryOrders = ({ onSelectOrder, refreshToken = 0 }) => {
   }
 
   return (
-    <div className="pt-4 pb-6">
+    <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Out for delivery</h2>
         <span className="text-xs text-gray-500">{orders.length} active</span>

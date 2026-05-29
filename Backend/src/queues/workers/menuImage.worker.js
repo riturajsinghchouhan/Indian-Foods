@@ -24,10 +24,10 @@ const startMenuImageWorker = () => {
     }
     const worker = new Worker(MENU_IMAGE_QUEUE, processMenuImageJob, {
         connection,
-        concurrency: 1, // Keep concurrency 1 to avoid hitting rate limits
+        concurrency: 3, // 3 parallel jobs for faster generation
         limiter: {
-            max: 10,
-            duration: 60000 // Max 10 images per minute
+            max: 30,
+            duration: 60000 // Max 30 images per minute (Imagen API limit-safe)
         },
         defaultJobOptions
     });
@@ -50,7 +50,20 @@ const startMenuImageWorker = () => {
     
     worker.on('failed', (job, err) => {
         logger.error(`Menu Image job ${job?.id} failed for ${job?.data?.itemName}: ${err.message}`);
-        // Optional: Notify frontend of failure if all attempts exhausted
+        // Notify frontend if all retries exhausted
+        if (job?.attemptsMade >= (job?.opts?.attempts ?? 3)) {
+            const io = getSocketIo();
+            if (io) {
+                io.to('admin').emit('menuImageFailed', {
+                    restaurantId: job.data.restaurantId,
+                    itemId: job.data.itemId,
+                    sectionIndex: job.data.sectionIndex,
+                    itemIndex: job.data.itemIndex,
+                    itemName: job.data.itemName,
+                    error: err.message
+                });
+            }
+        }
     });
     
     worker.on('error', (err) => logger.error(`Menu Image worker error: ${err.message}`));
