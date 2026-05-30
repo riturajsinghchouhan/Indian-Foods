@@ -61,7 +61,10 @@ export const NewOrderModal = ({ order, onAccept, onReject, onMinimize }) => {
 
   if (!order) return null;
 
+  const bonus = order.deliveryBonusAmount || 0;
   const earnings = order.earnings || order.riderEarning || (order.orderAmount ? order.orderAmount * 0.1 : 0);
+  const baseEarnings = Math.max(0, earnings - bonus);
+
   const restaurantName = order.restaurantName || order.restaurant_name || (order.restaurantId?.name) || 'Restaurant';
   const restaurantAddress = order.restaurantAddress || order.restaurant_address || (order.restaurantId?.location?.address) || 'Address not available';
   const deliveryAddress = order?.deliveryAddress || {};
@@ -130,7 +133,14 @@ export const NewOrderModal = ({ order, onAccept, onReject, onMinimize }) => {
         >
           <div>
             <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mb-1">Incoming Request</p>
-            <h2 className="text-2xl sm:text-4xl font-bold tracking-tighter">₹{Number(earnings || 0).toFixed(2)}</h2>
+            <div className="flex items-end gap-2">
+              <h2 className="text-2xl sm:text-4xl font-bold tracking-tighter">₹{Number(earnings || 0).toFixed(2)}</h2>
+              {bonus > 0 && (
+                <p className="text-white/70 text-xs font-semibold mb-1">
+                  (₹{Number(baseEarnings).toFixed(0)} + ₹{Number(bonus).toFixed(0)} Bonus)
+                </p>
+              )}
+            </div>
           </div>
           <div className="bg-white/20 border border-white/30 rounded-2xl sm:rounded-3xl px-3 sm:px-6 py-2 sm:py-3 text-white font-bold text-lg sm:text-2xl shadow-inner tabular-nums">
             {timeLeft}s
@@ -201,12 +211,20 @@ export const NewOrderModal = ({ order, onAccept, onReject, onMinimize }) => {
               successLabel="Order Accepted ✓"
             />
 
-            <button 
-              onClick={onReject}
-              className="w-full text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-red-500 transition-colors py-2 active:scale-95"
-            >
-              Pass this task
-            </button>
+            <div className="flex justify-between items-center px-4 pt-2">
+              <button 
+                onClick={onMinimize}
+                className="text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-gray-600 transition-colors active:scale-95"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={onReject}
+                className="text-gray-400 font-bold text-[10px] uppercase tracking-widest hover:text-red-500 transition-colors active:scale-95"
+              >
+                Pass this task
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>

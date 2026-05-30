@@ -292,6 +292,7 @@ const orderSchema = new mongoose.Schema(
         deliveryFleet: { type: String, default: 'standard', trim: true },
         scheduledAt: { type: Date, default: null },
         riderEarning: { type: Number, default: 0, min: 0 },
+        deliveryBonusAmount: { type: Number, default: 0, min: 0 },
         platformProfit: { type: Number, default: 0, min: 0 },
         /** Plain 4-digit OTP for pickup at restaurant. */
         pickupOtp: { type: String, default: '', select: false },

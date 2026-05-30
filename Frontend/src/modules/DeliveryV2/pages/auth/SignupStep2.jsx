@@ -41,16 +41,9 @@ const openDeliveryFilesDB = () => {
 const saveFileToDB = async (key, file) => {
   if (!file) return
   try {
-    const buffer = await file.arrayBuffer()
-    const fileData = {
-      buffer,
-      name: file.name,
-      type: file.type,
-      lastModified: file.lastModified
-    }
     const db = await openDeliveryFilesDB()
     const tx = db.transaction(FILES_STORE, "readwrite")
-    tx.objectStore(FILES_STORE).put(fileData, key)
+    tx.objectStore(FILES_STORE).put(file, key)
     await new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve(true)
       tx.onerror = () => reject(tx.error || new Error("IndexedDB write transaction failed"))
@@ -68,22 +61,7 @@ const getFileFromDB = async (key) => {
     const request = tx.objectStore(FILES_STORE).get(key)
     return new Promise((resolve) => {
       request.onsuccess = () => {
-        const data = request.result
-        if (data && data.buffer) {
-          try {
-            const restoredFile = new File([data.buffer], data.name || "file", {
-              type: data.type || "application/octet-stream",
-              lastModified: data.lastModified || Date.now()
-            })
-            resolve(restoredFile)
-          } catch (e) {
-            resolve(new Blob([data.buffer], { type: data.type }))
-          }
-        } else if (data instanceof File || data instanceof Blob) {
-           resolve(data)
-        } else {
-           resolve(null)
-        }
+        resolve(request.result || null)
       }
       request.onerror = () => resolve(null)
     })
@@ -261,7 +239,7 @@ export default function SignupStep2() {
     if (uploaded?.url) return uploaded.url
 
     const localFile = documents[docType]
-    if (localFile instanceof File) {
+    if (localFile instanceof File || localFile instanceof Blob) {
       if (!localFile._previewUrl) {
         localFile._previewUrl = URL.createObjectURL(localFile)
       }

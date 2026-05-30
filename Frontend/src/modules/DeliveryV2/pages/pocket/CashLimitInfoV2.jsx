@@ -17,11 +17,11 @@ import useDeliveryBackNavigation from '../../hooks/useDeliveryBackNavigation';
 export const CashLimitInfoV2 = () => {
   const goBack = useDeliveryBackNavigation();
   const [loading, setLoading] = useState(true);
-  const [walletState, setWalletState] = useState({
+   const [walletState, setWalletState] = useState({
      totalCashLimit: 0,
      cashInHand: 0,
      deductions: 0,
-     pocketWithdrawals: 0,
+     pocketBalance: 0,
      availableCashLimit: 0
   });
 
@@ -42,17 +42,17 @@ export const CashLimitInfoV2 = () => {
             ) || 0;
             const cashInHand = Number(wallet.cashInHand) || 0;
             const deductions = Number(wallet.deductions) || 0;
-            const withdrawals = Number(wallet.totalWithdrawn) || 0;
+            const pocketBalance = Number(wallet.pocketBalance) || 0;
             const availableRaw = Number(wallet.availableCashLimit);
             const available = Number.isFinite(availableRaw)
                ? availableRaw
-               : Math.max(0, totalLimit - cashInHand - deductions);
+               : Math.max(0, totalLimit - cashInHand - deductions + pocketBalance);
 
         setWalletState({
            totalCashLimit: totalLimit,
            cashInHand: cashInHand,
            deductions: deductions,
-           pocketWithdrawals: withdrawals,
+           pocketBalance: pocketBalance,
            availableCashLimit: available
         });
       } catch (err) {
@@ -110,7 +110,7 @@ export const CashLimitInfoV2 = () => {
                    />
                    <DetailRow label="Cash in hand" value={formatCurrency(walletState.cashInHand)} />
                    <DetailRow label="Deductions" value={formatCurrency(walletState.deductions)} />
-                   <DetailRow label="Pocket withdrawals" value={formatCurrency(walletState.pocketWithdrawals)} />
+                   <DetailRow label="Pocket balance" value={formatCurrency(walletState.pocketBalance)} />
 
                    <div className="py-5 flex justify-between items-center bg-emerald-50/50 -mx-5 px-5 mt-2 transition-all">
                       <div className="text-sm font-black text-emerald-900 uppercase tracking-tight">Available cash limit</div>

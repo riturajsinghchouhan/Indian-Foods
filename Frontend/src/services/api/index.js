@@ -807,7 +807,7 @@ export const restaurantAPI = {
   getOutletTimings: () =>
     restaurantClient.get("/food/restaurant/outlet-timings"),
   saveOutletTimings: (outletTimings) =>
-    restaurantClient.post(
+    restaurantClient.put(
       "/food/restaurant/outlet-timings",
       { outletTimings: outletTimings || {} }
     ),

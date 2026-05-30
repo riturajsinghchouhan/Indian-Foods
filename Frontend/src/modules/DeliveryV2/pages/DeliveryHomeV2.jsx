@@ -1089,47 +1089,71 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                              <ChevronDown className="w-6 h-6 text-gray-400 stroke-[3]" />
                           </button>
                         </div>
-                        <div className="flex justify-between w-full items-center mb-10 px-2 text-left">
-                          <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                               <img 
-                                 src={activeOrder?.user?.logo || activeOrder?.user?.profileImage || 'https://cdn-icons-png.flaticon.com/512/1275/1275302.png'} 
-                                 className="w-full h-full object-cover" 
-                                 alt="User"
-                               />
-                            </div>
-                            <div>
-                               <h3 className="text-gray-950 text-2xl font-bold uppercase">Handover Drop</h3>
-                               <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mt-1.5 ${isWithinRange ? 'text-green-600' : 'text-orange-500'}`}>
-                                 {isWithinRange ? 'Ready - Swipe to Arrive √' : `${(distanceToTarget / 1000).toFixed(1)} km • ${eta || '--'} min Arrival`}
-                               </p>
-                            </div>
-                          </div>
-                          {(activeOrder?.userPhone || activeOrder?.deliveryAddress?.phone || activeOrder?.user?.phone) && (
-                            <button
-                              onClick={() => {
-                                const num = activeOrder?.userPhone || activeOrder?.deliveryAddress?.phone || activeOrder?.user?.phone;
-                                if (num) window.location.href = `tel:${num}`;
-                              }}
-                              className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600 border border-green-100 active:scale-95 transition-all shadow-sm shrink-0"
-                            >
-                              <Phone className="w-5 h-5 fill-current" />
-                            </button>
-                          )}
-                        </div>
+                        <div className="w-full flex flex-col mb-8 text-left px-2">
+                           <div className="flex items-center gap-2 mb-2 font-bold text-[10px] uppercase tracking-widest text-blue-600">
+                              <MapPin className="w-4 h-4" />
+                              <span>Handover Drop</span>
+                           </div>
+                           <div className="flex justify-between items-start gap-4">
+                              <div>
+                                 <p className="text-gray-950 font-bold text-base sm:text-xl leading-tight">
+                                    {activeOrder?.user?.name || activeOrder?.deliveryAddress?.name || "Customer"}
+                                 </p>
+                                 <p className="text-gray-500 text-sm font-medium leading-relaxed mt-1 line-clamp-2">
+                                    {activeOrder?.deliveryAddress?.address || activeOrder?.deliveryAddress?.street || "Customer Location"}
+                                 </p>
+                              </div>
+                              {(activeOrder?.userPhone || activeOrder?.deliveryAddress?.phone || activeOrder?.user?.phone) && (
+                                <button
+                                  onClick={() => {
+                                    const num = activeOrder?.userPhone || activeOrder?.deliveryAddress?.phone || activeOrder?.user?.phone;
+                                    if (num) window.location.href = `tel:${num}`;
+                                  }}
+                                  className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100 active:scale-95 transition-all shadow-sm shrink-0 mt-1"
+                                >
+                                  <Phone className="w-4 h-4 fill-current" />
+                                </button>
+                              )}
+                           </div>
 
-                        {/* Customer Instructions Panel */}
-                        {activeOrder?.note && (
-                          <div className="w-full bg-orange-50 border border-orange-100 rounded-3xl p-5 mb-8 flex gap-4 items-start shadow-sm mx-2">
-                             <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-orange-500 shadow-sm shrink-0 border border-orange-50">
-                                <Package className="w-5 h-5" />
+                           {activeOrder?.items && activeOrder.items.length > 0 && (
+                             <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Order Items</p>
+                                <p className="text-sm font-bold text-gray-800 line-clamp-2 leading-snug">
+                                  {activeOrder.items.map(item => `${item.quantity}x ${item.menuItem?.name || item.name || 'Item'}`).join(', ')}
+                                </p>
                              </div>
-                             <div className="flex-1">
-                                <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] mb-1.5 opacity-80">Drop Message</p>
-                                <p className="text-sm font-bold text-gray-950 leading-relaxed capitalize">"{activeOrder.note}"</p>
+                           )}
+
+                           <div className="grid grid-cols-2 gap-2.5 sm:gap-4 mt-4">
+                             <div className="p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-2.5 sm:gap-3">
+                               <Clock className="w-5 h-5 text-orange-500" />
+                               <div className="flex flex-col">
+                                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Time</span>
+                                  <span className={`text-sm font-bold ${isWithinRange ? 'text-green-600' : 'text-gray-900'}`}>{isWithinRange ? 'Ready' : `${eta || '--'} MINS`}</span>
+                               </div>
                              </div>
-                          </div>
-                        )}
+                             <div className="p-3 sm:p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-2.5 sm:gap-3">
+                               <MapPin className="w-5 h-5 text-gray-400" />
+                               <div className="flex flex-col">
+                                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Distance</span>
+                                  <span className={`text-sm font-bold ${isWithinRange ? 'text-green-600' : 'text-gray-900'}`}>{isWithinRange ? '0 KM' : `${(distanceToTarget / 1000).toFixed(1)} KM`}</span>
+                               </div>
+                             </div>
+                           </div>
+
+                           {activeOrder?.note && (
+                             <div className="w-full bg-orange-50 border border-orange-100 rounded-2xl p-4 mt-4 flex gap-3 items-start shadow-sm">
+                                <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-orange-500 shadow-sm shrink-0 border border-orange-50">
+                                   <Package className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1">
+                                   <p className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] mb-1 opacity-80">Drop Message</p>
+                                   <p className="text-sm font-bold text-gray-950 leading-relaxed capitalize">"{activeOrder.note}"</p>
+                                </div>
+                             </div>
+                           )}
+                        </div>
                         <ActionSlider label="Slide to Arrive" successLabel="Arrived ✓" disabled={!isWithinRange} onConfirm={reachDrop} color="bg-blue-600" />
                       </div>
                     ) : (

@@ -83,16 +83,9 @@ const openOnboardingFilesDB = () => {
 const saveFileToDB = async (key, file) => {
   if (!file || !isUploadableFile(file)) return
   try {
-    const buffer = await file.arrayBuffer()
-    const fileData = {
-      buffer,
-      name: file.name,
-      type: file.type,
-      lastModified: file.lastModified
-    }
     const db = await openOnboardingFilesDB()
     const tx = db.transaction(FILES_STORE, "readwrite")
-    tx.objectStore(FILES_STORE).put(fileData, key)
+    tx.objectStore(FILES_STORE).put(file, key)
     await new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve(true)
       tx.onerror = () => reject(tx.error || new Error("IndexedDB write transaction failed"))
@@ -110,28 +103,33 @@ const getFileFromDB = async (key) => {
     const request = tx.objectStore(FILES_STORE).get(key)
     return new Promise((resolve) => {
       request.onsuccess = () => {
-        const data = request.result
-        if (data && data.buffer) {
-          try {
-            const restoredFile = new File([data.buffer], data.name || "file", {
-              type: data.type || "application/octet-stream",
-              lastModified: data.lastModified || Date.now()
-            })
-            resolve(restoredFile)
-          } catch (e) {
-            resolve(new Blob([data.buffer], { type: data.type }))
-          }
-        } else if (data instanceof File || data instanceof Blob) {
-           resolve(data)
-        } else {
-           resolve(null)
-        }
+        resolve(request.result || null)
       }
       request.onerror = () => resolve(null)
     })
   } catch (err) {
     debugError("IndexedDB load failed:", err)
     return null
+  }
+}
+
+const getAllFilesFromDB = async (keys) => {
+  try {
+    const db = await openOnboardingFilesDB()
+    const tx = db.transaction(FILES_STORE, "readonly")
+    const store = tx.objectStore(FILES_STORE)
+    
+    const results = await Promise.all(
+      keys.map(key => new Promise(resolve => {
+        const req = store.get(key)
+        req.onsuccess = () => resolve(req.result || null)
+        req.onerror = () => resolve(null)
+      }))
+    )
+    return results
+  } catch (err) {
+    debugError("IndexedDB bulk load failed:", err)
+    return keys.map(() => null)
   }
 }
 
@@ -572,7 +570,23 @@ export default function RestaurantOnboarding() {
   const companyName = useCompanyName()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(() => {
+    try {
+      const stepParam = searchParams.get("step")
+      if (stepParam) {
+        const s = parseInt(stepParam, 10)
+        if (s >= 1 && s <= 3) return s
+      }
+      const stored = localStorage.getItem(ONBOARDING_STORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (parsed.currentStep) {
+          return Math.min(3, Math.max(1, Number(parsed.currentStep)))
+        }
+      }
+    } catch (e) {}
+    return 1
+  })
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -1089,14 +1103,16 @@ export default function RestaurantOnboarding() {
 
         // 4. Finally re-hydrate heavy files from IndexedDB if they exist 
         // (IndexedDB is reliable for large files which don't fit in localStorage)
-        const [prof, pan, gst, fs, pdf, ...menuImages] = await Promise.all([
-          getFileFromDB("profileImage"),
-          getFileFromDB("panImage"),
-          getFileFromDB("gstImage"),
-          getFileFromDB("fssaiImage"),
-          getFileFromDB("menuPdf"),
-          ...Array.from({ length: 10 }, (_, i) => getFileFromDB(`menuImage_${i}`))
-        ]);
+        const fileKeys = [
+          "profileImage",
+          "panImage",
+          "gstImage",
+          "fssaiImage",
+          "menuPdf",
+          ...Array.from({ length: 10 }, (_, i) => `menuImage_${i}`)
+        ];
+        
+        const [prof, pan, gst, fs, pdf, ...menuImages] = await getAllFilesFromDB(fileKeys);
 
         if (prof) setStep2(p => ({ ...p, profileImage: prof }));
         if (pan) setStep3(p => ({ ...p, panImage: pan }));
@@ -2212,7 +2228,9 @@ export default function RestaurantOnboarding() {
             lastOutOfZoneToastKeyRef.current = null
           } else {
             if (lastOutOfZoneToastKeyRef.current !== key) {
-              toast.error("Selected location is outside all service zones")
+              if (justSelectedRef.current) {
+                toast.error("Selected location is outside all service zones")
+              }
               lastOutOfZoneToastKeyRef.current = key
             }
             setStep1((prev) => (prev.zoneId ? { ...prev, zoneId: "" } : prev))
@@ -3051,7 +3069,7 @@ export default function RestaurantOnboarding() {
               disabled={saving || (step === 3 && !isEditing)}
               className={`text-sm bg-black text-white px-6 ${(step === 3 && !isEditing) ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              {step === 3 ? (saving ? "Saving..." : "Finish") : saving ? "Saving..." : "Continue"}
+              {step === 3 ? (saving ? "Uploading Documents..." : "Submit Profile") : saving ? "Saving..." : "Continue"}
             </Button>
           </div>
         </footer>

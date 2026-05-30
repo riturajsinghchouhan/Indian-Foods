@@ -18,6 +18,7 @@ export default function FeeSettings() {
     platformFee: "",
     packagingFee: "",
     gstRate: "",
+    deliveryBonusAmount: "",
   })
   const [loadingFeeSettings, setLoadingFeeSettings] = useState(false)
   const [savingFeeSettings, setSavingFeeSettings] = useState(false)
@@ -38,6 +39,7 @@ export default function FeeSettings() {
           platformFee: response.data.data.feeSettings.platformFee ?? "",
           packagingFee: response.data.data.feeSettings.packagingFee ?? "",
           gstRate: response.data.data.feeSettings.gstRate ?? "",
+          deliveryBonusAmount: response.data.data.feeSettings.deliveryBonusAmount ?? "",
         })
       } else if (response.data.success && response.data.data.feeSettings === null) {
         // Not configured yet - keep empty fields (no defaults).
@@ -49,6 +51,7 @@ export default function FeeSettings() {
           platformFee: "",
           packagingFee: "",
           gstRate: "",
+          deliveryBonusAmount: "",
         })
       }
     } catch (error) {
@@ -76,6 +79,7 @@ export default function FeeSettings() {
         platformFee: feeSettings.platformFee === "" ? undefined : Number(feeSettings.platformFee),
         packagingFee: feeSettings.packagingFee === "" ? undefined : Number(feeSettings.packagingFee),
         gstRate: feeSettings.gstRate === "" ? undefined : Number(feeSettings.gstRate),
+        deliveryBonusAmount: feeSettings.deliveryBonusAmount === "" ? undefined : Number(feeSettings.deliveryBonusAmount),
         isActive: true,
       })
 
@@ -92,6 +96,7 @@ export default function FeeSettings() {
             platformFee: saved.platformFee ?? "",
             packagingFee: saved.packagingFee ?? "",
             gstRate: saved.gstRate ?? "",
+            deliveryBonusAmount: saved.deliveryBonusAmount ?? "",
           })
         }
       } else {
@@ -516,6 +521,25 @@ export default function FeeSettings() {
                   />
                   <p className="text-xs text-slate-500">
                     GST percentage applied on order subtotal
+                  </p>
+                </div>
+
+                {/* Delivery Bonus Amount */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Delivery Bonus Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={feeSettings.deliveryBonusAmount}
+                    onChange={(e) => setFeeSettings({ ...feeSettings, deliveryBonusAmount: e.target.value })}
+                    min="0"
+                    step="1"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                    placeholder="20"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Fixed bonus added to rider earnings per order
                   </p>
                 </div>
               </div>
