@@ -10,6 +10,8 @@ const debugError = (...args) => {}
 const ZONE_CACHE_TTL_MS = 30 * 1000
 const zoneCache = new Map() // key -> { ts, payload }
 const zoneInFlight = new Map() // key -> Promise<payload>
+let globalLastCheckedLat = null;
+let globalLastCheckedLng = null;
 
 const roundCoord = (v, digits = 5) => {
   const n = Number(v)
@@ -32,12 +34,14 @@ const applyZonePayload = (data, { setZoneId, setZone, setZoneStatus }) => {
     setZoneStatus('IN_SERVICE')
     localStorage.setItem('userZoneId', data.zoneId)
     localStorage.setItem('userZone', JSON.stringify(data.zone))
+    localStorage.removeItem('outOfService')
   } else {
     setZoneId(null)
     setZone(null)
     setZoneStatus('OUT_OF_SERVICE')
     localStorage.removeItem('userZoneId')
     localStorage.removeItem('userZone')
+    localStorage.setItem('outOfService', 'true')
   }
 }
 
@@ -48,7 +52,11 @@ const applyZonePayload = (data, { setZoneId, setZone, setZoneStatus }) => {
  */
 export function useZone(location) {
   const [zoneId, setZoneId] = useState(null)
-  const [zoneStatus, setZoneStatus] = useState('loading') // 'loading' | 'IN_SERVICE' | 'OUT_OF_SERVICE'
+  const [zoneStatus, setZoneStatus] = useState(() => {
+    if (localStorage.getItem("userZoneId")) return 'IN_SERVICE'
+    if (localStorage.getItem("outOfService")) return 'OUT_OF_SERVICE'
+    return 'loading'
+  })
   const [zone, setZone] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -130,15 +138,18 @@ export function useZone(location) {
     // Check if coordinates have changed significantly (threshold: ~10 meters)
     const coordThreshold = 0.0001; // approximately 10 meters
     const coordsChanged =
-      !prevCoordsRef.current.latitude ||
-      !prevCoordsRef.current.longitude ||
-      Math.abs(prevCoordsRef.current.latitude - (lat || 0)) > coordThreshold ||
-      Math.abs(prevCoordsRef.current.longitude - (lng || 0)) > coordThreshold;
+      !globalLastCheckedLat ||
+      !globalLastCheckedLng ||
+      Math.abs(globalLastCheckedLat - (lat || 0)) > coordThreshold ||
+      Math.abs(globalLastCheckedLng - (lng || 0)) > coordThreshold;
 
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       // Only detect zone if coordinates changed significantly
       if (coordsChanged) {
+        globalLastCheckedLat = lat;
+        globalLastCheckedLng = lng;
         prevCoordsRef.current = { latitude: lat, longitude: lng }
+        setZoneStatus('loading')
         if (debounceTimerRef.current) {
           clearTimeout(debounceTimerRef.current)
         }

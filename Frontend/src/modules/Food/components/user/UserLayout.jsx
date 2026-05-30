@@ -13,6 +13,8 @@ import BottomNavigation from "./BottomNavigation"
 import DesktopNavbar from "./DesktopNavbar"
 import { useUserNotifications } from "../../hooks/useUserNotifications"
 import AppIntroSplash from "./AppIntroSplash"
+import { useLocation as useFoodLocation } from "@food/hooks/useLocation"
+import { useZone } from "@food/hooks/useZone"
 
 // Create SearchOverlay context with default value
 const SearchOverlayContext = createContext({
@@ -125,14 +127,17 @@ export default function UserLayout() {
     normalizedPath === "/profile" ||
     normalizedPath === "/user/profile"
 
-  const showBottomNav = normalizedPath === "/" ||
+  const { location: foodLocation } = useFoodLocation()
+  const { isOutOfService } = useZone(foodLocation)
+
+  const showBottomNav = !isOutOfService && (normalizedPath === "/" ||
     normalizedPath === "/user" ||
     normalizedPath === "/dining" ||
     normalizedPath === "/user/dining" ||
     normalizedPath === "/under-250" ||
     normalizedPath === "/user/under-250" ||
     isProfileRoot ||
-    normalizedPath === "" // Handle empty string case for root relative to /food
+    normalizedPath === "") // Handle empty string case for root relative to /food
 
   const isUnder250 = normalizedPath === "/under-250" || normalizedPath === "/user/under-250"
 

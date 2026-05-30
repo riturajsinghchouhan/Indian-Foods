@@ -38,6 +38,7 @@ import {
   Check,
   Share2,
 } from "lucide-react";
+import outOfZoneBg from "@food/assets/out-of-zone-bg.png";
 import { motion, AnimatePresence } from "framer-motion";
 import Footer from "@food/components/user/Footer";
 import AddToCartButton from "@food/components/user/AddToCartButton";
@@ -1327,6 +1328,7 @@ export default function Home() {
 
   const {
     zoneId: effectiveZoneId,
+    zoneStatus: effectiveZoneStatus,
     isOutOfService: isEffectiveLocationOutOfService,
     loading: effectiveZoneLoading,
     error: effectiveZoneError,
@@ -2518,6 +2520,33 @@ export default function Home() {
       </section>
     );
   }, [displayCategories, showCategorySkeleton, navigate]);
+
+  if (shouldShowOutOfZoneHome) {
+    return (
+      <div className="relative min-h-[100dvh] w-full bg-[#1e1332] overflow-hidden flex flex-col justify-center">
+        <img src={outOfZoneBg} alt="Out of zone background" className="absolute inset-0 w-full h-full object-cover z-0" />
+        
+        {/* Dark overlay at bottom for text readability */}
+        <div className="absolute bottom-0 w-full h-[70%] bg-gradient-to-t from-[#1b152d] via-black/60 to-transparent z-10 pointer-events-none"></div>
+        
+        <div className="relative z-20 flex flex-col items-center justify-center px-6 text-center h-full pb-20">
+          <h2 className="text-3xl font-black text-white mb-3 tracking-tight drop-shadow-lg">
+            We are coming soon in your city
+          </h2>
+          <p className="text-base text-gray-200 mb-10 max-w-sm drop-shadow-md">
+            Please change the location to continue ordering.
+          </p>
+          
+          <Button 
+            onClick={() => navigate('/food/user/address-selector')}
+            className="w-full max-w-[280px] bg-red-600 hover:bg-red-700 text-white font-bold h-14 rounded-2xl shadow-xl transition-transform active:scale-95 text-lg"
+          >
+            Change Location
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
 
