@@ -16,6 +16,113 @@ const createEmptyUploadedDocs = () => ({
   drivingLicensePhoto: null
 })
 
+// IndexedDB helpers for persistent file storage
+const DELIVERY_FILES_DB = "DeliverySignupFiles"
+const FILES_STORE = "files"
+
+const openDeliveryFilesDB = () => {
+  return new Promise((resolve, reject) => {
+    try {
+      const request = indexedDB.open(DELIVERY_FILES_DB, 1)
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result
+        if (!db.objectStoreNames.contains(FILES_STORE)) {
+          db.createObjectStore(FILES_STORE)
+        }
+      }
+      request.onsuccess = (e) => resolve(e.target.result)
+      request.onerror = (e) => reject(e.target.error)
+    } catch (err) {
+      reject(err)
+    }
+  })
+}
+
+const saveFileToDB = async (key, file) => {
+  if (!file) return
+  try {
+    const buffer = await file.arrayBuffer()
+    const fileData = {
+      buffer,
+      name: file.name,
+      type: file.type,
+      lastModified: file.lastModified
+    }
+    const db = await openDeliveryFilesDB()
+    const tx = db.transaction(FILES_STORE, "readwrite")
+    tx.objectStore(FILES_STORE).put(fileData, key)
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve(true)
+      tx.onerror = () => reject(tx.error || new Error("IndexedDB write transaction failed"))
+      tx.onabort = () => reject(tx.error || new Error("IndexedDB write transaction aborted"))
+    })
+  } catch (err) {
+    debugError("IndexedDB save failed:", err)
+  }
+}
+
+const getFileFromDB = async (key) => {
+  try {
+    const db = await openDeliveryFilesDB()
+    const tx = db.transaction(FILES_STORE, "readonly")
+    const request = tx.objectStore(FILES_STORE).get(key)
+    return new Promise((resolve) => {
+      request.onsuccess = () => {
+        const data = request.result
+        if (data && data.buffer) {
+          try {
+            const restoredFile = new File([data.buffer], data.name || "file", {
+              type: data.type || "application/octet-stream",
+              lastModified: data.lastModified || Date.now()
+            })
+            resolve(restoredFile)
+          } catch (e) {
+            resolve(new Blob([data.buffer], { type: data.type }))
+          }
+        } else if (data instanceof File || data instanceof Blob) {
+           resolve(data)
+        } else {
+           resolve(null)
+        }
+      }
+      request.onerror = () => resolve(null)
+    })
+  } catch (err) {
+    debugError("IndexedDB load failed:", err)
+    return null
+  }
+}
+
+const deleteFileFromDB = async (key) => {
+  try {
+    const db = await openDeliveryFilesDB()
+    const tx = db.transaction(FILES_STORE, "readwrite")
+    tx.objectStore(FILES_STORE).delete(key)
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve(true)
+      tx.onerror = () => reject(tx.error || new Error("IndexedDB delete transaction failed"))
+      tx.onabort = () => reject(tx.error || new Error("IndexedDB delete transaction aborted"))
+    })
+  } catch (err) {
+    debugError("IndexedDB delete failed:", err)
+  }
+}
+
+const clearAllFilesFromDB = async () => {
+  try {
+    const db = await openDeliveryFilesDB()
+    const tx = db.transaction(FILES_STORE, "readwrite")
+    tx.objectStore(FILES_STORE).clear()
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve(true)
+      tx.onerror = () => reject(tx.error || new Error("IndexedDB clear transaction failed"))
+      tx.onabort = () => reject(tx.error || new Error("IndexedDB clear transaction aborted"))
+    })
+  } catch (err) {
+    debugError("IndexedDB clear failed:", err)
+  }
+}
+
 const sanitizeUploadedDocValue = (value) => {
   if (!value) return null
 
@@ -105,13 +212,32 @@ export default function SignupStep2() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploading, setUploading] = useState({})
 
+  // Hydrate files from IndexedDB on load
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" })
     document.documentElement.scrollTop = 0
     document.body.scrollTop = 0
+    
+    const loadFiles = async () => {
+      const [prof, aadhar, pan, dl] = await Promise.all([
+        getFileFromDB("profilePhoto"),
+        getFileFromDB("aadharPhoto"),
+        getFileFromDB("panPhoto"),
+        getFileFromDB("drivingLicensePhoto")
+      ])
+      
+      setDocuments(prev => ({
+        ...prev,
+        ...(prof && { profilePhoto: prof }),
+        ...(aadhar && { aadharPhoto: aadhar }),
+        ...(pan && { panPhoto: pan }),
+        ...(dl && { drivingLicensePhoto: dl })
+      }))
+    }
+    loadFiles()
   }, [])
 
-  // Save uploaded docs to session storage whenever they change
+  // Save uploaded docs metadata to session storage whenever they change
   useEffect(() => {
     sessionStorage.setItem("deliverySignupDocs", JSON.stringify(uploadedDocs))
   }, [uploadedDocs])
@@ -162,6 +288,7 @@ export default function SignupStep2() {
 
     setDocuments((prev) => ({ ...prev, [docType]: file }))
     setUploadedDocs((prev) => ({ ...prev, [docType]: { file: true } }))
+    await saveFileToDB(docType, file)
     toast.success(`${docType.replace(/([A-Z])/g, " $1").trim()} selected`)
   }
 
@@ -176,7 +303,7 @@ export default function SignupStep2() {
     fileInputRefs.current[docType]?.click()
   }
 
-  const handleRemove = (docType) => {
+  const handleRemove = async (docType) => {
     setDocuments(prev => ({
       ...prev,
       [docType]: null
@@ -185,6 +312,7 @@ export default function SignupStep2() {
       ...prev,
       [docType]: null
     }))
+    await deleteFileFromDB(docType)
   }
 
   const handleSubmit = async (e) => {
@@ -278,6 +406,7 @@ export default function SignupStep2() {
       if (response?.data?.success) {
         sessionStorage.removeItem("deliverySignupDetails")
         sessionStorage.removeItem("deliverySignupDocs")
+        await clearAllFilesFromDB()
         if (isCompleteProfile) {
           sessionStorage.removeItem("deliveryNeedsRegistration")
           toast.success("Registration successful. Please login with OTP.")

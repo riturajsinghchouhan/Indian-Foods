@@ -83,9 +83,16 @@ const openOnboardingFilesDB = () => {
 const saveFileToDB = async (key, file) => {
   if (!file || !isUploadableFile(file)) return
   try {
+    const buffer = await file.arrayBuffer()
+    const fileData = {
+      buffer,
+      name: file.name,
+      type: file.type,
+      lastModified: file.lastModified
+    }
     const db = await openOnboardingFilesDB()
     const tx = db.transaction(FILES_STORE, "readwrite")
-    tx.objectStore(FILES_STORE).put(file, key)
+    tx.objectStore(FILES_STORE).put(fileData, key)
     await new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve(true)
       tx.onerror = () => reject(tx.error || new Error("IndexedDB write transaction failed"))
@@ -102,7 +109,24 @@ const getFileFromDB = async (key) => {
     const tx = db.transaction(FILES_STORE, "readonly")
     const request = tx.objectStore(FILES_STORE).get(key)
     return new Promise((resolve) => {
-      request.onsuccess = () => resolve(request.result)
+      request.onsuccess = () => {
+        const data = request.result
+        if (data && data.buffer) {
+          try {
+            const restoredFile = new File([data.buffer], data.name || "file", {
+              type: data.type || "application/octet-stream",
+              lastModified: data.lastModified || Date.now()
+            })
+            resolve(restoredFile)
+          } catch (e) {
+            resolve(new Blob([data.buffer], { type: data.type }))
+          }
+        } else if (data instanceof File || data instanceof Blob) {
+           resolve(data)
+        } else {
+           resolve(null)
+        }
+      }
       request.onerror = () => resolve(null)
     })
   } catch (err) {
@@ -663,6 +687,8 @@ export default function RestaurantOnboarding() {
   const [locationSearchValue, setLocationSearchValue] = useState("")
   const [locationSuggestions, setLocationSuggestions] = useState([])
   const [isSearchingLocation, setIsSearchingLocation] = useState(false)
+  const justSelectedRef = useRef(false)
+  const googleMapsReadyRef = useRef(false)
 
   const handleLocationSelect = (parsed) => {
     let matchedZoneId = "";
@@ -1840,22 +1866,61 @@ export default function RestaurantOnboarding() {
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => {
-                      const { lat, lng, display, addr } = s
-                      const area = addr.suburb || addr.neighbourhood || addr.city_district || addr.locality || ""
-                      const city = addr.city || addr.town || addr.village || ""
-                      const state = addr.state || ""
-                      const pincode = addr.postcode || ""
+                    onClick={async () => {
+                      // Prevent re-search after selecting
+                      justSelectedRef.current = true
+                      setLocationSuggestions([])
 
-                      handleLocationSelect({
-                        formattedAddress: display,
-                        area,
-                        city,
-                        state,
-                        pincode,
-                        latitude: lat,
-                        longitude: lng
-                      })
+                      if (s.isGoogle) {
+                        // Fetch details from Google Places API
+                        try {
+                          const dummyNode = document.createElement("div")
+                          const service = new window.google.maps.places.PlacesService(dummyNode)
+                          service.getDetails(
+                            { placeId: s.id, fields: ["formatted_address", "address_components", "geometry"] },
+                            (place, status) => {
+                              if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+                                const comps = Array.isArray(place.address_components) ? place.address_components : []
+                                const get = (types) => comps.find(c => types.some(t => c.types?.includes(t)))?.long_name || ""
+
+                                handleLocationSelect({
+                                  formattedAddress: place.formatted_address || s.display,
+                                  area: get(["sublocality_level_1", "sublocality", "neighborhood"]) || get(["locality"]),
+                                  city: get(["locality"]) || get(["administrative_area_level_2"]),
+                                  state: get(["administrative_area_level_1"]) || get(["administrative_area_level_2"]),
+                                  pincode: get(["postal_code"]),
+                                  latitude: place.geometry?.location?.lat?.() || "",
+                                  longitude: place.geometry?.location?.lng?.() || ""
+                                })
+                              } else {
+                                handleLocationSelect({ formattedAddress: s.display })
+                              }
+                            }
+                          )
+                        } catch (err) {
+                          handleLocationSelect({ formattedAddress: s.display })
+                        }
+                      } else {
+                        // Handle Nominatim selection
+                        const { lat, lng, display, addr } = s
+                        const area = addr.suburb || addr.neighbourhood || addr.city_district || addr.locality || ""
+                        const city = addr.city || addr.town || addr.village || ""
+                        const state = addr.state || ""
+                        const pincode = addr.postcode || ""
+
+                        handleLocationSelect({
+                          formattedAddress: display,
+                          area,
+                          city,
+                          state,
+                          pincode,
+                          latitude: lat,
+                          longitude: lng
+                        })
+                      }
+
+                      // Reset flag after debounce window
+                      setTimeout(() => { justSelectedRef.current = false }, 600)
                     }}
                     className="w-full px-4 py-2 text-left text-[13px] hover:bg-orange-50 border-b border-gray-100 last:border-none font-medium text-gray-700"
                   >
@@ -1915,36 +1980,20 @@ export default function RestaurantOnboarding() {
             }
             className="bg-white text-sm"
             placeholder="Area / Sector / Locality*"
-            disabled={!isEditing || !!step1.location?.latitude}
+            disabled={!isEditing}
           />
-          <Select
+          <Input
             value={step1.location?.city || ""}
-            onValueChange={(value) =>
+            onChange={(e) =>
               setStep1({
                 ...step1,
-                location: { ...step1.location, city: value },
+                location: { ...step1.location, city: e.target.value },
               })
             }
-            disabled={!isEditing || !!step1.location?.latitude}
-          >
-            <SelectTrigger className="bg-white text-sm text-gray-700">
-              <SelectValue placeholder="Select City*" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Indore">Indore</SelectItem>
-              <SelectItem value="Bhopal">Bhopal</SelectItem>
-              <SelectItem value="Gwalior">Gwalior</SelectItem>
-              <SelectItem value="Jabalpur">Jabalpur</SelectItem>
-              <SelectItem value="Mumbai">Mumbai</SelectItem>
-              <SelectItem value="Pune">Pune</SelectItem>
-              <SelectItem value="Delhi">Delhi</SelectItem>
-              <SelectItem value="Bangalore">Bangalore</SelectItem>
-              <SelectItem value="Ahmedabad">Ahmedabad</SelectItem>
-              <SelectItem value="Hyderabad">Hyderabad</SelectItem>
-              <SelectItem value="Chennai">Chennai</SelectItem>
-              <SelectItem value="Kolkata">Kolkata</SelectItem>
-            </SelectContent>
-          </Select>
+            className="bg-white text-sm"
+            placeholder="City*"
+            disabled={!isEditing}
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               value={step1.location?.state || ""}
@@ -1956,7 +2005,7 @@ export default function RestaurantOnboarding() {
               }
               className="bg-white text-sm"
               placeholder="State"
-              disabled={!isEditing || !!step1.location?.latitude}
+              disabled={!isEditing}
             />
             <Input
               value={step1.location?.pincode || ""}
@@ -1968,7 +2017,7 @@ export default function RestaurantOnboarding() {
               }
               className="bg-white text-sm"
               placeholder="Pincode"
-              disabled={!isEditing || !!step1.location?.latitude}
+              disabled={!isEditing}
             />
           </div>
           <p className="text-[11px] text-gray-500 mt-1">
@@ -2004,170 +2053,67 @@ export default function RestaurantOnboarding() {
   )
 
 
-  // Initialize Google Places Autocomplete for Step 1 location search.
+  // ── Load Google Maps Script (No UI widget, just API) ──────────────
+
   useEffect(() => {
     if (step !== 1) return
-
     let cancelled = false
-    let autocomplete = null
 
-    const init = async () => {
-      // Wait for the input ref to be attached
-      let inputElement = null
-      for (let i = 0; i < 50; i++) {
-        if (locationSearchInputRef.current) {
-          inputElement = locationSearchInputRef.current
-          break
-        }
-        await new Promise((r) => setTimeout(r, 100))
+    const loadMaps = async () => {
+      if (window.google?.maps?.places?.AutocompleteService) {
+        googleMapsReadyRef.current = true
+        return
       }
 
-      if (!inputElement || cancelled) return
+      const apiKey = await getGoogleMapsApiKey()
+      if (!apiKey) return
 
-      const loadMaps = async () => {
-        // 1. If already available with places, return true
-        if (window.google?.maps?.places?.Autocomplete) {
-          mapsScriptLoadedRef.current = true
-          return true
-        }
+      window.gm_authFailure = () => {
+        debugError("Google Maps auth failed.")
+        googleMapsReadyRef.current = false
+      }
 
-        // 2. Load API Key
-        const apiKey = await getGoogleMapsApiKey()
-        if (!apiKey) {
-          debugError("Google Maps API Key missing or invalid")
-          return false
-        }
-
-        // 3. Handle Auth Failure
-        window.gm_authFailure = () => {
-          debugError("Google Maps authentication failed.")
-          // Don't show toast here as we have Nominatim fallback
-        }
-
-        // 4. Check for existing script and force libraries=places if needed
-        const scripts = Array.from(document.getElementsByTagName("script"))
-        const mapsScript = scripts.find(s => s.src?.includes("maps.googleapis.com/maps/api/js"))
-        
-        if (mapsScript && !mapsScript.src.includes("libraries=places")) {
-          debugLog("Found maps script without places, removing to reload properly.")
-          mapsScript.remove()
-        } else if (mapsScript && mapsScript.src.includes("libraries=places")) {
-           // Wait if it's still loading
-           for (let i = 0; i < 60; i++) {
-             if (window.google?.maps?.places?.Autocomplete) return true
-             if (cancelled) return false
-             await new Promise(r => setTimeout(r, 100))
+      const scripts = Array.from(document.getElementsByTagName("script"))
+      const mapsScript = scripts.find(s => s.src?.includes("maps.googleapis.com/maps/api/js"))
+      
+      if (mapsScript && !mapsScript.src.includes("libraries=places")) {
+        mapsScript.remove()
+      } else if (mapsScript && mapsScript.src.includes("libraries=places")) {
+         for (let i = 0; i < 60; i++) {
+           if (window.google?.maps?.places?.AutocompleteService) {
+             googleMapsReadyRef.current = true
+             return
            }
-        }
+           if (cancelled) return
+           await new Promise(r => setTimeout(r, 100))
+         }
+      }
 
-        // 5. Create and append new script
-        return new Promise((resolve) => {
-          const script = document.createElement("script")
-          script.id = "google-maps-sdk"
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=weekly`
-          script.async = true
-          script.defer = true
-          script.onload = () => {
-            setTimeout(() => {
-              const ok = !!window.google?.maps?.places?.Autocomplete
-              mapsScriptLoadedRef.current = ok
-              resolve(ok)
-            }, 200)
+      const script = document.createElement("script")
+      script.id = "google-maps-sdk"
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=weekly`
+      script.async = true
+      script.defer = true
+      script.onload = () => {
+        setTimeout(() => {
+          if (window.google?.maps?.places?.AutocompleteService) {
+            googleMapsReadyRef.current = true
           }
-          script.onerror = () => resolve(false)
-          document.head.appendChild(script)
-        })
+        }, 200)
       }
-
-      const parsePlace = (place) => {
-        const formattedAddress = place?.formatted_address || ""
-        const comps = Array.isArray(place?.address_components) ? place.address_components : []
-        const get = (types) => comps.find((c) => types.some((t) => c.types?.includes(t)))?.long_name || ""
-
-        const area = get(["sublocality_level_1", "sublocality", "neighborhood"]) || get(["locality"])
-        const city = get(["locality"]) || get(["administrative_area_level_2"])
-        const state = get(["administrative_area_level_1"]) || get(["administrative_area_level_2"])
-        const pincode = get(["postal_code"])
-        const lat = place?.geometry?.location?.lat?.()
-        const lng = place?.geometry?.location?.lng?.()
-
-        return {
-          formattedAddress,
-          area,
-          city,
-          state,
-          pincode,
-          latitude: typeof lat === "number" ? Number(lat.toFixed(6)) : "",
-          longitude: typeof lng === "number" ? Number(lng.toFixed(6)) : "",
-        }
-      }
-
-      const ok = await loadMaps()
-      if (!ok || cancelled || !inputElement) return
-
-      if (inputElement.hasAttribute("data-google-places-initialized")) return
-
-      try {
-        autocomplete = new window.google.maps.places.Autocomplete(inputElement, {
-          fields: ["formatted_address", "address_components", "geometry"],
-          componentRestrictions: { country: "in" },
-          types: ["geocode", "establishment"]
-        })
-
-        inputElement.setAttribute("data-google-places-initialized", "true")
-        placesAutocompleteRef.current = autocomplete
-
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace()
-          if (!place?.geometry) return
-
-          const parsed = parsePlace(place)
-          handleLocationSelect(parsed)
-          
-          if (inputElement) inputElement.blur()
-        })
-
-        const pacContainerFix = () => {
-          const applyFix = () => {
-            const containers = document.querySelectorAll(".pac-container")
-            if (containers.length > 0) {
-              containers.forEach((container) => {
-                container.style.zIndex = "999999"
-                container.style.pointerEvents = "auto"
-                container.style.visibility = "visible"
-                container.style.display = "block"
-              })
-            }
-          }
-          applyFix()
-          setTimeout(applyFix, 100)
-          setTimeout(applyFix, 300)
-        }
-
-        inputElement.addEventListener("focus", pacContainerFix)
-        inputElement.addEventListener("input", pacContainerFix)
-      } catch (e) {
-        debugError("Autocomplete error:", e)
-      }
+      document.head.appendChild(script)
     }
 
-    init().catch(() => {})
-
-    return () => {
-      cancelled = true
-      if (autocomplete) {
-        try { window.google?.maps?.event?.clearInstanceListeners(autocomplete) } catch {}
-      }
-      if (locationSearchInputRef.current) {
-        locationSearchInputRef.current.removeAttribute("data-google-places-initialized")
-      }
-      placesAutocompleteRef.current = null
-    }
+    loadMaps().catch(() => {})
+    return () => { cancelled = true }
   }, [step])
 
-  // Hybrid Search Fallback (Nominatim)
+  // ── Unified Search (Google Places API primary, Nominatim fallback) ────────
+
   useEffect(() => {
     if (step !== 1) return
+    if (justSelectedRef.current) return
+
     const q = String(locationSearchValue || "").trim()
     if (q.length < 3) {
       setLocationSuggestions([])
@@ -2176,9 +2122,41 @@ export default function RestaurantOnboarding() {
     }
 
     const t = setTimeout(async () => {
+      if (justSelectedRef.current) return
+
+      setIsSearchingLocation(true)
+
+      // Try Google Places AutocompleteService first
+      if (googleMapsReadyRef.current && window.google?.maps?.places?.AutocompleteService) {
+        try {
+          const service = new window.google.maps.places.AutocompleteService()
+          service.getPlacePredictions(
+            { input: q, componentRestrictions: { country: "in" } },
+            (predictions, status) => {
+              if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+                const mapped = predictions.map(p => ({
+                  id: p.place_id,
+                  display: p.description,
+                  isGoogle: true
+                }))
+                setLocationSuggestions(mapped)
+                setIsSearchingLocation(false)
+              } else {
+                // If ZERO_RESULTS or error, we could fallback, but let's just show empty
+                setLocationSuggestions([])
+                setIsSearchingLocation(false)
+              }
+            }
+          )
+          return // Exit here, callback handles state
+        } catch (e) {
+          debugError("Google AutocompleteService failed:", e)
+        }
+      }
+
+      // Fallback to Nominatim if Google Maps isn't loaded/failed
       try {
-        setIsSearchingLocation(true)
-        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=4&q=${encodeURIComponent(q)}&countrycodes=in`
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${encodeURIComponent(q)}&countrycodes=in`
         const res = await fetch(url, { headers: { Accept: "application/json" } })
         const json = await res.json()
         const mapped = (Array.isArray(json) ? json : []).map(r => ({
@@ -2187,6 +2165,7 @@ export default function RestaurantOnboarding() {
           lat: Number(r.lat),
           lng: Number(r.lon),
           addr: r.address || {},
+          isGoogle: false
         }))
         setLocationSuggestions(mapped)
       } catch (e) {
@@ -2198,6 +2177,8 @@ export default function RestaurantOnboarding() {
 
     return () => clearTimeout(t)
   }, [locationSearchValue, step])
+
+
 
   useEffect(() => {
     if (step !== 1) return
