@@ -1043,14 +1043,11 @@ function ScheduledOrders({ onSelectOrder, refreshToken }) {
   );
 }
 
-// Helper to calculate initial countdown based on order creation time (3 minutes window)
+// Helper to calculate initial countdown based on popup display time (3 minutes window)
 const getInitialCountdown = (order) => {
-  if (!order?.createdAt) return 180;
-  const now = Date.now();
-  const created = new Date(order.createdAt).getTime();
-  const diffInSeconds = Math.floor((now - created) / 1000);
-  const remaining = 180 - diffInSeconds;
-  return Math.max(0, Math.min(180, remaining));
+  // Always return 180 seconds (3 minutes) when the popup is shown, 
+  // so orders queued behind others don't run out of time in the background.
+  return 180;
 }
 
 export default function OrdersMain() {
@@ -1097,6 +1094,9 @@ export default function OrdersMain() {
   const [isReverifying, setIsReverifying] = useState(false);
   const audioUnlockedRef = useRef(false);
   const showNewOrderPopupRef = useRef(showNewOrderPopup);
+  useEffect(() => {
+    showNewOrderPopupRef.current = showNewOrderPopup;
+  }, [showNewOrderPopup]);
   const isMutedRef = useRef(isMuted);
   const newOrderRef = useRef(null);
 
@@ -1437,11 +1437,17 @@ export default function OrdersMain() {
       }
 
       if (!hasOrderBeenShown(newOrder)) {
-        markOrderAsShown(newOrder);
-        setPopupOrder(newOrder);
-        setShowNewOrderPopup(true);
-        setCountdown(getInitialCountdown(newOrder)); // Calculate relative to createdAt
-        requestOrdersRefresh();
+        if (showNewOrderPopupRef.current) {
+          // If a popup is already open, just refresh the list. 
+          // The background polling will pick this order up next in the queue.
+          requestOrdersRefresh();
+        } else {
+          markOrderAsShown(newOrder);
+          setPopupOrder(newOrder);
+          setShowNewOrderPopup(true);
+          setCountdown(getInitialCountdown(newOrder)); // Calculate relative to createdAt
+          requestOrdersRefresh();
+        }
       }
     }
   }, [newOrder]);
@@ -1664,7 +1670,7 @@ export default function OrdersMain() {
     const intervalId = setInterval(checkOrdersToPopup, 60000);
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [ordersRefreshToken]);
 
   // Play audio when popup opens
   useEffect(() => {
@@ -3481,9 +3487,14 @@ function OrderCard({
   const isPreparing = normalizedStatus === "preparing";
   const brandColor = "#7e3866";
 
-  const statusLabel = String(status || "")
+  let statusLabel = String(status || "")
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // If the restaurant hasn't accepted it yet, show it as Pending instead of Confirmed
+  if (normalizedStatus === "confirmed" || normalizedStatus === "created") {
+    statusLabel = "Pending";
+  }
 
   return (
     <div className="w-full bg-white rounded-xl p-3 mb-3 border border-slate-100 shadow-sm relative overflow-hidden active:bg-slate-50 transition-colors">
