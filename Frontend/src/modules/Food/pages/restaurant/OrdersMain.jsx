@@ -3439,11 +3439,18 @@ export default function OrdersMain() {
                 </div>
               ) : null}
 
-              <button
-                className="w-full bg-primary text-white py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
-                onClick={() => setIsSheetOpen(false)}>
-                Close
-              </button>
+              <div className="flex gap-3 mt-4">
+                  <button
+                    className="flex-1 bg-white border-2 border-primary text-primary py-2.5 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors"
+                    onClick={() => setIsSheetOpen(false)}>
+                    Close
+                  </button>
+                  <button
+                    className="flex-1 bg-primary text-white py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+                    onClick={() => navigate(`/food/restaurant/orders/${selectedOrder.mongoId || selectedOrder.orderId}`)}>
+                    View Details & Bill
+                  </button>
+                </div>
             </motion.div>
           </motion.div>
         )}

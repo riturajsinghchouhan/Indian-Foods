@@ -9,6 +9,7 @@ import { restaurantAPI } from "@food/api"
 import {
   ArrowLeft,
   Printer,
+  Download,
   Copy,
   User,
   MapPin,
@@ -139,6 +140,13 @@ export default function OrderDetails() {
             )
           const paidAmount = firstNumber(order.payment?.amountDue, order.payment?.amount, total) ?? total
 
+          // Admin and Restaurant Payout calculations
+          const deliveryCostToAdmin = firstNumber(order.riderEarning, 30);
+          const deliveryGstToAdmin = deliveryCostToAdmin * 0.18;
+          const totalAdminReceivable = deliveryCostToAdmin + deliveryGstToAdmin + platformFee + taxes + packagingFee;
+          const restaurantGets = Math.max(0, total - totalAdminReceivable);
+          const deliveryDistance = firstNumber(order.deliveryDistance, order.customer?.distance, 0);
+
           const addressParts = [
             order.address?.street,
             order.address?.area,
@@ -217,7 +225,7 @@ export default function OrderDetails() {
               name: customerName,
               orderCount: order.userId?.orderCount || 1,
               location: fullAddress,
-              distance: order.deliveryDistance ? `${order.deliveryDistance} km` : ''
+              distance: deliveryDistance ? `${deliveryDistance} km` : '-'
             },
             items: order.items?.map(item => ({
               name: item.name,
@@ -237,7 +245,12 @@ export default function OrderDetails() {
               referralDiscount,
               total,
               paidAmount,
-              paymentStatus
+              paymentStatus,
+              deliveryCostToAdmin,
+              deliveryGstToAdmin,
+              totalAdminReceivable,
+              restaurantGets,
+              deliveryDistance
             },
             deliveryPartnerId: order.deliveryPartnerId || order.dispatch?.deliveryPartnerId || null,
             dispatchStatus: order.dispatch?.status || null,
@@ -737,17 +750,18 @@ export default function OrderDetails() {
             <button
               onClick={handlePrintReceipt}
               disabled={isGeneratingPDF}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
-              aria-label="Print"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Download Invoice"
             >
               {isGeneratingPDF ? (
-                <svg className="animate-spin h-5 w-5 text-gray-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               ) : (
-                <Printer className="w-5 h-5 text-gray-900" />
+                <Download className="w-4 h-4" />
               )}
+              <span className="text-xs font-bold hidden sm:inline">Download</span>
             </button>
           </div>
         </div>
@@ -896,72 +910,95 @@ export default function OrderDetails() {
           ))}
         </div>
 
-        {/* Bill Details Section */}
-        <div>
-          <h2 className="text-base font-bold text-gray-900 mb-3">Bill details</h2>
+        {/* Detailed Billing Section */}
+        <div className="space-y-4">
           
-          <div className="bg-white  rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-600">Item subtotal</span>
-              <span className="text-sm text-gray-900">{formatMoney(orderData.billing.itemSubtotal)}</span>
+          {/* Customer Bill */}
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 mb-3 tracking-wide">Customer Bill</h3>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">Item subtotal</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.itemSubtotal)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">Discount</span>
+                <span className="text-[13px] text-gray-900">{formatDiscount(orderData.billing.discount + orderData.billing.couponDiscount + orderData.billing.referralDiscount)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">Delivery fee (user)</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.deliveryFee)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">Platform fee</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.platformFee)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">GST (user bill)</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.taxes)}</span>
+              </div>
+              <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between">
+                <span className="text-sm font-bold text-gray-900">Total paid by user</span>
+                <span className="text-sm font-bold text-gray-900">{formatMoney(orderData.billing.total)}</span>
+              </div>
             </div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-600">Taxes</span>
-              <span className="text-sm text-gray-900">{formatMoney(orderData.billing.taxes)}</span>
-            </div>
-            {Number(orderData.billing.packagingFee) > 0 && (
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-gray-600">Packaging fee</span>
-                <span className="text-sm text-gray-900">{formatMoney(orderData.billing.packagingFee)}</span>
-              </div>
-            )}
-            {Number(orderData.billing.deliveryFee) > 0 && (
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-gray-600">Delivery fee</span>
-                <span className="text-sm text-gray-900">{formatMoney(orderData.billing.deliveryFee)}</span>
-              </div>
-            )}
-            {Number(orderData.billing.platformFee) > 0 && (
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-gray-600">Platform fee</span>
-                <span className="text-sm text-gray-900">{formatMoney(orderData.billing.platformFee)}</span>
-              </div>
-            )}
-            {Number(orderData.billing.discount) > 0 && (
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-green-700">Discount</span>
-                <span className="text-sm text-green-700">{formatDiscount(orderData.billing.discount)}</span>
-              </div>
-            )}
-            {Number(orderData.billing.couponDiscount) > 0 && (
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-green-700">Coupon discount</span>
-                <span className="text-sm text-green-700">{formatDiscount(orderData.billing.couponDiscount)}</span>
-              </div>
-            )}
-            {Number(orderData.billing.referralDiscount) > 0 && (
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-green-700">Referral discount</span>
-                <span className="text-sm text-green-700">{formatDiscount(orderData.billing.referralDiscount)}</span>
-              </div>
-            )}
-            <div className="my-3"></div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-gray-900">Total bill</span>
-                <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-medium rounded">
-                  {orderData.billing.paymentStatus}
-                </span>
-              </div>
-              <span className="text-sm font-semibold text-gray-900">{formatMoney(orderData.billing.total)}</span>
-            </div>
-            {Number(orderData.billing.paidAmount) > 0 && (
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-sm text-gray-600">Amount paid</span>
-                <span className="text-sm font-medium text-gray-900">{formatMoney(orderData.billing.paidAmount)}</span>
-              </div>
-            )}
           </div>
+
+          {/* Admin Receivable */}
+          <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 mb-3 tracking-wide">Admin Receivable</h3>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">Delivery cost to admin</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.deliveryCostToAdmin)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">Delivery GST to admin (18%)</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.deliveryGstToAdmin)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">Platform fee to admin</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.platformFee)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">GST collected from user</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.taxes)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">Recommended item charge</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.packagingFee)}</span>
+              </div>
+              <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between">
+                <span className="text-sm font-bold text-gray-900">Total going to admin</span>
+                <span className="text-sm font-bold text-gray-900">{formatMoney(orderData.billing.totalAdminReceivable)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Restaurant Payout */}
+          <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 shadow-sm">
+            <h3 className="text-sm font-bold text-blue-900 mb-3 tracking-wide">Restaurant Payout</h3>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-gray-900">Restaurant gets</span>
+              <span className="text-sm font-bold text-gray-900">{formatMoney(orderData.billing.restaurantGets)}</span>
+            </div>
+          </div>
+
+          {/* Delivery Info */}
+          <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm mb-4">
+            <h3 className="text-sm font-bold text-gray-900 mb-3 tracking-wide">Delivery Info</h3>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">Distance for this order</span>
+                <span className="text-[13px] text-gray-900">{orderData.billing.deliveryDistance ? `${orderData.billing.deliveryDistance} km` : '-'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-gray-600 font-medium">User delivery charge (distance based)</span>
+                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.deliveryFee)}</span>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         {/* Order Timeline Section */}
