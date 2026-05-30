@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@food/components/ui/select"
 import { restaurantAPI, zoneAPI, uploadAPI, api } from "@food/api"
-import { MobileTimePicker } from "@mui/x-date-pickers/MobileTimePicker"
+import { TimePicker } from "@mui/x-date-pickers/TimePicker"
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs"
 import dayjs from "dayjs"
@@ -505,6 +505,10 @@ function TimeSelector({ label, value, onChange }) {
   })()
 
   const applyTimeValue = (newValue) => {
+    if (newValue === null) {
+      onChange("")
+      return
+    }
     if (!newValue || (typeof newValue.isValid === "function" && !newValue.isValid())) {
       return
     }
@@ -526,7 +530,7 @@ function TimeSelector({ label, value, onChange }) {
         <Clock className="w-4 h-4 text-gray-800" />
         <span className="text-xs font-medium text-gray-900">{label}</span>
       </div>
-      <MobileTimePicker 
+      <TimePicker 
         ampm={true}
         value={timeValue}
         onChange={applyTimeValue}
@@ -1052,8 +1056,8 @@ export default function RestaurantOnboarding() {
           const savedPhone = normalizePhoneDigits(localData.step1?.ownerPhone || "")
           const normalizedCurrent = normalizePhoneDigits(currentPhone)
           
-          // Only use local data if it belongs to the same user
-          if (savedPhone && normalizedCurrent && savedPhone === normalizedCurrent) {
+          // Only use local data if it belongs to the same user or if the phone was not saved yet
+          if (!savedPhone || !normalizedCurrent || savedPhone === normalizedCurrent) {
             debugLog("? Matching local session found. Resuming with unsaved changes.")
             
             if (localData.step1) {
@@ -1076,7 +1080,7 @@ export default function RestaurantOnboarding() {
             if (localData.currentStep && !stepParam) {
               setStep(Math.min(3, Math.max(1, Number(localData.currentStep))))
             }
-          } else if (savedPhone && normalizedCurrent && savedPhone !== normalizedCurrent) {
+          } else {
              debugLog("? Phone mismatch, data belongs to different user. Clearing local cache.")
              clearOnboardingFromLocalStorage()
              await clearAllFilesFromDB()

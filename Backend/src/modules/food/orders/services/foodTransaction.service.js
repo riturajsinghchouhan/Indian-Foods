@@ -97,7 +97,12 @@ export async function createInitialTransaction(order) {
             ? restaurantCommissionFromOrder
             : (commissionAmount || 0);
     const restaurantNet = (order.pricing?.subtotal || 0) + (order.pricing?.packagingFee || 0) - restaurantCommission;
-    const platformNetProfit = (order.pricing?.platformFee || 0) + (order.pricing?.deliveryFee || 0) + restaurantCommission - riderShare;
+    
+    // Clamp to 0 to avoid Mongoose validation errors (min: 0) on FoodTransaction schema
+    const calculatedPlatformNetProfit = (order.pricing?.platformFee || 0) + (order.pricing?.deliveryFee || 0) + restaurantCommission - riderShare;
+    const platformNetProfit = order.platformProfit !== undefined 
+        ? order.platformProfit 
+        : Math.max(0, calculatedPlatformNetProfit);
 
     const transaction = new FoodTransaction({
         orderId: order._id,
