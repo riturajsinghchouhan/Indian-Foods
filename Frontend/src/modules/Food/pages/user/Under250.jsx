@@ -19,6 +19,7 @@ import { restaurantAPI, adminAPI } from "@food/api"
 import { isModuleAuthenticated } from "@food/utils/auth"
 import { flattenMenuItems, getMenuFromResponse } from "@food/utils/menuItems"
 import { calculateDistance, formatDistance } from "@food/utils/common"
+import { getRestaurantAvailabilityStatus } from "@food/utils/restaurantAvailability"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -658,6 +659,8 @@ export default function Under250() {
       originalPrice: item.originalPrice || item.price,
       priceOnOtherPlatforms: item.priceOnOtherPlatforms || null, // Include platform pricing for savings display
       otherPlatformGst: item.otherPlatformGst ?? null,
+      isVeg: item.isVeg,
+      foodType: item.foodType,
     }
 
     // Get source position for animation from event target
@@ -1023,8 +1026,11 @@ export default function Under250() {
         ) : (
           sortedAndFilteredRestaurants.map((restaurant) => {
             const restaurantSlug = restaurant.slug || restaurant.name.toLowerCase().replace(/\s+/g, "-")
+            const availability = getRestaurantAvailabilityStatus(restaurant)
+            const isClosed = !availability.isOpen
+
             return (
-              <section key={restaurant.id} className="pt-4 sm:pt-6 md:pt-8 lg:pt-10">
+              <section key={restaurant.id} className={`pt-4 sm:pt-6 md:pt-8 lg:pt-10 ${isClosed ? 'opacity-70 grayscale' : ''}`}>
                 {/* Restaurant Header */}
                 <div className="flex items-start justify-between mb-3 md:mb-4 lg:mb-6">
                   <div className="flex-1">
@@ -1070,8 +1076,8 @@ export default function Under250() {
                         return (
                           <motion.div
                             key={item.id}
-                            className="flex-shrink-0 w-[200px] sm:w-[220px] md:w-full bg-white dark:bg-[#1a1a1a] rounded-lg md:rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden cursor-pointer"
-                            onClick={() => handleItemClick(item, restaurant)}
+                            className="flex-shrink-0 w-[200px] sm:w-[220px] md:w-full bg-white dark:bg-[#1a1a1a] rounded-lg md:rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden cursor-pointer relative"
+                            onClick={() => !isClosed && handleItemClick(item, restaurant)}
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true, margin: "-50px" }}
@@ -1097,13 +1103,20 @@ export default function Under250() {
                                 />
                               </motion.div>
                               {/* Gradient Overlay on Hover */}
-                              <motion.div
-                                className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"
-                                initial={{ opacity: 0 }}
-                                whileHover={{ opacity: 1 }}
-                                transition={{ duration: 0.3 }}
-                              />
-                              {/* Veg Indicator */}
+                                <motion.div
+                                  className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"
+                                  initial={{ opacity: 0 }}
+                                  whileHover={{ opacity: 1 }}
+                                  transition={{ duration: 0.3 }}
+                                />
+                                {isClosed && (
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20">
+                                    <div className="bg-black/80 px-3 py-1.5 rounded-lg border border-white/20">
+                                      <span className="text-white font-black uppercase tracking-widest text-xs">Closed</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {/* Veg Indicator */}
                               {item.isVeg && (
                                 <motion.div
                                   className="absolute top-2 left-2 md:top-3 md:left-3 h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 rounded border-2 border-green-600 bg-white flex items-center justify-center z-10"
@@ -1136,7 +1149,16 @@ export default function Under250() {
                                     <p className="text-xs md:text-sm lg:text-base text-gray-500 dark:text-gray-400">Best price</p>
                                   )}
                                 </div>
-                                {quantity > 0 ? (
+                                {isClosed ? (
+                                  <Button
+                                    variant={"ghost"}
+                                    size="sm"
+                                    disabled={true}
+                                    className="rounded-full h-8 sm:h-9 md:h-10 px-4 sm:px-6 md:px-8 text-[12px] sm:text-[14px] md:text-[16px] font-black uppercase tracking-widest bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed shadow-none"
+                                  >
+                                    CLOSED
+                                  </Button>
+                                ) : quantity > 0 ? (
                                   <Link to="/user/cart" onClick={(e) => e.stopPropagation()}>
                                     <Button
                                       variant={"ghost"}
@@ -1150,16 +1172,10 @@ export default function Under250() {
                                   <Button
                                     variant={"ghost"}
                                     size="sm"
-                                    disabled={shouldShowGrayscale}
-                                    className={`rounded-full h-8 sm:h-9 md:h-10 px-4 sm:px-6 md:px-8 text-[12px] sm:text-[14px] md:text-[16px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 flex items-center justify-center gap-1 sm:gap-1.5 ${shouldShowGrayscale
-                                      ? 'bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed opacity-50 shadow-none'
-                                      : 'bg-[#E23744] hover:bg-[#D12B37] text-white shadow-[0_6px_16px_0_rgba(226,55,68,0.35)] hover:shadow-[0_8px_20px_rgba(226,55,68,0.45)] border border-[#E23744]/20'
-                                      }`}
+                                    className="rounded-full h-8 sm:h-9 md:h-10 px-4 sm:px-6 md:px-8 text-[12px] sm:text-[14px] md:text-[16px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 flex items-center justify-center gap-1 sm:gap-1.5 bg-[#E23744] hover:bg-[#D12B37] text-white shadow-[0_6px_16px_0_rgba(226,55,68,0.35)] hover:shadow-[0_8px_20px_rgba(226,55,68,0.45)] border border-[#E23744]/20"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      if (!shouldShowGrayscale) {
-                                        handleItemClick(item, restaurant)
-                                      }
+                                      handleItemClick(item, restaurant)
                                     }}
                                   >
                                     ADD <span className="text-[16px] sm:text-[18px] md:text-[20px] font-medium leading-none mt-[-2px]">+</span>

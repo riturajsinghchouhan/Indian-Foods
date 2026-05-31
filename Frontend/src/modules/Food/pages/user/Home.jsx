@@ -2523,7 +2523,7 @@ export default function Home() {
 
   if (shouldShowOutOfZoneHome) {
     return (
-      <div className="relative min-h-[100dvh] w-full bg-[#1e1332] overflow-hidden flex flex-col justify-center">
+      <div className="fixed inset-0 z-[100] w-full bg-[#1e1332] overflow-hidden flex flex-col justify-center">
         <img src={outOfZoneBg} alt="Out of zone background" className="absolute inset-0 w-full h-full object-cover z-0" />
         
         {/* Dark overlay at bottom for text readability */}

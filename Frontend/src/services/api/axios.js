@@ -99,6 +99,15 @@ function createModuleClient(moduleName) {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
+      // Automatically inject Zone ID for user/public endpoints
+      if (moduleName === "user" || moduleName === "public") {
+        const zoneId = localStorage.getItem("userZoneId");
+        if (zoneId) {
+          config.headers["X-Zone-Id"] = zoneId;
+        }
+      }
+
       return config;
     },
     (err) => Promise.reject(err)
@@ -219,6 +228,15 @@ apiClient.interceptors.request.use(
     const module = config.contextModule || getModuleFromUrl(config.url);
     const token = getAccessToken(module);
     if (token) config.headers.Authorization = `Bearer ${token}`;
+
+    // Automatically inject Zone ID for user/public endpoints
+    if (module === "user" || module === "public" || module === "delivery") {
+      const zoneId = localStorage.getItem("userZoneId");
+      if (zoneId) {
+        config.headers["X-Zone-Id"] = zoneId;
+      }
+    }
+
     return config;
   },
   (err) => Promise.reject(err)

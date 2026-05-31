@@ -20,8 +20,12 @@ import webhookRoutes from '../core/payments/routes/webhook.routes.js';
 import searchRoutes from '../modules/food/search/routes/search.routes.js';
 import appConfigRoutes from '../core/appConfig/appConfig.routes.js';
 import promocodeRoutes from './promocodeRoutes.js';
+import { requireZone } from '../middlewares/zone.middleware.js';
 
 const router = express.Router();
+
+// Apply Global Zone Interceptor (Reads X-Zone-Id from Frontend Axios)
+router.use(requireZone);
 
 router.get('/v1/health', (req, res) => {
     res.status(200).json({ status: 'UP', message: 'Server is healthy' });
