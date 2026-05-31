@@ -276,19 +276,23 @@ export async function tryAutoAssign(orderId, options = {}) {
         }
       }
 
-      if (lead) {
-        try {
-          await notifyOwnerSafely(
-            { ownerType: 'DELIVERY_PARTNER', ownerId: lead.partnerId },
-            {
-              title: 'New order assigned!',
-              body: `You have 20 seconds to accept Order #${order.order_id || order._id}.`,
-              data: { type: 'new_order', orderId: order._id.toString() },
-            },
-          );
-        } catch (err) {
-          logger.warn(`Push notification failed for partner ${lead.partnerId}: ${err.message}`);
-        }
+      // Send push notifications to ALL riders in the batch (not just lead)
+      // so riders whose socket is disconnected or app is in background also get triggered
+      const notifyList = phase1Batch.map(p => ({
+        ownerType: 'DELIVERY_PARTNER',
+        ownerId: p.partnerId,
+      }));
+      try {
+        await notifyOwnersSafely(
+          notifyList,
+          {
+            title: '🚴 New Order Nearby!',
+            body: `Order #${order.order_id || order._id} is waiting. Be the first to accept!`,
+            data: { type: 'new_order', orderId: order._id.toString() },
+          },
+        );
+      } catch (err) {
+        logger.warn(`Push notifications failed for batch: ${err.message}`);
       }
     }
 
