@@ -1141,7 +1141,7 @@ export async function updateOrderStatusRestaurant(
         );
         
         try {
-            await tryAutoAssign(order._id);
+            await dispatchService.tryAutoAssign(order._id);
             // Refresh local order state after assignment search
             order = await FoodOrder.findById(order._id); 
         } catch (err) {
