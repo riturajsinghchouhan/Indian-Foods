@@ -552,9 +552,19 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
           orderMongoId: order._id?.toString?.(),
           claimedBy: deliveryPartnerId.toString(),
         };
-        // 1. Global broadcast to all_delivery room — covers every online delivery boy
+        
+        // 1. Specific broadcast to EVERY partner who was offered this order (100% reliable)
+        if (Array.isArray(order.dispatch?.offeredTo)) {
+          for (const offer of order.dispatch.offeredTo) {
+            if (String(offer.partnerId) !== String(deliveryPartnerId)) {
+              io.to(rooms.delivery(offer.partnerId)).emit('order_claimed', claimedPayload);
+            }
+          }
+        }
+        
+        // 2. Global broadcast fallback
         io.to('all_delivery').emit('order_claimed', claimedPayload);
-        logger.info(`[DeliveryDispatch] Broadcasted order_claimed globally (all_delivery room) for order ${order._id.toString()}`);
+        logger.info(`[DeliveryDispatch] Broadcasted order_claimed specifically and globally for order ${order._id.toString()}`);
 
       }
 

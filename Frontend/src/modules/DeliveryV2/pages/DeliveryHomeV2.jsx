@@ -532,49 +532,6 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     }
   }, [activeOrder, incomingOrder]);
 
-  // Hybrid Approach: Active polling to auto-dismiss incoming order if taken by someone else
-  // This acts as a foolproof fallback in case the 'order_claimed' socket event is missed due to poor network
-  useEffect(() => {
-    if (!incomingOrder) return;
-    
-    let isCancelled = false;
-    const interval = setInterval(async () => {
-      try {
-        const res = await deliveryAPI.getOrders({ limit: 10, page: 1 });
-        if (isCancelled) return;
-        
-        const availablePayload = res?.data?.data || res?.data || {};
-        const availableOrders = Array.isArray(availablePayload?.docs)
-          ? availablePayload.docs
-          : Array.isArray(availablePayload?.items)
-            ? availablePayload.items
-            : Array.isArray(availablePayload)
-              ? availablePayload
-              : [];
-              
-        const incomingId = incomingOrder.orderId || incomingOrder._id || incomingOrder.orderMongoId;
-        
-        const stillAvailable = availableOrders.some(o => {
-          const oId = o.orderId || o._id || o.orderMongoId;
-          return String(oId) === String(incomingId);
-        });
-        
-        if (!stillAvailable) {
-          console.log('[DeliveryHome] Order is no longer in available queue. Auto-dismissing popup.');
-          setIncomingOrder(null);
-          clearNewOrder();
-        }
-      } catch (err) {
-        // Ignore network errors during polling
-      }
-    }, 5000); // Check every 5 seconds
-    
-    return () => {
-      isCancelled = true;
-      clearInterval(interval);
-    };
-  }, [incomingOrder, clearNewOrder]);
-
   // When another delivery partner claims the incoming order (via socket 'order_claimed'),
   // dismiss the NewOrderModal and inform this delivery boy.
   useEffect(() => {
