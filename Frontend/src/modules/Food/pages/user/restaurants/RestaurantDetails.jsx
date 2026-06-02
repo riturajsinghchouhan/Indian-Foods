@@ -196,6 +196,9 @@ function RestaurantDetailsContent() {
   const fetchedZoneIdRef = useRef(null)
 
   useEffect(() => {
+    // Scroll to top when the component mounts (e.g. from search navigation)
+    window.scrollTo(0, 0)
+
     const intervalId = setInterval(() => {
       setAvailabilityTick(Date.now())
     }, 60000)

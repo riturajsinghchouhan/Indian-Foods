@@ -8,8 +8,7 @@ const schema = z.object({
         .max(15, 'Phone must be at most 15 digits'),
     otp: z
         .string()
-        .min(4, 'OTP must be 4-6 digits')
-        .max(6, 'OTP must be 4-6 digits'),
+        .length(6, 'OTP must be exactly 6 digits'),
     fcmToken: z.string().optional().nullable(),
     platform: z.enum(['web', 'mobile']).optional().default('web')
 });

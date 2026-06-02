@@ -12,7 +12,7 @@ import { checkOnboardingStatus, isRestaurantOnboardingComplete } from "@food/uti
 
 export default function RestaurantOTP() {
   const navigate = useNavigate()
-  const [otp, setOtp] = useState(["", "", "", ""])
+  const [otp, setOtp] = useState(["", "", "", "", "", ""])
   const [isLoading, setIsLoading] = useState(false)
   const [resendTimer, setResendTimer] = useState(0)
   const [authData, setAuthData] = useState(null)
@@ -72,7 +72,7 @@ export default function RestaurantOTP() {
     newOtp[index] = value
     setOtp(newOtp)
 
-    if (value && index < 3) {
+    if (value && index < 5) {
       inputRefs.current[index + 1]?.focus()
     }
 
@@ -98,8 +98,8 @@ export default function RestaurantOTP() {
   const handleVerify = async (otpValue = null) => {
     const code = otpValue || otp.join("")
 
-    if (code.length !== 4) {
-      toast.error("Please enter the complete 4-digit code")
+    if (code.length !== 6) {
+      toast.error("Please enter the complete 6-digit code")
       hasSubmittedRef.current = false
       return
     }
@@ -201,7 +201,7 @@ export default function RestaurantOTP() {
       }
 
       toast.error(message)
-      setOtp(["", "", "", ""])
+      setOtp(["", "", "", "", "", ""])
       hasSubmittedRef.current = false
       inputRefs.current[0]?.focus()
     } finally {
@@ -268,14 +268,14 @@ export default function RestaurantOTP() {
               Verify Account
             </h1>
             <p className="text-gray-500 dark:text-gray-400 font-medium">
-              We've sent a 4-digit code to <br />
+              We've sent a 6-digit code to <br />
               <span className="text-primary font-bold">{contactInfo}</span>
             </p>
           </div>
 
           {/* OTP Input Card */}
           <div className="bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-2xl rounded-[3rem] p-10 shadow-[0_40px_80px_-20px_rgba(126,56,102,0.2)] border border-white/20 dark:border-gray-800">
-            <div className="grid grid-cols-4 gap-4 mb-10">
+            <div className="grid grid-cols-6 gap-3 mb-10">
               {otp.map((digit, index) => (
                 <div key={index} className="relative group">
                   <input

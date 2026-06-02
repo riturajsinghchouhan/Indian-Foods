@@ -6,65 +6,48 @@ import { logger } from '../../utils/logger.js';
 import { ValidationError } from '../auth/errors.js';
 
 const generateOtpCode = () => {
-    const code = crypto.randomInt(1000, 9999);
+    const code = crypto.randomInt(100000, 999999);
     return String(code);
 };
 
 /**
- * Sends SMS via SMS India Hub API
- * @param {string} phone - 10-digit mobile number (will be prefixed with 91)
+ * Sends SMS via MSG91 API
+ * @param {string} phone - 10-digit mobile number
  * @param {string} otp
  */
-const sendSmsViaIndiaHub = async (phone, otp) => {
+const sendSmsViaMsg91 = async (phone, otp) => {
     try {
         // Normalize phone: strip non-digits, ensure 91 country code prefix
         const digits = String(phone || '').replace(/\D/g, '');
         const msisdn = digits.startsWith('91') ? digits : `91${digits}`;
 
-        // EXACT DLT TEMPLATE provided by user:
-        // "Welcome to the ##var## powered by SMSINDIAHUB. Your OTP for registration is ##var##"
-        const message = `Welcome to the Indian Bites powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+        // MSG91 API
+        const url = new URL('https://control.msg91.com/api/v5/otp');
+        url.searchParams.append('template_id', config.msg91TemplateId);
+        url.searchParams.append('mobile', msisdn);
+        url.searchParams.append('authkey', config.msg91AuthKey);
+        url.searchParams.append('otp', otp);
 
-        // SMS India Hub HTTP GET API — query param names are case-sensitive per SOP
-        const url = new URL('http://cloud.smsindiahub.in/vendorsms/pushsms.aspx');
-        url.searchParams.append('APIKey', config.smsApiKey);
-        url.searchParams.append('sid', config.smsSenderId);
-        url.searchParams.append('msisdn', msisdn);
-        url.searchParams.append('msg', message);
-        url.searchParams.append('gwid', '2');
-        url.searchParams.append('fl', '0');
-        if (config.smsIndiaHubUsername) {
-            url.searchParams.append('uname', config.smsIndiaHubUsername);
-        }
-        if (config.smsDltTemplateId) {
-            url.searchParams.append('DLT_TE_ID', config.smsDltTemplateId);
-        }
-
-        logger.info(`[SMS] Sending OTP to ${msisdn} via SMS India Hub...`);
-        const response = await fetch(url.toString());
+        logger.info(`[SMS] Sending OTP to ${msisdn} via MSG91...`);
+        const response = await fetch(url.toString(), { method: 'POST' });
         const resultText = await response.text();
         logger.info(`[SMS] Raw response for ${msisdn}: ${resultText}`);
 
-        // SMS India Hub often returns HTTP 200 OK even for errors — check response body
         let parsed = null;
-        try { parsed = JSON.parse(resultText); } catch (_) { /* plain text response is OK */ }
+        try { parsed = JSON.parse(resultText); } catch (_) { }
 
-        if (parsed && parsed.ErrorCode && parsed.ErrorCode !== '000') {
-            const errMsg = `SMS India Hub ERROR for ${phone}: [${parsed.ErrorCode}] ${parsed.ErrorMessage || resultText}`;
+        if (parsed && parsed.type === 'error') {
+            const errMsg = `MSG91 ERROR for ${phone}: ${parsed.message || resultText}`;
             logger.error(errMsg);
             // eslint-disable-next-line no-console
             console.error(`❌ [SMS ERROR] ${errMsg}`);
-            if (parsed.ErrorCode === '006') {
-                // eslint-disable-next-line no-console
-                console.error('❌ [SMS ERROR] ErrorCode 006 = DLT Template mismatch. The message text must EXACTLY match your registered TRAI DLT template. Login to https://cloud.smsindiahub.in and verify the approved template text.');
-            }
         } else if (!response.ok) {
             logger.error(`SMS API HTTP error for ${phone}: ${response.status} – ${resultText}`);
         } else {
-            logger.info(`✅ SMS sent successfully to ${msisdn}`);
+            logger.info(`✅ SMS sent successfully to ${msisdn} via MSG91`);
         }
     } catch (error) {
-        logger.error(`Error sending SMS to ${phone}: ${error.message}`);
+        logger.error(`Error sending SMS to ${phone} via MSG91: ${error.message}`);
         // Do NOT throw — OTP is already stored in DB; SMS failure should not block the flow
     }
 };
@@ -92,7 +75,7 @@ export const createOrUpdateOtp = async (phone) => {
 
     let otp;
     if (config.useDefaultOtp) {
-        otp = '1234';
+        otp = '123456';
         logger.info(`Default OTP mode enabled – OTP is ${otp} for phone ${phone}`);
     } else {
         otp = generateOtpCode();
@@ -127,7 +110,7 @@ export const createOrUpdateOtp = async (phone) => {
 
     // Only send SMS if not in default OTP mode
     if (!config.useDefaultOtp) {
-        await sendSmsViaIndiaHub(phone, otp);
+        await sendSmsViaMsg91(phone, otp);
     }
 
     return otp;

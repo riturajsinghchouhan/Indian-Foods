@@ -103,9 +103,9 @@ export default function UnifiedOTPFastLogin() {
 
   const handleVerifyOTP = async (e) => {
     e.preventDefault()
-    const otpDigits = String(otp).replace(/\D/g, "").slice(0, 4)
-    if (otpDigits.length !== 4) {
-      toast.error("Please enter the 4-digit OTP")
+    const otpDigits = String(otp).replace(/\D/g, "").slice(0, 6)
+    if (otpDigits.length !== 6) {
+      toast.error("Please enter the 6-digit OTP")
       return
     }
     if (submitting.current) return
@@ -350,7 +350,8 @@ export default function UnifiedOTPFastLogin() {
                         sessionStorage.setItem("draft_phone_login", val);
                       }}
                       maxLength={10}
-                      className="w-full bg-transparent border-none outline-none text-gray-800 dark:text-white font-semibold text-base placeholder:text-gray-400 placeholder:font-medium"
+                      className="w-full bg-transparent border-0 outline-none focus:border-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-gray-800 dark:text-white font-semibold text-base placeholder:text-gray-400 placeholder:font-medium"
+                      style={{ boxShadow: "none", border: "none", outline: "none" }}
                       placeholder="Enter your 10-digit number"
                     />
                   </div>
@@ -378,7 +379,7 @@ export default function UnifiedOTPFastLogin() {
                 className="space-y-6"
               >
                 <div className="flex justify-between gap-3">
-                  {[0, 1, 2, 3].map((index) => (
+                  {[0, 1, 2, 3, 4, 5].map((index) => (
                     <input
                       key={index}
                       id={`otp-${index}`}
@@ -392,9 +393,9 @@ export default function UnifiedOTPFastLogin() {
                         if (!val) return;
                         const newOtp = otp.split("");
                         newOtp[index] = val;
-                        const combined = newOtp.join("").slice(0, 4);
+                        const combined = newOtp.join("").slice(0, 6);
                         setOtp(combined);
-                        if (index < 3 && val) {
+                        if (index < 5 && val) {
                           document.getElementById(`otp-${index + 1}`)?.focus();
                         }
                       }}
@@ -441,7 +442,7 @@ export default function UnifiedOTPFastLogin() {
 
                 <button
                   type="submit"
-                  disabled={loading || otp.length < 4}
+                  disabled={loading || otp.length < 6}
                   className="w-full h-[56px] mt-4 rounded-full bg-gradient-to-r from-[#FF5252] to-[#E53935] text-white font-bold text-lg shadow-[0_10px_25px_rgba(229,57,53,0.4)] hover:shadow-[0_15px_35px_rgba(229,57,53,0.5)] hover:-translate-y-0.5 transition-all active:scale-[0.98] flex items-center justify-center disabled:opacity-70 disabled:hover:translate-y-0"
                 >
                   {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Verify & Continue"}

@@ -13,7 +13,7 @@ const debugError = (...args) => {}
 
 export default function DeliveryOTP() {
   const navigate = useNavigate()
-  const [otp, setOtp] = useState(["", "", "", ""])
+  const [otp, setOtp] = useState(["", "", "", "", "", ""])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
@@ -102,12 +102,12 @@ export default function DeliveryOTP() {
     setError("")
 
     // Auto-focus next input
-    if (value && index < 3) {
+    if (value && index < 5) {
       inputRefs.current[index + 1]?.focus()
     }
 
-    // Auto-submit when all 4 digits are entered and we are in OTP step
-    if (!showNameInput && newOtp.every((digit) => digit !== "") && newOtp.length === 4) {
+    // Auto-submit when all 6 digits are entered and we are in OTP step
+    if (!showNameInput && newOtp.every((digit) => digit !== "") && newOtp.length === 6) {
       handleVerify(newOtp.join(""))
     }
   }
@@ -132,15 +132,15 @@ export default function DeliveryOTP() {
     if (e.key === "v" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
       navigator.clipboard.readText().then((text) => {
-        const digits = text.replace(/\D/g, "").slice(0, 4).split("")
+        const digits = text.replace(/\D/g, "").slice(0, 6).split("")
         const newOtp = [...otp]
         digits.forEach((digit, i) => {
-          if (i < 4) {
+          if (i < 6) {
             newOtp[i] = digit
           }
         })
         setOtp(newOtp)
-        if (digits.length === 4) {
+        if (digits.length === 6) {
           handleVerify(newOtp.join(""))
         } else {
           inputRefs.current[digits.length]?.focus()
@@ -152,15 +152,15 @@ export default function DeliveryOTP() {
   const handlePaste = (e) => {
     e.preventDefault()
     const pastedData = e.clipboardData.getData("text")
-    const digits = pastedData.replace(/\D/g, "").slice(0, 4).split("")
+    const digits = pastedData.replace(/\D/g, "").slice(0, 6).split("")
     const newOtp = [...otp]
     digits.forEach((digit, i) => {
-      if (i < 4) {
+      if (i < 6) {
         newOtp[i] = digit
       }
     })
     setOtp(newOtp)
-    if (!showNameInput && digits.length === 4) {
+    if (!showNameInput && digits.length === 6) {
       handleVerify(newOtp.join(""))
       return
     }
@@ -175,7 +175,7 @@ export default function DeliveryOTP() {
 
     const code = otpValue || otp.join("")
 
-    if (code.length !== 4) {
+    if (code.length !== 6) {
       return
     }
 
@@ -448,7 +448,7 @@ export default function DeliveryOTP() {
       })
     }, 1000)
 
-    setOtp(["", "", "", ""])
+    setOtp(["", "", "", "", "", ""])
     setShowNameInput(false)
     setName("")
     setNameError("")
@@ -593,7 +593,7 @@ export default function DeliveryOTP() {
                     disabled={isLoading}
                     autoComplete="off"
                     autoFocus={false}
-                    className="w-14 h-14 sm:w-16 sm:h-16 text-center text-2xl font-black p-0 border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus-visible:ring-0 focus-visible:border-[#4CB8C4] bg-white/80 dark:bg-gray-900/50 shadow-sm transition-all text-gray-900 dark:text-white"
+                    className="w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-black p-0 border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus-visible:ring-0 focus-visible:border-[#4CB8C4] bg-white/80 dark:bg-gray-900/50 shadow-sm transition-all text-gray-900 dark:text-white"
                   />
                 ))}
               </div>

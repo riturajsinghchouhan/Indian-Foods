@@ -156,7 +156,8 @@ export default function DeliverySignIn() {
                     sessionStorage.setItem("delivery_draft_phone", val);
                   }}
                   maxLength={10}
-                  className="flex-1 bg-transparent border-none outline-none text-gray-900 dark:text-white font-bold text-lg placeholder:text-gray-400 placeholder:font-medium placeholder:text-sm py-2 px-1"
+                  className="flex-1 bg-transparent border-0 outline-none focus:border-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-gray-900 dark:text-white font-bold text-lg placeholder:text-gray-400 placeholder:font-medium placeholder:text-sm py-2 px-1"
+                  style={{ boxShadow: "none", border: "none", outline: "none" }}
                   placeholder="Enter your 10-digit registered..."
                 />
               </div>

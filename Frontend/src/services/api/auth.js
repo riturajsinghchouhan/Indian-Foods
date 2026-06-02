@@ -58,10 +58,10 @@ export function requestUserOtp(phone) {
 
 /**
  * Verify OTP and login (user).
- * Validation: phone 10 digits, OTP required, exactly 4 digits numeric.
+ * Validation: phone 10 digits, OTP required, exactly 6 digits numeric.
  * Backend returns { accessToken, refreshToken, user }.
  * @param {string} phone - Same format as request
- * @param {string} otp - 4-digit OTP only
+ * @param {string} otp - 6-digit OTP only
  */
 export function verifyUserOtp(
   phone,
@@ -84,12 +84,12 @@ export function verifyUserOtp(
   }
   const otpStr = String(otp ?? "")
     .replace(/\D/g, "")
-    .slice(0, 4);
+    .slice(0, 6);
   if (!otpStr) {
     return Promise.reject(new Error("OTP is required"));
   }
-  if (otpStr.length !== 4) {
-    return Promise.reject(new Error("OTP must be exactly 4 digits"));
+  if (otpStr.length !== 6) {
+    return Promise.reject(new Error("OTP must be exactly 6 digits"));
   }
   const refValue = typeof ref === "string" ? ref.trim() : "";
   return userClient.post(AUTH.USER_VERIFY_OTP, {
@@ -246,7 +246,7 @@ function getMeOnce(module) {
 }
 
 /**
- * Restaurant OTP auth (backend: same phone format as user, 4-digit OTP e.g. 1234).
+ * Restaurant OTP auth (backend: same phone format as user, 6-digit OTP e.g. 123456).
  */
 export function requestRestaurantOtp(phone) {
   const normalized = normalizePhone(phone);
@@ -259,8 +259,8 @@ export function requestRestaurantOtp(phone) {
 export function verifyRestaurantOtp(phone, otp, fcmToken = null, platform = "web") {
   const normalized = normalizePhone(phone);
   const otpStr = String(otp).replace(/\D/g, "").slice(0, 6);
-  if (!normalized || otpStr.length < 4) {
-    return Promise.reject(new Error("Phone and 4-digit OTP are required"));
+  if (!normalized || otpStr.length < 6) {
+    return Promise.reject(new Error("Phone and 6-digit OTP are required"));
   }
   return restaurantClient.post(AUTH.RESTAURANT_VERIFY_OTP, {
     phone: normalized,
@@ -270,7 +270,7 @@ export function verifyRestaurantOtp(phone, otp, fcmToken = null, platform = "web
 }
 
 /**
- * Delivery partner OTP auth (backend: same phone + 4-digit OTP).
+ * Delivery partner OTP auth (backend: same phone + 6-digit OTP).
  */
 export function requestDeliveryOtp(phone) {
   const normalized = normalizePhone(phone);
@@ -283,8 +283,8 @@ export function requestDeliveryOtp(phone) {
 export function verifyDeliveryOtp(phone, otp, fcmToken = null, platform = "web") {
   const normalized = normalizePhone(phone);
   const otpStr = String(otp).replace(/\D/g, "").slice(0, 6);
-  if (!normalized || otpStr.length < 4) {
-    return Promise.reject(new Error("Phone and 4-digit OTP are required"));
+  if (!normalized || otpStr.length < 6) {
+    return Promise.reject(new Error("Phone and 6-digit OTP are required"));
   }
   return deliveryClient.post(AUTH.DELIVERY_VERIFY_OTP, {
     phone: normalized,

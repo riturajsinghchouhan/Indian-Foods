@@ -198,7 +198,8 @@ export default function SignIn() {
                   placeholder="Enter your 10-digit number"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full bg-transparent border-none outline-none text-gray-800 dark:text-white font-semibold text-base placeholder:text-gray-400 placeholder:font-medium"
+                  className="w-full bg-transparent border-0 outline-none focus:border-transparent focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-gray-800 dark:text-white font-semibold text-base placeholder:text-gray-400 placeholder:font-medium"
+                  style={{ boxShadow: "none", border: "none", outline: "none" }}
                   autoComplete="tel-national"
                 />
               </div>

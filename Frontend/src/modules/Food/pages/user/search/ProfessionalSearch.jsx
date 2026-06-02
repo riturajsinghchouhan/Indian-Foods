@@ -15,6 +15,11 @@ import { motion, AnimatePresence } from "framer-motion"
 import { createPortal } from "react-dom"
 import OptimizedImage from "@food/components/OptimizedImage"
 import { useVoiceSearch } from "@food/hooks/useVoiceSearch"
+import PremiumLoader from "./PremiumLoader"
+
+// Simple in-memory session cache to provide instant loads on re-visits
+const sessionSearchCache = new Map();
+let sessionCategories = null;
 
 // Helper to resolve media URLs consistently
 const getMediaUrl = (url) => {
@@ -69,9 +74,16 @@ export default function ProfessionalSearch() {
   }, [])
 
   const fetchCategories = async () => {
+    if (sessionCategories) {
+      setCategories(sessionCategories);
+      return;
+    }
     try {
       const res = await searchAPI.getAdminCategories({ zoneId })
-      if (res.data?.success) setCategories(res.data.data.categories)
+      if (res.data?.success) {
+        sessionCategories = res.data.data.categories;
+        setCategories(sessionCategories)
+      }
     } catch (err) {
       console.error("Failed to fetch categories", err)
     }
@@ -88,6 +100,11 @@ export default function ProfessionalSearch() {
       setResults({ restaurants: [], dishes: [] })
       return
     }
+    const cacheKey = `${searchTerm}-${catId}-${zoneId}`;
+    if (sessionSearchCache.has(cacheKey)) {
+      setResults(sessionSearchCache.get(cacheKey));
+      return; // instant load
+    }
     
     setLoading(true)
     try {
@@ -102,10 +119,12 @@ export default function ProfessionalSearch() {
       if (res.data?.success) {
         // Grouping results into Restaurants and potential Dishes
         const all = res.data.data.restaurants || []
-        setResults({
+        const parsedResults = {
           restaurants: all.filter(r => r.matchType === 'restaurant' || !r.matchType),
           dishes: all.filter(r => r.matchType === 'food')
-        })
+        };
+        sessionSearchCache.set(cacheKey, parsedResults);
+        setResults(parsedResults);
       }
     } catch (err) {
       console.error("Search failed", err)
@@ -193,38 +212,53 @@ export default function ProfessionalSearch() {
       </div>
 
       <div className="max-w-3xl mx-auto p-4">
-        {/* Categories */}
+        {/* Recent History (Moved Up) */}
+        {!query && !loading && history.length > 0 && (
+          <div className="mb-6">
+             <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Recent Searches</h3>
+             <div className="flex flex-wrap gap-2 px-1">
+                {history.map((term, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setQuery(term)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-[12px] font-bold text-gray-600 dark:text-zinc-400 hover:bg-gray-50 hover:border-primary/30 transition-all shadow-sm"
+                  >
+                    <History className="w-3.5 h-3.5 text-gray-400" />
+                    {term}
+                  </button>
+                ))}
+             </div>
+          </div>
+        )}
+
+        {/* Categories (Horizontal Slider) */}
         {!query && !loading && (
           <div className={`mb-8 transition-all ${query ? 'hidden' : ''}`}>
-            <div className="flex items-center justify-between mb-5 px-1">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Top Categories</h3>
-              {categories.length > 8 && (
-                <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">Swipe for more</span>
-              )}
+            <div className="flex items-center justify-between mb-4 px-1">
+              <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Trending Categories</h3>
             </div>
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-x-3 gap-y-6">
-              {categories.map((cat) => (
+            
+            {/* Horizontal Scroll Container */}
+            <div className="flex overflow-x-auto gap-4 py-2 pb-4 px-4 snap-x snap-mandatory hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {categories
+                .filter(cat => cat.image) // Only show categories with images for a premium look
+                .slice(0, 15) // Limit to top 15 to keep it clean
+                .map((cat) => (
                 <button 
                   key={cat._id} 
                   onClick={() => handleCategoryClick(cat._id)}
-                  className={`flex flex-col items-center group transition-all active:scale-90 ${selectedCategoryId === cat._id ? 'scale-105' : ''}`}
+                  className="flex flex-col items-center group transition-all active:scale-95 snap-start shrink-0 w-16 sm:w-20"
                 >
-                  <div className={`relative w-15 h-15 sm:w-16 sm:h-16 rounded-[22px] mb-2 shadow-sm border-2 transition-all duration-300 ${selectedCategoryId === cat._id ? 'border-primary shadow-lg shadow-primary/10 transform -translate-y-1' : 'border-gray-50 dark:border-zinc-800 bg-white dark:bg-zinc-900 group-hover:border-gray-200'}`}>
-                    <div className="absolute inset-0 rounded-[20px] overflow-hidden">
-                      {cat.image ? (
-                        <OptimizedImage 
-                          src={getMediaUrl(cat.image)} 
-                          alt={cat.name} 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-115" 
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                          <Utensils className="w-6 h-6 text-gray-200" />
-                        </div>
-                      )}
+                  <div className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-full mb-2 transition-all duration-300 shrink-0 ${selectedCategoryId === cat._id ? 'border-[3px] border-primary shadow-md shadow-primary/20 bg-white p-[2px]' : 'border border-gray-200/80 shadow-sm bg-gray-50 dark:bg-zinc-900 group-hover:border-primary/40 p-[2px]'}`}>
+                    <div className="w-full h-full rounded-full overflow-hidden bg-white dark:bg-zinc-950">
+                       <OptimizedImage 
+                         src={getMediaUrl(cat.image)} 
+                         alt={cat.name} 
+                         className="w-full h-full object-cover rounded-full transition-transform duration-500 group-hover:scale-105" 
+                       />
                     </div>
                   </div>
-                  <span className={`text-[10px] sm:text-[11px] font-bold text-center line-clamp-1 transition-colors ${selectedCategoryId === cat._id ? 'text-primary' : 'text-gray-500 dark:text-zinc-400 group-hover:text-gray-800'}`}>
+                  <span className={`text-[10px] sm:text-[11px] font-bold text-center px-0.5 w-full line-clamp-2 leading-tight transition-colors ${selectedCategoryId === cat._id ? 'text-primary' : 'text-gray-600 dark:text-zinc-400 group-hover:text-primary'}`} style={{ wordBreak: 'break-word' }}>
                     {cat.name}
                   </span>
                 </button>
@@ -233,40 +267,19 @@ export default function ProfessionalSearch() {
           </div>
         )}
 
-        {/* Loading Spinner */}
+        {/* Premium Loader */}
         <AnimatePresence>
           {loading && (
             <motion.div 
-               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-               className="flex flex-col items-center justify-center py-24"
+               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+               className="flex justify-center"
             >
-              <div className="relative">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                <div className="absolute inset-0 blur-xl bg-primary/30 animate-pulse" />
-              </div>
-              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-6">Searching...</p>
+              <PremiumLoader />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Recent History */}
-        {!query && !loading && history.length > 0 && (
-          <div className="mb-8">
-             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">Recently Searched</h3>
-             <div className="flex flex-wrap gap-2">
-                {history.map((term, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => setQuery(term)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-full text-sm text-slate-600 dark:text-zinc-400 hover:bg-slate-50 transition-colors"
-                  >
-                    <History className="w-3 h-3" />
-                    {term}
-                  </button>
-                ))}
-             </div>
-          </div>
-        )}
+
 
         {/* Search Results */}
         {!loading && (query || selectedCategoryId) && (
@@ -274,15 +287,17 @@ export default function ProfessionalSearch() {
             
             {/* Dish Results Section */}
             {results.dishes.length > 0 && (
-              <section>
+              <motion.section initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } }}>
                 <div className="flex items-center justify-between mb-5 px-1">
                    <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest">Matched Dishes</h2>
                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-zinc-900 px-2 py-0.5 rounded-full">{results.dishes.length} results</span>
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                   {results.dishes.map((r) => (
-                    <button onClick={() => setSelectedDish(r)} key={r._id} className="flex w-full text-left gap-4 p-3 bg-white dark:bg-zinc-900 rounded-[24px] shadow-sm border border-gray-100 dark:border-zinc-800 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all group overflow-hidden active:scale-[0.98]">
-                       <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-50 dark:bg-zinc-800 flex-shrink-0 relative">
+                    <motion.button variants={{ hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } }} onClick={() => setSelectedDish(r)} key={r._id} className="flex w-full text-left gap-4 p-3 bg-white dark:bg-zinc-900 rounded-[24px] shadow-sm border border-gray-100 dark:border-zinc-800 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all group overflow-hidden active:scale-[0.98]">
+                       <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 dark:bg-zinc-800 flex-shrink-0 relative">
+                           {/* Shimmer Placeholder behind image */}
+                           <div className="absolute inset-0 bg-gray-200 dark:bg-zinc-700 animate-pulse" />
                            <OptimizedImage 
                             src={getMediaUrl(r.matchedDishImage || r.profileImage || r.image || (Array.isArray(r.images) && r.images[0]))} 
                             className="w-full h-full object-cover group-hover:scale-115 transition-transform duration-500"
@@ -297,9 +312,9 @@ export default function ProfessionalSearch() {
                        <div className="flex-1 min-w-0 py-1 flex flex-col justify-between">
                           <div>
                             <div className="text-[#a05485] text-[9px] font-black uppercase tracking-wider mb-1 px-2 py-0.5 bg-primary/5 rounded-full w-fit">
-                               {r.matchedDish || query}
+                               {r.restaurantName}
                             </div>
-                            <h3 className="text-base font-black text-gray-900 dark:text-white line-clamp-1 group-hover:text-primary transition-colors">{r.restaurantName}</h3>
+                            <h3 className="text-base font-black text-gray-900 dark:text-white line-clamp-1 group-hover:text-primary transition-colors">{r.matchedDish || query}</h3>
                           </div>
                           <div className="flex items-center justify-between">
                              <div className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-zinc-400 mt-2 font-medium">
@@ -318,23 +333,26 @@ export default function ProfessionalSearch() {
                              )}
                           </div>
                        </div>
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
-              </section>
+              </motion.section>
             )}
 
             {/* Restaurant Results Section */}
             {results.restaurants.length > 0 && (
-              <section>
+              <motion.section initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }}>
                 <div className="flex items-center justify-between mb-5 px-1">
                    <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest">Restaurants</h2>
                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-zinc-900 px-2 py-0.5 rounded-full">{results.restaurants.length} stores</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
                   {results.restaurants.map((r) => (
-                    <Link to={`/user/restaurants/${r._id}`} key={r._id} className="block group active:scale-[0.98] transition-all">
-                      <div className="relative rounded-[32px] overflow-hidden aspect-[16/10] sm:aspect-[16/9] mb-4 bg-gray-100 dark:bg-zinc-800 shadow-xl shadow-gray-200/20">
+                    <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 20 } } }} key={r._id}>
+                    <Link to={`/user/restaurants/${r._id}`} className="block group active:scale-[0.98] transition-all">
+                      <div className="relative rounded-[32px] overflow-hidden aspect-[16/10] sm:aspect-[16/9] mb-4 bg-gray-200 dark:bg-zinc-800 shadow-xl shadow-gray-200/20">
+                         {/* Shimmer Placeholder behind image */}
+                         <div className="absolute inset-0 bg-gray-300 dark:bg-zinc-700 animate-pulse" />
                          <OptimizedImage 
                           src={getMediaUrl(r.profileImage || r.image || (Array.isArray(r.images) && r.images[0]))} 
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
@@ -375,9 +393,10 @@ export default function ProfessionalSearch() {
                          </div>
                       </div>
                     </Link>
+                    </motion.div>
                   ))}
                 </div>
-              </section>
+              </motion.section>
             )}
 
             {/* Empty State */}
