@@ -366,12 +366,40 @@ export const initSocket = async (server) => {
                 });
               }
             }
+
+            if (
+              role === 'DELIVERY_PARTNER' &&
+              Array.isArray(state.pendingOffers) &&
+              state.pendingOffers.length > 0
+            ) {
+              logDeliverySocket('Resync recovered pending offers', {
+                socketId: socket.id,
+                deliveryPartnerId: String(userId || ''),
+                pendingOfferCount: state.pendingOffers.length,
+              });
+
+              socket.emit('pending_offers', {
+                offers: state.pendingOffers,
+                count: state.pendingOffers.length,
+                recoveredAt: Date.now(),
+              });
+
+              for (const offer of state.pendingOffers) {
+                socket.emit('new_order_available', {
+                  ...offer,
+                  recovered: true,
+                  recoveredAt: Date.now(),
+                });
+              }
+            }
+
             socket.emit('resync_complete', { timestamp: Date.now() });
             if (role === 'DELIVERY_PARTNER') {
               logDeliverySocket('Resync complete', {
                 socketId: socket.id,
                 deliveryPartnerId: String(userId || ''),
                 hasActiveOrder: Boolean(state.activeOrder),
+                pendingOfferCount: Array.isArray(state.pendingOffers) ? state.pendingOffers.length : 0,
               });
             }
           } catch (err) {

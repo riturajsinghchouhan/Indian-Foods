@@ -220,18 +220,7 @@ export default function SignupStep2() {
     sessionStorage.setItem("deliverySignupDocs", JSON.stringify(uploadedDocs))
   }, [uploadedDocs])
 
-  useEffect(() => {
-    return () => {
-      Object.values(documents).forEach((file) => {
-        if (file instanceof File) {
-          const previewUrl = file.previewUrl || file._previewUrl
-          if (previewUrl) {
-            URL.revokeObjectURL(previewUrl)
-          }
-        }
-      })
-    }
-  }, [documents])
+  // Removed incorrect URL.revokeObjectURL cleanup that was breaking image previews
 
   const getPreviewSrc = (docType) => {
     const uploaded = uploadedDocs[docType]

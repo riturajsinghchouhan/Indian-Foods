@@ -43,8 +43,10 @@ export const PocketDetailsV2 = () => {
       try {
         setLoading(true);
         const response = await deliveryAPI.getPocketDetails({
-          date: weekRange.start.toISOString(),
-          limit: 2000
+          startDate: weekRange.start.toISOString(),
+          endDate: weekRange.end.toISOString(),
+          limit: 2000,
+          _t: Date.now()
         });
 
         const payload = response?.data?.data || {};

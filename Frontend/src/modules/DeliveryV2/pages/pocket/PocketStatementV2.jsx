@@ -44,7 +44,9 @@ export const PocketStatementV2 = () => {
 
         const params = {
           period: 'weekly',
-          date: weekRange.start.toISOString().split('T')[0],
+          date: weekRange.start.toISOString(),
+          startDate: weekRange.start.toISOString(),
+          endDate: weekRange.end.toISOString(),
           status: 'Completed',
           limit: 1000
         };

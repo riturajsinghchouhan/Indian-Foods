@@ -13,6 +13,8 @@ const DEFAULT_COUNTRY_CODE = "+91"
 export default function DeliverySignIn() {
   const navigate = useNavigate()
   const [phone, setPhone] = useState(() => {
+    const draft = sessionStorage.getItem("delivery_draft_phone")
+    if (draft) return draft;
     const stored = sessionStorage.getItem("deliveryAuthData")
     if (stored) {
       try {
@@ -148,7 +150,11 @@ export default function DeliverySignIn() {
                   required
                   autoFocus
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setPhone(val);
+                    sessionStorage.setItem("delivery_draft_phone", val);
+                  }}
                   maxLength={10}
                   className="flex-1 bg-transparent border-none outline-none text-gray-900 dark:text-white font-bold text-lg placeholder:text-gray-400 placeholder:font-medium placeholder:text-sm py-2 px-1"
                   placeholder="Enter your 10-digit registered..."

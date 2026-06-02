@@ -162,7 +162,7 @@ export default function StatusMonitor() {
                           {activeTab === 'restaurants' ? item.restaurantName : item.name}
                         </p>
                         <p className="text-xs text-gray-500 truncate">
-                          {activeTab === 'restaurants' ? `${item.area || ''}, ${item.city || ''}` : item.phone}
+                          {activeTab === 'restaurants' ? [item.area || item.location?.area, item.city || item.location?.city].filter(Boolean).join(', ') : item.phone}
                         </p>
                       </div>
                       <div className="flex items-center">
@@ -217,7 +217,7 @@ function RestaurantDetails({ restaurant }) {
           </div>
           <p className="text-gray-500 flex items-center gap-1 mt-1">
             <MapPin className="w-4 h-4" />
-            {restaurant.addressLine1}, {restaurant.area}, {restaurant.city}
+            {[restaurant.addressLine1 || restaurant.location?.addressLine1, restaurant.area || restaurant.location?.area, restaurant.city || restaurant.location?.city].filter(Boolean).join(', ')}
           </p>
           {(restaurant.ownerName || restaurant.ownerPhone) && (
              <p className="text-sm text-gray-600 mt-2">

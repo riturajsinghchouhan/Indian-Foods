@@ -243,6 +243,7 @@ export async function tryAutoAssign(orderId, options = {}) {
             {
               title: '🚴 Order Still Waiting!',
               body: `Order #${order.order_id || order._id} needs a delivery partner. Accept now!`,
+              dataOnly: true,
               data: { type: 'new_order', orderId: order._id.toString() },
             },
           );
@@ -289,6 +290,7 @@ export async function tryAutoAssign(orderId, options = {}) {
           {
             title: '🚴 New Order Nearby!',
             body: `Order #${order.order_id || order._id} is waiting. Be the first to accept!`,
+            dataOnly: true,
             data: { type: 'new_order', orderId: order._id.toString() },
           },
         );
@@ -322,6 +324,7 @@ export async function tryAutoAssign(orderId, options = {}) {
           {
             title: '🚴 New Order Nearby!',
             body: `Order #${order.order_id || order._id} is waiting. Be the first to accept!`,
+            dataOnly: true,
             data: { type: 'new_order', orderId: order._id.toString() },
           },
         );

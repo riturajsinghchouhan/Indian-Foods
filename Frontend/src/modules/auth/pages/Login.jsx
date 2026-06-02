@@ -18,7 +18,7 @@ import { Label } from "@food/components/ui/label"
 
 export default function UnifiedOTPFastLogin() {
   const RESEND_COOLDOWN_SECONDS = 60
-  const [phoneNumber, setPhoneNumber] = useState("")
+  const [phoneNumber, setPhoneNumber] = useState(() => sessionStorage.getItem("draft_phone_login") || "")
   const [otp, setOtp] = useState("")
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -344,7 +344,11 @@ export default function UnifiedOTPFastLogin() {
                       required
                       autoFocus
                       value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setPhoneNumber(val);
+                        sessionStorage.setItem("draft_phone_login", val);
+                      }}
                       maxLength={10}
                       className="w-full bg-transparent border-none outline-none text-gray-800 dark:text-white font-semibold text-base placeholder:text-gray-400 placeholder:font-medium"
                       placeholder="Enter your 10-digit number"

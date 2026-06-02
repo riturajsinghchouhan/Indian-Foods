@@ -649,6 +649,7 @@ export async function recoverStuckOrders() {
 }
 
 export async function resyncState(userId, role) {
+  const DELIVERY_RESYNC_OFFER_TTL_MS = 60 * 1000;
   if (role === "USER") {
     const order = await FoodOrder.findOne({
       userId: new mongoose.Types.ObjectId(userId),
@@ -681,7 +682,7 @@ export async function resyncState(userId, role) {
   }
 
   if (role === "DELIVERY_PARTNER") {
-    const order = await FoodOrder.findOne({
+    const activeOrder = await FoodOrder.findOne({
       "dispatch.deliveryPartnerId": new mongoose.Types.ObjectId(userId),
       "dispatch.status": { $in: ["assigned", "accepted"] },
       orderStatus: {
@@ -690,7 +691,38 @@ export async function resyncState(userId, role) {
     })
       .populate("restaurantId")
       .lean();
-    return { activeOrder: order ? sanitizeOrderForExternal(order) : null };
+
+    const pendingOfferDocs = await FoodOrder.find({
+      "dispatch.status": "unassigned",
+      orderStatus: { $in: ["confirmed", "preparing", "ready_for_pickup"] },
+      "dispatch.offeredTo.partnerId": new mongoose.Types.ObjectId(userId),
+    })
+      .populate("restaurantId")
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+
+    const pendingOffers = (pendingOfferDocs || [])
+      .filter((doc) => {
+        const offers = Array.isArray(doc?.dispatch?.offeredTo) ? doc.dispatch.offeredTo : [];
+        const partnerOffers = offers.filter(
+          (entry) => String(entry?.partnerId || "") === String(userId),
+        );
+        if (!partnerOffers.length) return false;
+        const latest = partnerOffers[partnerOffers.length - 1];
+        if (String(latest?.action || "") !== "offered") return false;
+
+        const offeredAt = latest?.at ? new Date(latest.at).getTime() : 0;
+        if (!offeredAt || Number.isNaN(offeredAt)) return false;
+
+        return Date.now() - offeredAt <= DELIVERY_RESYNC_OFFER_TTL_MS;
+      })
+      .map((doc) => buildDeliverySocketPayload(doc, doc.restaurantId));
+
+    return {
+      activeOrder: activeOrder ? sanitizeOrderForExternal(activeOrder) : null,
+      pendingOffers,
+    };
   }
 
   return {};

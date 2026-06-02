@@ -13,7 +13,7 @@ import { useCompanyName } from "@food/hooks/useCompanyName"
 
 export default function RestaurantSignIn() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(() => sessionStorage.getItem("restaurant_draft_email") || "")
   const [password, setPassword] = useState("")
   const [remember, setRemember] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -162,7 +162,10 @@ export default function RestaurantSignIn() {
                   type="email"
                   placeholder="test.restaurant@gmail.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    sessionStorage.setItem("restaurant_draft_email", e.target.value);
+                  }}
                   className="h-11 pl-9 border-gray-300 rounded-md shadow-sm focus-visible:ring-primary focus-visible:ring-2 transition-colors placeholder:text-gray-400"
                   required
                 />

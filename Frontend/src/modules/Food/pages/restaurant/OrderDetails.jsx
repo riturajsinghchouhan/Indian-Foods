@@ -144,7 +144,8 @@ export default function OrderDetails() {
           const deliveryCostToAdmin = firstNumber(order.riderEarning, 30);
           const deliveryGstToAdmin = deliveryCostToAdmin * 0.18;
           const totalAdminReceivable = deliveryCostToAdmin + deliveryGstToAdmin + platformFee + taxes + packagingFee;
-          const restaurantGets = Math.max(0, total - totalAdminReceivable);
+          const restaurantCommission = Number(pricing.restaurantCommission) || 0;
+          const restaurantGets = Math.max(0, itemSubtotal + packagingFee - restaurantCommission);
           const deliveryDistance = firstNumber(order.deliveryDistance, order.customer?.distance, 0);
 
           const addressParts = [

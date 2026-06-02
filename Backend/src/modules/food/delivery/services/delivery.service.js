@@ -634,7 +634,8 @@ export const getDeliveryPartnerTripHistory = async (deliveryPartnerId, query = {
     const statusFilter = normalizeStatusFilter(query.status);
     const limit = Math.min(Math.max(parseInt(query.limit, 10) || 50, 1), 1000);
 
-    const { start, end } = computeRange(period, date);
+    const start = query.startDate ? new Date(query.startDate) : computeRange(period, date).start;
+    const end = query.endDate ? new Date(query.endDate) : computeRange(period, date).end;
 
     const partnerId = new mongoose.Types.ObjectId(deliveryPartnerId);
     const match = { 'dispatch.deliveryPartnerId': partnerId };
@@ -676,8 +677,8 @@ export const getDeliveryPocketDetails = async (deliveryPartnerId, query = {}) =>
     if (!deliveryPartnerId || !mongoose.Types.ObjectId.isValid(deliveryPartnerId)) {
         throw new ValidationError('Delivery partner not found');
     }
-    const date = query.date ? new Date(query.date) : new Date();
-    const { start, end } = getWeekRange(date);
+    const start = query.startDate ? new Date(query.startDate) : getWeekRange(query.date ? new Date(query.date) : new Date()).start;
+    const end = query.endDate ? new Date(query.endDate) : getWeekRange(query.date ? new Date(query.date) : new Date()).end;
     const limit = Math.min(Math.max(parseInt(query.limit, 10) || 1000, 1), 2000);
 
     const partnerId = new mongoose.Types.ObjectId(deliveryPartnerId);

@@ -23,6 +23,11 @@ export default function SignIn() {
   const submittingRef = useRef(false)
 
   useEffect(() => {
+    const draft = sessionStorage.getItem("user_draft_phone")
+    if (draft) {
+      setFormData(prev => ({ ...prev, phone: draft }))
+    }
+
     const stored = sessionStorage.getItem("userAuthData")
     if (!stored) return
 
@@ -52,6 +57,7 @@ export default function SignIn() {
     value = value.replace(/\D/g, "").slice(0, 10)
     setError(validatePhone(value))
     setFormData((prev) => ({ ...prev, phone: value }))
+    sessionStorage.setItem("user_draft_phone", value)
   }
 
   const handleSubmit = async (e) => {

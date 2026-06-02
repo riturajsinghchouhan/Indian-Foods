@@ -1,289 +1,153 @@
-import React, { useState } from "react"
-import { motion } from "framer-motion"
-import { Link } from "react-router-dom"
+import React, { useState, useEffect } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import {
   ArrowLeft,
-  MessageCircle,
-  Phone,
   Mail,
+  Phone,
+  MessageSquare,
   Clock,
-  ChevronRight,
-  ShieldQuestion,
-  Lock,
-  UserX,
-  CreditCard
+  ShieldCheck
 } from "lucide-react"
 import AnimatedPage from "@food/components/user/AnimatedPage"
-import { Button } from "@food/components/ui/button"
-import { Card, CardContent } from "@food/components/ui/card"
-import { Input } from "@food/components/ui/input"
-import { Textarea } from "@food/components/ui/textarea"
-import { toast } from "sonner"
-
 import { adminAPI } from "@food/api"
 
-const supportOptions = [
-  {
-    id: "login",
-    title: "Login Issues",
-    description: "Can't access your account or OTP issues",
-    icon: Lock,
-    color: "bg-blue-100 text-blue-600"
-  },
-  {
-    id: "account",
-    title: "Account Recovery",
-    description: "Recover or deactivate your account",
-    icon: UserX,
-    color: "bg-purple-100 text-purple-600"
-  },
-  {
-    id: "payment",
-    title: "Payment & Refunds",
-    description: "Issues with previous transactions",
-    icon: CreditCard,
-    color: "bg-green-100 text-green-600"
-  },
-  {
-    id: "other",
-    title: "Other Questions",
-    description: "General inquiries and feedback",
-    icon: ShieldQuestion,
-    color: "bg-orange-100 text-orange-600"
-  }
-]
-
 export default function PublicSupport() {
-  const [step, setStep] = useState("options")
-  const [selectedTopic, setSelectedTopic] = useState(null)
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    subject: "",
-    message: ""
-  })
-  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
   const [settings, setSettings] = useState({
-    supportEmail: "rbfoodscorp@gmail.com",
-    supportPhone: "9940837039",
-    supportHours: "24/7 Availability"
+    supportEmail: "switcheatsofficial@gmail.com",
+    supportPhone: "8919142335",
+    supportHours: "Merchant support is available from 8 AM to 12 AM, 7 days a week."
   })
 
-  React.useEffect(() => {
+  useEffect(() => {
     adminAPI.getPublicBusinessSettings()
       .then(res => {
         const data = res?.data?.data || res?.data
         if (data) {
           setSettings({
-            supportEmail: data.supportEmail || "rbfoodscorp@gmail.com",
-            supportPhone: data.supportPhone || "+91 9940837039",
-            supportHours: data.supportHours || "24/7 Availability"
+            supportEmail: data.supportEmail || "switcheatsofficial@gmail.com",
+            supportPhone: data.supportPhone || "8919142335",
+            supportHours: data.supportHours || "Merchant support is available from 8 AM to 12 AM, 7 days a week."
           })
         }
       })
       .catch(() => null)
   }, [])
 
-  const handleTopicSelect = (topic) => {
-    setSelectedTopic(topic)
-    setFormData(prev => ({ ...prev, subject: topic.title }))
-    setStep("form")
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    toast.success("Support request sent! We'll get back to you shortly.")
-    setLoading(false)
-    setStep("success")
-  }
+  const faqs = [
+    {
+      question: "How to update menu prices?",
+      answer: "You can update prices instantly through the 'Menu Management' section in your portal."
+    },
+    {
+      question: "Delay in payout settlement?",
+      answer: "Payouts are settled within 48 hours of order completion. Contact support for delays exceeding 3 days."
+    },
+    {
+      question: "Technical issue with tablet?",
+      answer: "Restart the app and check internet connectivity. If issue persists, call our technical helpline."
+    }
+  ]
 
   return (
-    <AnimatedPage className="min-h-screen bg-white dark:bg-[#0a0a0a] font-['Poppins']">
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-12">
-          <Link to={-1}>
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Support Center</h1>
-            <p className="text-gray-500 dark:text-gray-400">How can we help you today?</p>
+    <AnimatedPage className="min-h-screen bg-[#F8F9FA] font-['Inter',sans-serif]">
+      {/* Header */}
+      <div className="bg-white sticky top-0 z-10 px-4 py-4 flex items-center gap-3 border-b border-gray-100">
+        <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-50 rounded-full transition-colors">
+          <ArrowLeft className="h-5 w-5 text-gray-800" />
+        </button>
+        <div>
+          <h1 className="text-[17px] font-bold text-gray-900 leading-tight">Help & Support</h1>
+          <p className="text-[10px] font-bold text-gray-400 tracking-wider uppercase mt-0.5">Restaurant Partner Information</p>
+        </div>
+      </div>
+
+      <div className="max-w-md mx-auto px-4 py-6">
+        
+        {/* Contact Cards */}
+        <div className="space-y-4 mb-8">
+          
+          {/* Email Support Card */}
+          <div className="bg-white rounded-2xl p-6 flex flex-col items-center text-center shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-50">
+            <div className="w-12 h-12 border-2 border-[#DC2626] rounded-xl flex items-center justify-center mb-4 bg-red-50/50">
+              <Mail className="h-5 w-5 text-[#DC2626]" />
+            </div>
+            <h3 className="text-[11px] font-bold text-gray-900 uppercase tracking-widest mb-2">Merchant Support</h3>
+            <a href={`mailto:${settings.supportEmail}`} className="text-[13px] font-medium text-gray-600 hover:text-[#DC2626] transition-colors mb-3">
+              {settings.supportEmail}
+            </a>
+            <a href={`mailto:${settings.supportEmail}`} className="text-[10px] font-bold text-[#DC2626] uppercase tracking-widest">
+              Email Support
+            </a>
           </div>
+
+          {/* Phone Support Card */}
+          <div className="bg-white rounded-2xl p-6 flex flex-col items-center text-center shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-50">
+            <div className="w-12 h-12 border-2 border-[#DC2626] rounded-xl flex items-center justify-center mb-4 bg-red-50/50">
+              <Phone className="h-5 w-5 text-[#DC2626]" />
+            </div>
+            <h3 className="text-[11px] font-bold text-gray-900 uppercase tracking-widest mb-2">Merchant Helpline</h3>
+            <a href={`tel:${settings.supportPhone?.replace(/[^0-9+]/g, '')}`} className="text-[13px] font-medium text-gray-600 hover:text-[#DC2626] transition-colors mb-3">
+              {settings.supportPhone}
+            </a>
+            <a href={`tel:${settings.supportPhone.replace(/[^0-9+]/g, '')}`} className="text-[10px] font-bold text-[#DC2626] uppercase tracking-widest">
+              Instant Call
+            </a>
+          </div>
+
         </div>
 
-        {step === "options" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {supportOptions.map((option, idx) => (
-              <motion.div
-                key={option.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-              >
-                <Card
-                  className="cursor-pointer hover:shadow-xl transition-all border-none bg-gray-50 dark:bg-[#1a1a1a] group"
-                  onClick={() => handleTopicSelect(option)}
-                >
-                  <CardContent className="p-8 flex items-start gap-6">
-                    <div className={`p-4 rounded-2xl ${option.color} group-hover:scale-110 transition-transform`}>
-                      <option.icon className="h-8 w-8" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold mb-2">{option.title}</h3>
-                      <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
-                        {option.description}
-                      </p>
-                    </div>
-                    <ChevronRight className="h-6 w-6 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                  </CardContent>
-                </Card>
-              </motion.div>
+
+
+        {/* FAQs */}
+        <div className="mb-8">
+          <h2 className="text-[17px] font-bold text-gray-900 mb-6">Merchant FAQs</h2>
+          <div className="space-y-6">
+            {faqs.map((faq, index) => (
+              <div key={index} className="flex gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  <MessageSquare className="h-[18px] w-[18px] text-[#DC2626]" />
+                </div>
+                <div>
+                  <h4 className="text-[13px] font-bold text-gray-900 mb-1">{faq.question}</h4>
+                  <p className="text-[12px] text-gray-500 leading-relaxed">{faq.answer}</p>
+                </div>
+              </div>
             ))}
           </div>
-        )}
-
-        {step === "form" && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="max-w-2xl mx-auto"
-          >
-            <Card className="border-none bg-gray-50 dark:bg-[#1a1a1a] p-8">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${selectedTopic?.color}`}>
-                  {selectedTopic && <selectedTopic.icon className="h-5 w-5" />}
-                </div>
-                {selectedTopic?.title}
-              </h2>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Full Name</label>
-                    <Input
-                      required
-                      placeholder="John Doe"
-                      value={formData.name}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      className="bg-white dark:bg-[#0a0a0a]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Phone Number</label>
-                    <Input
-                      required
-                      type="tel"
-                      placeholder="+91 1234567890"
-                      value={formData.phone}
-                      onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                      className="bg-white dark:bg-[#0a0a0a]"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Email Address</label>
-                  <Input
-                    required
-                    type="email"
-                    placeholder="john@example.com"
-                    value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    className="bg-white dark:bg-[#0a0a0a]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Message</label>
-                  <Textarea
-                    required
-                    rows={5}
-                    placeholder="Tell us more about the issue..."
-                    value={formData.message}
-                    onChange={e => setFormData({ ...formData, message: e.target.value })}
-                    className="bg-white dark:bg-[#0a0a0a]"
-                  />
-                </div>
-
-                <div className="pt-4 flex gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setStep("options")}
-                    className="flex-1 h-12"
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 h-12 bg-primary hover:bg-[#6b2f57]"
-                    disabled={loading}
-                  >
-                    {loading ? "Sending..." : "Submit Request"}
-                  </Button>
-                </div>
-              </form>
-            </Card>
-          </motion.div>
-        )}
-
-        {step === "success" && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-20"
-          >
-            <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8">
-              <MessageCircle className="h-12 w-12" />
-            </div>
-            <h2 className="text-3xl font-bold mb-4">Request Received!</h2>
-            <p className="text-gray-500 max-w-md mx-auto mb-10">
-              Our support team has been notified. You will receive an update via email or phone within 24 hours.
-            </p>
-            <Link to="/">
-              <Button className="bg-primary hover:bg-[#6b2f57] px-10 h-12">
-                Return Home
-              </Button>
-            </Link>
-          </motion.div>
-        )}
-
-        {/* Contact Info Footer */}
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 border-t pt-12 dark:border-gray-800">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-gray-50 dark:bg-[#1a1a1a] rounded-xl">
-              <Phone className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-bold mb-1">Call Us</h4>
-              <p className="text-sm text-gray-500">{settings.supportPhone}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-gray-50 dark:bg-[#1a1a1a] rounded-xl">
-              <Mail className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-bold mb-1">Email Us</h4>
-              <p className="text-sm text-gray-500">{settings.supportEmail}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-gray-50 dark:bg-[#1a1a1a] rounded-xl">
-              <Clock className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-bold mb-1">Hours</h4>
-              <p className="text-sm text-gray-500">{settings.supportHours}</p>
-            </div>
-          </div>
         </div>
+
+        {/* Info Cards */}
+        <div className="space-y-3 mb-12">
+          
+          <div className="bg-white rounded-xl p-4 flex gap-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-50">
+            <div className="flex-shrink-0 mt-0.5">
+              <Clock className="h-[18px] w-[18px] text-[#DC2626]" />
+            </div>
+            <div>
+              <h4 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-1">Business Hours</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed">{settings.supportHours}</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-4 flex gap-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-50">
+            <div className="flex-shrink-0 mt-0.5">
+              <ShieldCheck className="h-[18px] w-[18px] text-[#DC2626]" />
+            </div>
+            <div>
+              <h4 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-1">Secure Support</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed">Our support staff will never ask for your password or financial credentials.</p>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="text-center pb-8">
+          <p className="text-[9px] font-bold text-gray-400 tracking-widest uppercase mb-1">Last Updated: June 2, 2026</p>
+          <p className="text-[9px] font-bold text-gray-400 tracking-widest uppercase">&copy; 2026 Switcheats. All Rights Reserved.</p>
+        </div>
+
       </div>
     </AnimatedPage>
   )
