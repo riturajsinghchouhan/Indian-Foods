@@ -60,6 +60,39 @@ const readUnder250Filters = () => {
   }
 }
 
+const ScrollAwareAddToCartAnimation = () => {
+  const [viewCartButtonBottom, setViewCartButtonBottom] = useState("bottom-[92px]")
+  const lastScrollY = useRef(0)
+
+  useEffect(() => {
+    let scrollTimeout = null;
+    const handleScroll = () => {
+      if (scrollTimeout) return;
+      scrollTimeout = setTimeout(() => {
+        const currentScrollY = window.scrollY
+        const scrollDifference = Math.abs(currentScrollY - lastScrollY.current)
+
+        if (scrollDifference >= 5) {
+          if (currentScrollY > lastScrollY.current) {
+            setViewCartButtonBottom("bottom-[72px]")
+          } else if (currentScrollY < lastScrollY.current) {
+            setViewCartButtonBottom("bottom-[92px]")
+          }
+          lastScrollY.current = currentScrollY
+        }
+        scrollTimeout = null;
+      }, 50);
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+      if (scrollTimeout) clearTimeout(scrollTimeout)
+    }
+  }, [])
+
+  return <AddToCartAnimation dynamicBottom={viewCartButtonBottom} />
+}
 
 export default function Under250() {
   const initialFiltersRef = useRef(readUnder250Filters())
@@ -79,8 +112,6 @@ export default function Under250() {
   const [showShareOptions, setShowShareOptions] = useState(false)
   const [quantities, setQuantities] = useState({})
   const [bookmarkedItems, setBookmarkedItems] = useState(new Set())
-  const [viewCartButtonBottom, setViewCartButtonBottom] = useState("bottom-[92px]")
-  const lastScrollY = useRef(0)
   const scrollLockYRef = useRef(0)
   const itemDetailContentRef = useRef(null)
   const itemDetailGestureRef = useRef({
@@ -94,7 +125,6 @@ export default function Under250() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
   const [under250Restaurants, setUnder250Restaurants] = useState([])
   const [loadingRestaurants, setLoadingRestaurants] = useState(true)
-  const [hasScrolledPastBanner, setHasScrolledPastBanner] = useState(false)
   const [under250PriceLimit, setUnder250PriceLimit] = useState(250)
   const bannerShellRef = useRef(null)
   const stickyHeaderRef = useRef(null)
@@ -585,58 +615,6 @@ export default function Under250() {
       })
     )
   }, [selectedSort, activeCategory, under30MinsFilter])
-
-  // Scroll detection for view cart button positioning
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      const scrollDifference = Math.abs(currentScrollY - lastScrollY.current)
-
-      // Only update if scroll difference is significant (avoid flickering)
-      if (scrollDifference < 5) {
-        return
-      }
-
-      // Scroll down -> bottom-[72px], Scroll up -> bottom-[92px]
-      if (currentScrollY > lastScrollY.current) {
-        // Scrolling down
-        setViewCartButtonBottom("bottom-[72px]")
-      } else if (currentScrollY < lastScrollY.current) {
-        // Scrolling up
-        setViewCartButtonBottom("bottom-[92px]")
-      }
-
-      lastScrollY.current = currentScrollY
-    }
-
-    window.addEventListener("scroll", handleScroll, { passive: true })
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
-
-  useEffect(() => {
-    const handleBannerScroll = () => {
-      const bannerShell = bannerShellRef.current
-      const stickyHeader = stickyHeaderRef.current
-
-      if (!bannerShell) {
-        setHasScrolledPastBanner(false)
-        return
-      }
-
-      const bannerRect = bannerShell.getBoundingClientRect()
-      const stickyHeight = stickyHeader?.getBoundingClientRect().height || 0
-      setHasScrolledPastBanner(bannerRect.bottom <= stickyHeight)
-    }
-
-    handleBannerScroll()
-    window.addEventListener("scroll", handleBannerScroll, { passive: true })
-    window.addEventListener("resize", handleBannerScroll)
-
-    return () => {
-      window.removeEventListener("scroll", handleBannerScroll)
-      window.removeEventListener("resize", handleBannerScroll)
-    }
-  }, [])
 
   // Helper function to update item quantity in bothlocal state and cart
   const updateItemQuantity = (item, newQuantity, event = null, restaurantName = null) => {
@@ -1620,7 +1598,7 @@ export default function Under250() {
       </AnimatePresence>
 
       {/* Add to Cart Animation */}
-      <AddToCartAnimation dynamicBottom={viewCartButtonBottom} />
+      <ScrollAwareAddToCartAnimation />
     </div>
   )
 }
