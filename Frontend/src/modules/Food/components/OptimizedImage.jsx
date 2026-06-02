@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
+import { ConciergeBell } from 'lucide-react'
 
 /**
  * OptimizedImage Component
@@ -149,7 +150,9 @@ const OptimizedImage = React.memo(({
 
       {/* Loading Skeleton */}
       {!isLoaded && !hasError && (
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 animate-pulse" />
+        <div className="absolute inset-0 bg-[#f7f5f2] dark:bg-zinc-800 flex flex-col items-center justify-center animate-pulse">
+           <ConciergeBell className="w-[35%] h-[35%] max-w-[48px] max-h-[48px] text-[#cfcac2] dark:text-zinc-600" strokeWidth={2} />
+        </div>
       )}
 
       {/* Actual Image */}
