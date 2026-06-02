@@ -1,4 +1,4 @@
-﻿import mongoose from 'mongoose';
+import mongoose from 'mongoose';
 import { FoodOrder } from '../models/order.model.js';
 import { FoodRestaurant } from '../../restaurant/models/restaurant.model.js';
 import { FoodFeeSettings } from '../../admin/models/feeSettings.model.js';
@@ -28,7 +28,6 @@ export async function calculateOrderPricing(userId, dto) {
     deliveryFee: 25,
     deliveryFeeRanges: [],
     freeDeliveryUpTo: 0,
-    freeDeliveryThreshold: 149,
     platformFee: 5,
     packagingFee: 0,
     gstRate: 5,
@@ -38,7 +37,6 @@ export async function calculateOrderPricing(userId, dto) {
   const platformFee = feeSettings.platformFee != null ? Number(feeSettings.platformFee) : 0;
 
   const freeUpTo = Number(feeSettings.freeDeliveryUpTo || 0);
-  const freeThreshold = Number(feeSettings.freeDeliveryThreshold || 0);
   let distanceKm = null;
   if (
     restaurant?.location?.coordinates?.length === 2 &&
@@ -55,12 +53,6 @@ export async function calculateOrderPricing(userId, dto) {
     Number.isFinite(freeUpTo) &&
     freeUpTo > 0 &&
     subtotal >= freeUpTo
-  ) {
-    deliveryFee = 0;
-  } else if (
-    Number.isFinite(freeThreshold) &&
-    freeThreshold > 0 &&
-    subtotal >= freeThreshold
   ) {
     deliveryFee = 0;
   } else {

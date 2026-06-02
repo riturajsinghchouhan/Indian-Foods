@@ -9,7 +9,7 @@ export async function getLiveMonitorStatus(req, res, next) {
 
         // Fetch All Approved Restaurants
         const restaurants = await FoodRestaurant.find({ status: 'approved' })
-            .select('restaurantName logo addressLine1 area city state openingTime closingTime openDays isAcceptingOrders ownerName ownerPhone')
+            .select('restaurantName logo location addressLine1 area city state openingTime closingTime openDays isAcceptingOrders ownerName ownerPhone')
             .lean();
 
         // Fetch Outlet Timings for these restaurants

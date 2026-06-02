@@ -106,6 +106,17 @@ export default function RestaurantReviews() {
     return stars
   }
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return "N/A"
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
   useEffect(() => {
     const fetchReviews = async () => {
       try {
