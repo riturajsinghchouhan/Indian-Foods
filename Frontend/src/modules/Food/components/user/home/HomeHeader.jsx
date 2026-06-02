@@ -246,7 +246,7 @@ export default function HomeHeader({
         </div>
 
         <div
-          className="relative bg-white rounded-2xl flex items-center px-4 py-3 shadow-lg border border-black/5 cursor-pointer active:scale-[0.98] transition-all duration-300 max-w-[95%] mx-auto"
+          className="relative bg-white rounded-2xl flex items-center px-4 py-2 shadow-lg border border-black/5 cursor-pointer active:scale-[0.98] transition-all duration-300 max-w-[95%] mx-auto"
           onClick={handleSearchFocus}
         >
           <Search className="h-4.5 w-4.5 text-primary mr-2 shrink-0" strokeWidth={3} />

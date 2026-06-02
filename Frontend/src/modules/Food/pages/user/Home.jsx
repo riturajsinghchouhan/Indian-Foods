@@ -172,16 +172,6 @@ const RestaurantImageCarousel = React.memo(
           const parsed = new URL(resolvedUrl, window.location.origin);
 
           // Apply cache-buster only to app/backend-hosted URLs to avoid third-party CDN signature issues.
-          const currentHost =
-            typeof window !== "undefined" ? window.location.hostname : "";
-          const isLocalHost = /^(localhost|127\.0\.0\.1)$/i.test(
-            parsed.hostname,
-          );
-          const isSameHost = currentHost && parsed.hostname === currentHost;
-
-          if (isLocalHost || isSameHost) {
-            parsed.searchParams.set("_wv", webviewSessionKeyRef.current);
-          }
           return parsed.toString();
         } catch {
           return resolvedUrl;
@@ -321,7 +311,7 @@ const RestaurantImageCarousel = React.memo(
               src={renderSrc}
               alt={`${restaurant.name} - Image ${safeIndex + 1}`}
               className="w-full h-full object-cover"
-              loading={priority ? "eager" : "lazy"}
+              loading="eager"
               fetchPriority={priority ? "high" : "auto"}
               decoding="async"
               onLoad={() => {
@@ -884,55 +874,6 @@ export default function Home() {
     setLoadingRealCategories(false);
   }, []);
 
-  // Fetch explore icons and landing settings from public APIs
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingLandingConfig(true);
-    Promise.all([
-      publicGetOnce("/food/explore-icons/public")
-        .catch(() => ({ data: { data: {} } })),
-      publicGetOnce("/food/landing/settings/public")
-        .catch(() => ({ data: { data: {} } })),
-    ])
-      .then(([exploreRes, settingsRes]) => {
-        if (cancelled) return;
-        const exploreData = exploreRes?.data?.data;
-        const items = Array.isArray(exploreData?.items)
-          ? exploreData.items
-          : Array.isArray(exploreData)
-            ? exploreData
-            : [];
-        setLandingExploreMore(
-          items.map((it) => ({
-            ...it,
-            imageUrl: it.imageUrl || it.iconUrl,
-            label: it.label || it.name,
-          })),
-        );
-        const settings = settingsRes?.data?.data || {};
-        setExploreMoreHeading(settings.exploreMoreHeading || "Explore More");
-        setRecommendedRestaurantIds(settings.recommendedRestaurantIds || []);
-        setUnder250PriceLimit(Number(settings.under250PriceLimit) || 250);
-        setRecommendedRestaurantsFromSettings(
-          settings.recommendedRestaurants || [],
-        );
-        setFestBannerVideoUrl(typeof settings.festBannerVideoUrl === "string" ? settings.festBannerVideoUrl : "");
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLandingExploreMore([]);
-          setExploreMoreHeading("Explore More");
-          setRecommendedRestaurantsFromSettings([]);
-          setFestBannerVideoUrl("");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingLandingConfig(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Keep index within current banner bounds after admin updates/reloads.
   useEffect(() => {
@@ -1333,6 +1274,56 @@ export default function Home() {
     loading: effectiveZoneLoading,
     error: effectiveZoneError,
   } = useZone(effectiveLocation);
+
+  // Fetch explore icons and landing settings from public APIs
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingLandingConfig(true);
+    Promise.all([
+      publicGetOnce("/food/explore-icons/public", { params: { zoneId: effectiveZoneId } })
+        .catch(() => ({ data: { data: {} } })),
+      publicGetOnce("/food/landing/settings/public", { params: { zoneId: effectiveZoneId } })
+        .catch(() => ({ data: { data: {} } })),
+    ])
+      .then(([exploreRes, settingsRes]) => {
+        if (cancelled) return;
+        const exploreData = exploreRes?.data?.data;
+        const items = Array.isArray(exploreData?.items)
+          ? exploreData.items
+          : Array.isArray(exploreData)
+            ? exploreData
+            : [];
+        setLandingExploreMore(
+          items.map((it) => ({
+            ...it,
+            imageUrl: it.imageUrl || it.iconUrl,
+            label: it.label || it.name,
+          })),
+        );
+        const settings = settingsRes?.data?.data || {};
+        setExploreMoreHeading(settings.exploreMoreHeading || "Explore More");
+        setRecommendedRestaurantIds(settings.recommendedRestaurantIds || []);
+        setUnder250PriceLimit(Number(settings.under250PriceLimit) || 250);
+        setRecommendedRestaurantsFromSettings(
+          settings.recommendedRestaurants || [],
+        );
+        setFestBannerVideoUrl(typeof settings.festBannerVideoUrl === "string" ? settings.festBannerVideoUrl : "");
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLandingExploreMore([]);
+          setExploreMoreHeading("Explore More");
+          setRecommendedRestaurantsFromSettings([]);
+          setFestBannerVideoUrl("");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLandingConfig(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveZoneId]);
 
   // Fetch hero banners from public API (no auth required)
   useEffect(() => {
@@ -2794,11 +2785,11 @@ export default function Home() {
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="px-4 pt-3 pb-2"
+                            className="px-4 py-2"
                           >
                             <div className="flex items-center gap-3">
                               <div
-                                className="flex-1 bg-white dark:bg-[#1a1a1a] rounded-2xl flex items-center px-4 py-3 cursor-pointer border-2 border-primary/30 dark:border-primary/50 shadow-md"
+                                className="flex-1 bg-white dark:bg-[#1a1a1a] rounded-xl flex items-center px-4 py-2 cursor-pointer border-2 border-primary/30 dark:border-primary/50 shadow-md"
                                 onClick={handleSearchFocus}
                               >
                                 <Search className="h-5 w-5 text-primary dark:text-[#a14b84] mr-3" strokeWidth={2.5} />
@@ -2811,7 +2802,7 @@ export default function Home() {
 
                               {/* Veg Toggle in Sticky Header */}
                               <div
-                                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-3 rounded-2xl border-2 transition-all duration-300 cursor-pointer shadow-md ${vegMode ? 'border-[#00b09b]/50 bg-[#00b09b]/10' : 'border-gray-100 dark:border-white/10 bg-white dark:bg-[#1a1a1a]'}`}
+                                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 transition-all duration-300 cursor-pointer shadow-md ${vegMode ? 'border-[#00b09b]/50 bg-[#00b09b]/10' : 'border-gray-100 dark:border-white/10 bg-white dark:bg-[#1a1a1a]'}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleVegModeChange?.(!vegMode);

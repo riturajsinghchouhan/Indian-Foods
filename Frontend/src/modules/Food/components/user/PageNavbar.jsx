@@ -1023,7 +1023,7 @@ export default function PageNavbar({
               <img
                 src={logoUrl}
                 alt={companyName || "Company Logo"}
-                className="h-9 w-auto sm:h-12 md:h-14 object-contain scale-[1.6] sm:scale-[1.8] origin-left"
+                className="h-8 w-auto sm:h-10 md:h-12 object-contain scale-[1.2] sm:scale-[1.3] origin-left"
                 crossOrigin="anonymous"
                 onError={(e) => {
                   // Fallback to name if image fails
@@ -1031,14 +1031,14 @@ export default function PageNavbar({
                 }}
               />
             ) : companyName ? (
-              <span className={`text-lg font-bold text-${textColor}`}>
+              <span className={`text-base font-bold text-${textColor}`}>
                 {companyName}
               </span>
             ) : (
               <img
                 src={quickSpicyLogo}
                 alt="Logo"
-                className="h-9 w-auto sm:h-12 md:h-14 object-contain scale-[1.6] sm:scale-[1.8] origin-left"
+                className="h-8 w-auto sm:h-10 md:h-12 object-contain scale-[1.2] sm:scale-[1.3] origin-left"
               />
             )}
           </Link>
@@ -1059,13 +1059,13 @@ export default function PageNavbar({
             ) : (
               <div className="flex flex-col items-center min-w-0">
                 <div className="flex items-center justify-center gap-1">
-                  <span className={`text-sm sm:text-base font-bold ${textColorClass} truncate max-w-[140px] sm:max-w-[200px]`}>
+                  <span className={`text-xs sm:text-sm font-bold ${textColorClass} truncate max-w-[140px] sm:max-w-[200px]`}>
                     {displayArea}
                   </span>
                   <ChevronDown className={`h-3 w-3 sm:h-4 sm:w-4 ${textColorClass} flex-shrink-0`} strokeWidth={2.5} />
                 </div>
                 {displayAddress && (
-                  <span className={`text-[10px] sm:text-xs font-medium ${textColorClass}/70 truncate max-w-[140px] sm:max-w-[200px] text-center`}>
+                  <span className={`text-[9px] sm:text-[10px] font-medium ${textColorClass}/70 truncate max-w-[140px] sm:max-w-[200px] text-center`}>
                     {displayAddress}
                   </span>
                 )}

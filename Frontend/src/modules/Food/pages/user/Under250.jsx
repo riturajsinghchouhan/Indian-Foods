@@ -849,9 +849,9 @@ export default function Under250() {
     <div className={`relative min-h-screen bg-white dark:bg-[#0a0a0a] pt-[58px] md:pt-0 ${shouldShowGrayscale ? 'grayscale opacity-75' : ''}`}>
       <div
         ref={stickyHeaderRef}
-        className={`fixed top-0 left-0 right-0 z-40 w-full md:hidden transition-all duration-300 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-md shadow-sm border-b border-gray-200 dark:border-gray-800`}
+        className={`fixed top-0 left-0 right-0 z-40 w-full md:hidden transition-all duration-300 bg-white/60 dark:bg-black/60 backdrop-blur-xl shadow-sm border-b border-white/20 dark:border-white/10`}
       >
-        <div className="relative z-50 pt-2 sm:pt-3 pb-2 px-2">
+        <div className="relative z-50 pt-1 pb-1 px-2">
           <PageNavbar textColor="black" zIndex={20} showProfile={true} showLogo={true} />
         </div>
       </div>
