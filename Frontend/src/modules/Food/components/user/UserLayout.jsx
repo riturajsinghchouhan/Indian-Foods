@@ -15,6 +15,7 @@ import { useUserNotifications } from "../../hooks/useUserNotifications"
 import AppIntroSplash from "./AppIntroSplash"
 import { useLocation as useFoodLocation } from "@food/hooks/useLocation"
 import { useZone } from "@food/hooks/useZone"
+import LocationGuard from "./LocationGuard"
 
 // Create SearchOverlay context with default value
 const SearchOverlayContext = createContext({
@@ -156,15 +157,16 @@ export default function UserLayout() {
           <OrdersProvider>
             <SearchOverlayProvider>
               <LocationSelectorProvider>
-                {/* <Navbar /> */}
                 {/* Desktop Navbar - Hidden on mobile, visible on medium+ screens */}
                 <div className="hidden md:block">
                   {showBottomNav && <DesktopNavbar showLogo={!isUnder250} />}
                 </div>
                 <LocationPrompt />
-                <main className={showBottomNav ? "md:pt-40" : ""}>
-                  <Outlet />
-                </main>
+                <LocationGuard>
+                  <main className={showBottomNav ? "md:pt-40" : ""}>
+                    <Outlet />
+                  </main>
+                </LocationGuard>
                 {showBottomNav && <BottomNavigation />}
               </LocationSelectorProvider>
             </SearchOverlayProvider>

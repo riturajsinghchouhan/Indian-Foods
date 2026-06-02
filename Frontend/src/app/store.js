@@ -4,6 +4,7 @@ import authReducer from './slices/authSlice'
 import foodReducer from './slices/foodSlice'
 import taxiReducer from './slices/taxiSlice'
 import quickReducer from './slices/quickSlice'
+import locationReducer from './slices/locationSlice'
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     food: foodReducer,
     taxi: taxiReducer,
     quick: quickReducer,
+    location: locationReducer,
   },
 })
 

@@ -100,11 +100,17 @@ function createModuleClient(moduleName) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // Automatically inject Zone ID for user/public endpoints
+      // Automatically inject Zone ID and Coordinates for user/public endpoints
       if (moduleName === "user" || moduleName === "public") {
         const zoneId = localStorage.getItem("userZoneId");
+        const lat = localStorage.getItem("userLat");
+        const lng = localStorage.getItem("userLng");
         if (zoneId) {
           config.headers["X-Zone-Id"] = zoneId;
+        }
+        if (lat && lng) {
+          config.headers["X-User-Lat"] = lat;
+          config.headers["X-User-Lng"] = lng;
         }
       }
 
@@ -229,11 +235,17 @@ apiClient.interceptors.request.use(
     const token = getAccessToken(module);
     if (token) config.headers.Authorization = `Bearer ${token}`;
 
-    // Automatically inject Zone ID for user/public endpoints
+    // Automatically inject Zone ID and Coordinates for user/public endpoints
     if (module === "user" || module === "public" || module === "delivery") {
       const zoneId = localStorage.getItem("userZoneId");
+      const lat = localStorage.getItem("userLat");
+      const lng = localStorage.getItem("userLng");
       if (zoneId) {
         config.headers["X-Zone-Id"] = zoneId;
+      }
+      if (lat && lng) {
+        config.headers["X-User-Lat"] = lat;
+        config.headers["X-User-Lng"] = lng;
       }
     }
 
