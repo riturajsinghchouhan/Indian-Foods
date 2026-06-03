@@ -56,6 +56,8 @@ export default function Category() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [showPendingOnly, setShowPendingOnly] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState(null)
   const [zones, setZones] = useState([])
@@ -106,7 +108,7 @@ export default function Category() {
       fetchCategories()
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [searchQuery, showPendingOnly])
+  }, [searchQuery, showPendingOnly, page])
 
   const filteredCategories = useMemo(() => {
     const query = String(searchQuery || "").trim().toLowerCase()
@@ -125,13 +127,16 @@ export default function Category() {
   const fetchCategories = async () => {
     try {
       setLoading(true)
-      const params = {}
+      const params = { limit: 100, page }
       if (searchQuery) params.search = searchQuery
       if (showPendingOnly) params.approvalStatus = "pending"
 
       const response = await adminAPI.getCategories(params)
-      const list = response?.data?.data?.categories || response?.data?.categories || []
+      const data = response?.data?.data || response?.data || {}
+      const list = data.categories || []
       setCategories(Array.isArray(list) ? list : [])
+      const totalCount = data.total || list.length
+      setTotalPages(Math.ceil(totalCount / 100) || 1)
     } catch (error) {
       if (error?.response?.status === 401) {
         toast.error("Authentication required. Please login again.")
@@ -383,14 +388,14 @@ export default function Category() {
             <div className="flex items-center gap-2 rounded-full border border-slate-200 p-1">
               <button
                 type="button"
-                onClick={() => setShowPendingOnly(false)}
+                onClick={() => { setShowPendingOnly(false); setPage(1); }}
                 className={`rounded-full px-3 py-2 text-xs font-semibold ${!showPendingOnly ? "bg-slate-900 text-white" : "text-slate-600"}`}
               >
                 All
               </button>
               <button
                 type="button"
-                onClick={() => setShowPendingOnly(true)}
+                onClick={() => { setShowPendingOnly(true); setPage(1); }}
                 className={`rounded-full px-3 py-2 text-xs font-semibold ${showPendingOnly ? "bg-amber-600 text-white" : "text-slate-600"}`}
               >
                 Pending
@@ -403,7 +408,7 @@ export default function Category() {
                 type="text"
                 placeholder="Search categories"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => { setSearchQuery(event.target.value); setPage(1); }}
                 className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-slate-900"
               />
             </div>
@@ -586,6 +591,60 @@ export default function Category() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-slate-700">
+                  Showing page <span className="font-medium">{page}</span> of <span className="font-medium">{totalPages}</span>
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 focus:outline-offset-0">
+                    Page {page}
+                  </span>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                  >
+                    <span className="sr-only">Next</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {typeof window !== "undefined" &&
