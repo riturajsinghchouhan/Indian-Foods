@@ -766,7 +766,11 @@ export default function Under250() {
                 distance: distanceInKm !== null ? formatDistance(distanceInKm) : fallbackDistance,
                 distanceInKm,
                 discount: restaurant?.discount || 0,
+<<<<<<< HEAD
                 originalIndex: allRawRestaurants.findIndex(r => String(r?.restaurantId || r?._id) === String(restaurantId)),
+=======
+                originalIndex: index,
+>>>>>>> 9dab837ddd9e2bf9564082ea41b44feb3a063c20
                 menuItems,
               }
             } catch {
@@ -1457,6 +1461,7 @@ export default function Under250() {
                 {/* Menu Items Horizontal Scroll */}
                 {restaurant.menuItems && restaurant.menuItems.length > 0 && (
                   <div className="space-y-2 md:space-y-3 lg:space-y-4">
+<<<<<<< HEAD
                     <HorizontalMenuScroller 
                       restaurant={restaurant}
                       quantities={quantities}
@@ -1464,6 +1469,166 @@ export default function Under250() {
                       handleItemClick={handleItemClick}
                       RUPEE_SYMBOL={RUPEE_SYMBOL}
                     />
+=======
+                    <div
+                      className="flex md:grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 overflow-x-auto md:overflow-x-visible overflow-y-visible scrollbar-hide scroll-smooth pb-2 md:pb-0 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                      style={{
+                        scrollbarWidth: "none",
+                        msOverflowStyle: "none",
+                        touchAction: "pan-x pan-y pinch-zoom",
+                        overflowY: "hidden",
+                      }}
+                    >
+                      {restaurant.menuItems.map((item, itemIndex) => {
+                        const quantity = quantities[item.id] || 0
+                        return (
+                          <motion.div
+                            key={item.id}
+                            className="flex-shrink-0 w-[200px] sm:w-[220px] md:w-full bg-white dark:bg-[#1a1a1a] rounded-lg md:rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden cursor-pointer relative"
+                            onClick={() => !isClosed && handleItemClick(item, restaurant)}
+                            whileHover={{ y: -8, scale: 1.02 }}
+                            style={{ boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)" }}
+                          >
+                            {/* Item Image */}
+                            <div className="relative w-full h-32 sm:h-36 md:h-40 lg:h-48 xl:h-52 overflow-hidden">
+                              <motion.div
+                                className="absolute inset-0"
+                                whileHover={{ scale: 1.1 }}
+                                transition={{ duration: 0.5, ease: "easeOut" }}
+                              >
+                                <OptimizedImage
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-full h-full"
+                                  objectFit="cover"
+                                  sizes="(max-width: 640px) 200px, (max-width: 768px) 220px, 100vw"
+                                  placeholder="blur"
+                                  priority={itemIndex < 4}
+                                />
+                              </motion.div>
+                              {/* Gradient Overlay on Hover */}
+                                <motion.div
+                                  className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"
+                                  initial={{ opacity: 0 }}
+                                  whileHover={{ opacity: 1 }}
+                                  transition={{ duration: 0.3 }}
+                                />
+                                {isClosed && (
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20">
+                                    <div className="bg-black/80 px-3 py-1.5 rounded-lg border border-white/20">
+                                      <span className="text-white font-black uppercase tracking-widest text-xs">Closed</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {/* Veg Indicator */}
+                              {item.isVeg && (
+                                <motion.div
+                                  className="absolute top-2 left-2 md:top-3 md:left-3 h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 rounded border-2 border-green-600 bg-white flex items-center justify-center z-10"
+                                  whileHover={{ scale: 1.2, rotate: 5 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  <div className="h-2 w-2 md:h-2.5 md:w-2.5 lg:h-3 lg:w-3 rounded-full bg-green-600" />
+                                </motion.div>
+                              )}
+                            </div>
+
+                            {/* Item Details */}
+                            <div className="p-3 md:p-4 lg:p-5">
+                              <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2 lg:mb-3">
+                                {item.isVeg && (
+                                  <div className="h-3 w-3 md:h-4 md:w-4 lg:h-5 lg:w-5 rounded border border-green-600 bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                                    <div className="h-1.5 w-1.5 md:h-2 md:w-2 lg:h-2.5 lg:w-2.5 rounded-full bg-green-600" />
+                                  </div>
+                                )}
+                                <span className="text-sm md:text-base lg:text-lg font-semibold text-gray-900 dark:text-white">
+                                  1 x {item.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  {(() => {
+                                    let discountPercentage = restaurant?.discount || 0;
+                                    const specificItemDiscount = (restaurant?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
+                                    if (specificItemDiscount) {
+                                      discountPercentage = specificItemDiscount.discountValue || 0;
+                                    } else {
+                                      const matchingRule = (restaurant?.discountRules || []).find(rule => {
+                                        const val = Number(rule.conditionValue);
+                                        if (rule.conditionType === 'PRICE_ABOVE' && item.price > val) return true;
+                                        if (rule.conditionType === 'PRICE_BELOW' && item.price < val) return true;
+                                        return false;
+                                      });
+                                      if (matchingRule) discountPercentage = matchingRule.discountValue || 0;
+                                    }
+
+                                    if (discountPercentage > 0) {
+                                      return (
+                                        <div className="flex flex-col gap-0.5">
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
+                                              {RUPEE_SYMBOL}{Math.round(item.price * (1 - discountPercentage / 100))}
+                                            </p>
+                                            <p className="text-xs md:text-sm text-gray-500 line-through">
+                                              {RUPEE_SYMBOL}{Math.round(item.price)}
+                                            </p>
+                                          </div>
+                                          <div className="inline-flex">
+                                            <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 px-1 py-0.5 rounded uppercase">
+                                              {discountPercentage}% OFF
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <p className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
+                                        {RUPEE_SYMBOL}{Math.round(item.price)}
+                                      </p>
+                                    );
+                                  })()}
+                                  {item.bestPrice && (
+                                    <p className="text-xs md:text-sm lg:text-base text-gray-500 dark:text-gray-400">Best price</p>
+                                  )}
+                                </div>
+                                {isClosed ? (
+                                  <Button
+                                    variant={"ghost"}
+                                    size="sm"
+                                    disabled={true}
+                                    className="rounded-full h-8 sm:h-9 md:h-10 px-4 sm:px-6 md:px-8 text-[12px] sm:text-[14px] md:text-[16px] font-black uppercase tracking-widest bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed shadow-none"
+                                  >
+                                    CLOSED
+                                  </Button>
+                                ) : quantity > 0 ? (
+                                  <Link to="/user/cart" onClick={(e) => e.stopPropagation()}>
+                                    <Button
+                                      variant={"ghost"}
+                                      size="sm"
+                                      className="rounded-full h-8 sm:h-9 md:h-10 px-4 sm:px-5 md:px-6 text-[11px] sm:text-[13px] md:text-[15px] font-black uppercase tracking-wide shadow-[0_4px_14px_0_rgba(0,183,97,0.39)] hover:shadow-[0_6px_20px_rgba(0,183,97,0.23)] transition-all duration-300 active:scale-95 flex items-center gap-1 bg-[#00B761] hover:bg-[#00A055] text-white"
+                                    >
+                                      VIEW CART
+                                    </Button>
+                                  </Link>
+                                ) : (
+                                  <Button
+                                    variant={"ghost"}
+                                    size="sm"
+                                    className="rounded-full h-8 sm:h-9 md:h-10 px-4 sm:px-6 md:px-8 text-[12px] sm:text-[14px] md:text-[16px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 flex items-center justify-center gap-1 sm:gap-1.5 bg-[#E23744] hover:bg-[#D12B37] text-white shadow-[0_6px_16px_0_rgba(226,55,68,0.35)] hover:shadow-[0_8px_20px_rgba(226,55,68,0.45)] border border-[#E23744]/20"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleItemClick(item, restaurant)
+                                    }}
+                                  >
+                                    ADD <span className="text-[16px] sm:text-[18px] md:text-[20px] font-medium leading-none mt-[-2px]">+</span>
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+>>>>>>> 9dab837ddd9e2bf9564082ea41b44feb3a063c20
 
                     {/* View Full Menu Button */}
                     <Link className="flex justify-center mt-2 md:mt-3 lg:mt-4" to={`/user/restaurants/${restaurantSlug}?under250=true`}>

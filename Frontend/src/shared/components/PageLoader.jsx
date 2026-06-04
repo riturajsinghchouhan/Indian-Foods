@@ -8,12 +8,15 @@ export default function PageLoader() {
   const location = useLocation()
   
   useEffect(() => {
+<<<<<<< HEAD
     // Skip default page loader for routes with custom loaders (like under-250)
     if (location.pathname.includes('/under-250')) {
       setIsNavigating(false)
       return
     }
 
+=======
+>>>>>>> 9dab837ddd9e2bf9564082ea41b44feb3a063c20
     // Show animation on route change
     setIsNavigating(true)
     
