@@ -766,11 +766,7 @@ export default function Under250() {
                 distance: distanceInKm !== null ? formatDistance(distanceInKm) : fallbackDistance,
                 distanceInKm,
                 discount: restaurant?.discount || 0,
-<<<<<<< HEAD
                 originalIndex: allRawRestaurants.findIndex(r => String(r?.restaurantId || r?._id) === String(restaurantId)),
-=======
-                originalIndex: index,
->>>>>>> 9dab837ddd9e2bf9564082ea41b44feb3a063c20
                 menuItems,
               }
             } catch {
