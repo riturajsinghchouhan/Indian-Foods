@@ -731,7 +731,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   return (
     <div className="relative h-screen w-full bg-white text-gray-900 overflow-hidden flex flex-col">
       {/* ─── 1. TOP HEADER (Dynamic Theme Gradient) ─── */}
-      {currentTab !== 'history' && (
+      {currentTab !== 'history' && currentTab !== 'profile' && currentTab !== 'pocket' && (
       <div 
         className="absolute top-0 inset-x-0 backdrop-blur-2xl shadow-2xl z-[200] safe-top pb-2 border-b border-white/10"
         style={{ backgroundColor: 'var(--dv-primary)' }}
@@ -897,7 +897,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
       />
 
       {/* ─── 2. MAIN CONTENT ─── */}
-      <div className={`flex-1 relative overflow-y-auto ${currentTab === 'history' ? 'pt-0' : 'pt-[120px]'} no-scrollbar`}>
+      <div className={`flex-1 relative overflow-y-auto ${currentTab === 'history' || currentTab === 'profile' || currentTab === 'pocket' ? 'pt-0' : 'pt-[120px]'} no-scrollbar`}>
          {currentTab === 'feed' ? (
            <div className="absolute inset-0 top-[-120px]">
              {isOnline ? (

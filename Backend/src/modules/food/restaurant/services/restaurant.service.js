@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import { FoodZone } from '../../admin/models/zone.model.js';
 import { FoodOffer } from '../../admin/models/offer.model.js';
 import { FoodDiningRestaurant } from '../../dining/models/diningRestaurant.model.js';
+import Promocode from '../../../../models/Promocode.js';
 
 const normalizeName = (value) =>
     String(value || '')
@@ -1313,7 +1314,10 @@ export const listApprovedRestaurants = async (query = {}) => {
         openDays: 1,
         zoneRank: 1,
         outletTimings: 1,
-        deliveryTimings: 1
+        deliveryTimings: 1,
+        discount: 1,
+        itemDiscounts: 1,
+        discountRules: 1
     };
 
     // Use $geoNear only when geo is explicitly needed (radius filter or nearest sorting).
@@ -1421,28 +1425,85 @@ export const getApprovedRestaurantByIdOrSlug = async (idOrSlug) => {
     const value = String(idOrSlug || '').trim();
     if (!value) return null;
 
+    const now = new Date();
+    const fetchOffers = async (restaurantId) => {
+        // Fetch Admin FoodOffers
+        const adminFilter = {
+            status: 'active',
+            $and: [
+                { $or: [{ startDate: { $exists: false } }, { startDate: null }, { startDate: { $lte: now } }] },
+                { $or: [{ endDate: { $exists: false } }, { endDate: null }, { endDate: { $gt: now } }] }
+            ],
+            $or: [
+                { restaurantScope: 'all' },
+                { restaurantScope: 'selected', restaurantId }
+            ]
+        };
+
+        const adminOffers = await FoodOffer.find(adminFilter).sort({ createdAt: -1 }).lean();
+        
+        // Fetch Restaurant Promocodes
+        const promoFilter = {
+            restaurantId,
+            isActive: true,
+            expiryDate: { $gt: now }
+        };
+        const restaurantPromos = await Promocode.find(promoFilter).sort({ createdAt: -1 }).lean();
+        // Filter out those that have reached usage limit
+        const validPromos = restaurantPromos.filter(p => !p.usageLimit || p.usageCount < p.usageLimit);
+
+        const mappedAdminOffers = adminOffers.map(o => ({
+            id: String(o._id),
+            title: o.discountType === 'percentage'
+                ? `${Number(o.discountValue) || 0}% OFF`
+                : `Flat ₹${Number(o.discountValue) || 0} OFF`,
+            code: o.couponCode,
+            description: `Use code ${o.couponCode}`,
+            discountType: o.discountType,
+            discountValue: o.discountValue
+        }));
+
+        const mappedPromos = validPromos.map(p => ({
+            id: String(p._id),
+            title: p.discountType === 'PERCENTAGE'
+                ? `${Number(p.discountValue) || 0}% OFF`
+                : `Flat ₹${Number(p.discountValue) || 0} OFF`,
+            code: p.code,
+            description: p.description || `Use code ${p.code}`,
+            discountType: p.discountType,
+            discountValue: p.discountValue
+        }));
+
+        return [...mappedAdminOffers, ...mappedPromos];
+    };
+
+    let doc = null;
+
     // ObjectId path
     if (/^[0-9a-fA-F]{24}$/.test(value)) {
-        const doc = await FoodRestaurant.findOne({ _id: value, status: 'approved' }).lean();
-        if (!doc) return null;
-        return {
-            ...doc,
-            rating: normalizeRatingValue(doc.rating),
-            totalRatings: normalizeTotalRatingsValue(doc.totalRatings)
-        };
+        doc = await FoodRestaurant.findOne({ _id: value, status: 'approved' }).lean();
+    } else {
+        // Slug path: use normalized field for index-friendly exact match.
+        const restaurantNameNormalized = normalizeName(value);
+        if (restaurantNameNormalized) {
+            doc = await FoodRestaurant.findOne({
+                status: 'approved',
+                restaurantNameNormalized
+            }).lean();
+        }
     }
 
-    // Slug path: use normalized field for index-friendly exact match.
-    const restaurantNameNormalized = normalizeName(value);
-    if (!restaurantNameNormalized) return null;
-
-    const doc = await FoodRestaurant.findOne({
-        status: 'approved',
-        restaurantNameNormalized
-    }).lean();
     if (!doc) return null;
+
+    const offers = await fetchOffers(doc._id);
+
     return {
         ...doc,
+        offers,
+        restaurantOffers: {
+            ...(doc.restaurantOffers || {}),
+            coupons: offers
+        },
         rating: normalizeRatingValue(doc.rating),
         totalRatings: normalizeTotalRatingsValue(doc.totalRatings)
     };

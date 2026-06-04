@@ -127,21 +127,37 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     const l = label.toLowerCase()
     const p = path?.toLowerCase() || ""
 
-    if (l.includes("food approval")) return badges.foodApprovals
-    if (l === "foods") return badges.foods
-    if (l === "restaurants" || l.includes("new joining request")) return badges.restaurants
-    if (l.includes("restaurant complaints")) return badges.restaurantComplaints
-    if (p.includes("orders/pending")) return badges.orders
-    if (p.includes("offline-payments")) return badges.offlinePayments
-    if (l.includes("support tickets")) return l.includes("delivery") ? badges.deliverySupportTickets : badges.userSupportTickets
-    if (l.includes("withdrawal")) return l.includes("delivery") ? badges.deliveryWithdrawals : badges.restaurantWithdrawals
-    if (l.includes("emergency help")) return badges.emergencyHelp
-    if (l.includes("earning addon history")) return badges.earningAddons
-    if (l.includes("safety emergency reports")) return badges.safetyReports
-    if (l === "deliveryman" && !p.includes("join-request")) return badges.deliveryPartners // expandable parent
-    if (l.includes("join-request")) return badges.deliveryPartners
-    if (l === "user feedback" || p.includes("contact-messages")) return badges.contactMessages
-    if (l.includes("support tickets")) return badges.supportTickets || (l.includes("delivery") ? badges.deliverySupportTickets : badges.userSupportTickets)
+    // FOOD MANAGEMENT
+    if (p.includes("food-approval")) return badges.foodApprovals || 0
+    if (l === "foods") return badges.foods || 0
+
+    // RESTAURANT MANAGEMENT
+    if (l === "restaurants") return (badges.restaurants || 0) + (badges.restaurantComplaints || 0)
+    if (p.includes("restaurants/joining-request")) return badges.restaurants || 0
+    if (p.includes("restaurants/complaints")) return badges.restaurantComplaints || 0
+
+    // ORDER MANAGEMENT
+    if (p.includes("orders/pending")) return badges.orders || 0
+    if (p.includes("orders/offline-payments")) return badges.offlinePayments || 0
+
+    // CUSTOMER MANAGEMENT
+    if (p.includes("contact-messages")) return badges.contactMessages || 0
+    if (p === "/admin/food/support-tickets") return badges.userSupportTickets || 0
+
+    // DELIVERYMAN MANAGEMENT
+    if (l === "deliveryman") return badges.deliveryPartners || 0
+    if (p.includes("delivery-partners/join-request")) return badges.deliveryPartners || 0
+    if (p.includes("delivery-withdrawal")) return badges.deliveryWithdrawals || 0
+    if (p.includes("delivery-emergency-help")) return badges.emergencyHelp || 0
+    if (p.includes("delivery-support-tickets")) return badges.deliverySupportTickets || 0
+    if (p.includes("earning-addon-history")) return badges.earningAddons || 0
+
+    // HELP & SUPPORT
+    if (p.includes("safety-emergency-reports")) return badges.safetyReports || 0
+
+    // TRANSACTION MANAGEMENT
+    if (p.includes("restaurant-withdraws")) return badges.restaurantWithdrawals || 0
+
     return 0
   }
   const [logoUrl, setLogoUrl] = useState(() => localStorage.getItem('admin_app_logo') || getCachedSettings()?.logo?.url || null)

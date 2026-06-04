@@ -81,7 +81,7 @@ export default function SignupStep1() {
     }
 
     if (name === "vehicleNumber") {
-      updatedValue = updatedValue.slice(0, 10)
+      updatedValue = updatedValue.replace(/[^A-Z0-9]/g, "").slice(0, 10)
     }
 
     if (name === "drivingLicenseNumber") {

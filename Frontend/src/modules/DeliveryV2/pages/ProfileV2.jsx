@@ -148,6 +148,13 @@ export const ProfileV2 = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 font-poppins pb-24">
+      {/* Top Header */}
+      <div className="w-full safe-top sticky top-0 z-50 shadow-sm" style={{ backgroundColor: 'var(--dv-primary)' }}>
+        <div className="flex items-center justify-center px-4 py-4">
+           <h1 className="text-lg font-black text-white uppercase tracking-wider">Profile</h1>
+        </div>
+      </div>
+
       {/* Profile Header Block */}
       <div className="bg-white p-4 w-full shadow-sm">
         <div 

@@ -293,7 +293,7 @@ export async function getRestaurants(query) {
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
-            .select('restaurantName location area city profileImage coverImages menuImages menuPdf status ownerName ownerPhone zoneId zoneRank rating')
+            .select('restaurantName location area city profileImage coverImages menuImages menuPdf status ownerName ownerPhone zoneId zoneRank rating discount itemDiscounts discountRules')
             .populate('zoneId', 'name zoneName')
             .lean(),
         FoodRestaurant.countDocuments(filter)
@@ -2379,6 +2379,22 @@ export async function updateRestaurantById(id, body = {}) {
         doc.openDays = body.openDays.map(d => toStr(d)).filter(Boolean);
     }
     if (body.offer !== undefined) doc.offer = toStr(body.offer);
+    
+    if (body.discount !== undefined) {
+        const disc = Number(body.discount);
+        if (Number.isFinite(disc) && disc >= 0 && disc <= 100) {
+            doc.discount = disc;
+        } else {
+            doc.discount = 0;
+        }
+    }
+
+    if (body.itemDiscounts !== undefined) {
+        doc.itemDiscounts = Array.isArray(body.itemDiscounts) ? body.itemDiscounts : [];
+    }
+    if (body.discountRules !== undefined) {
+        doc.discountRules = Array.isArray(body.discountRules) ? body.discountRules : [];
+    }
 
     if (body.estimatedDeliveryTime !== undefined) {
         doc.estimatedDeliveryTime = toStr(body.estimatedDeliveryTime);

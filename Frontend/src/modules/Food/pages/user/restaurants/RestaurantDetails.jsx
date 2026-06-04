@@ -254,7 +254,7 @@ function RestaurantDetailsContent() {
           try {
             // First, try to get restaurant directly by slug/ID (no zoneId needed)
             try {
-              response = await restaurantAPI.getRestaurantById(slug)
+              response = await restaurantAPI.getRestaurantById(slug, { noCache: true })
               if (response?.data?.success && response?.data?.data) {
                 apiRestaurant = response.data.data
                 debugLog('? Found restaurant in restaurant API by slug/ID:', apiRestaurant)
@@ -283,7 +283,7 @@ function RestaurantDetailsContent() {
 
                     if (matchingRestaurant) {
                       // Get full restaurant details by ID
-                      const fullResponse = await restaurantAPI.getRestaurantById(matchingRestaurant._id || matchingRestaurant.restaurantId)
+                      const fullResponse = await restaurantAPI.getRestaurantById(matchingRestaurant._id || matchingRestaurant.restaurantId, { noCache: true })
                       if (fullResponse.data && fullResponse.data.success && fullResponse.data.data) {
                         apiRestaurant = fullResponse.data.data
                         debugLog('? Found restaurant in restaurant API by name search:', apiRestaurant)
@@ -538,7 +538,7 @@ function RestaurantDetailsContent() {
               || null,
             priceRange: actualRestaurant?.priceRange || apiRestaurant?.priceRange || onboardingStep4?.priceRange || "$$",
             offers: Array.isArray(actualRestaurant?.offers) ? actualRestaurant.offers : (Array.isArray(apiRestaurant?.offers) ? apiRestaurant.offers : []), // Will be populated from menu/offers API later
-            offerText: actualRestaurant?.offer || apiRestaurant?.offer || onboardingStep4?.offer || "FLAT 50% OFF",
+            offerText: actualRestaurant?.offer || apiRestaurant?.offer || onboardingStep4?.offer || "",
             offerCount: actualRestaurant?.offerCount || apiRestaurant?.offerCount || 0,
             restaurantOffers: {
               goldOffer: {
@@ -579,6 +579,7 @@ function RestaurantDetailsContent() {
             // Availability fields for grayscale styling
             isActive: actualRestaurant?.isActive !== false, // Default to true if not specified
             isAcceptingOrders: actualRestaurant?.isAcceptingOrders !== false, // Default to true if not specified
+            discount: actualRestaurant?.discount || apiRestaurant?.discount || 0,
           }
 
           debugLog('? Transformed restaurant:', transformedRestaurant)
@@ -1232,21 +1233,42 @@ function RestaurantDetailsContent() {
       restaurant_restaurantId: restaurant.restaurantId
     });
 
+    // Calculate the final discounted price for the cart
+    const basePrice = resolvedVariant?.price ?? item.price;
+    const priceNum = typeof basePrice === 'number' ? basePrice : parseFloat(String(basePrice).replace(/[^0-9.]/g, '')) || 0;
+    // Evaluate Item-Specific and Smart Rules Discounts
+    let isFlatDiscount = false;
+    let discountValue = restaurant?.discount || 0;
+    const itemDiscount = (restaurant?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
+    if (itemDiscount) {
+      discountValue = itemDiscount.discountValue || 0;
+      isFlatDiscount = itemDiscount.discountType === 'FLAT';
+    } else {
+      const matchingRule = (restaurant?.discountRules || []).find(rule => {
+        const val = Number(rule.conditionValue);
+        if (rule.conditionType === 'PRICE_ABOVE' && priceNum > val) return true;
+        if (rule.conditionType === 'PRICE_BELOW' && priceNum < val) return true;
+        return false;
+      });
+      if (matchingRule) discountValue = matchingRule.discountValue || 0;
+    }
+    const finalPrice = discountValue > 0 ? Math.round(isFlatDiscount ? Math.max(0, priceNum - discountValue) : priceNum * (1 - discountValue / 100)) : priceNum;
+
     // Prepare cart item with all required properties
     const cartItem = {
       id: lineItemId,
       lineItemId,
       itemId: item.id,
       name: item.name,
-      price: resolvedVariant?.price ?? item.price,
+      price: finalPrice, // Use discounted price
+      originalPrice: priceNum, // Store original base price
       variantId: resolvedVariant?.id || "",
       variantName: resolvedVariant?.name || "",
-      variantPrice: resolvedVariant?.price ?? item.price,
+      variantPrice: finalPrice, // Use discounted price for variant
       image: item.image,
       restaurant: restaurant.name, // Use restaurant.name directly (already validated)
       restaurantId: validRestaurantId, // Use validated restaurantId
       description: item.description,
-      originalPrice: item.originalPrice,
       isVeg: item.isVeg === true, // Use strict check
       foodType: item.foodType, // Include foodType for robustness
       preparationTime: item.preparationTime, // Add preparationTime property
@@ -2048,26 +2070,18 @@ function RestaurantDetailsContent() {
   }, [restaurant, targetDishId])
 
   // Highlight offers/texts for the blue offer line
-  const highlightOffers = [
-    "Upto 50% OFF",
-    restaurant?.offerText || "",
-    ...(Array.isArray(restaurant?.offers) ? restaurant.offers.map((offer) => offer?.title || "") : []),
-  ]
-  const rotatingOffers = highlightOffers
-    .map((offer) => String(offer || "").trim())
-    .filter(Boolean)
-  const offersForDisplay = rotatingOffers.length > 0 ? rotatingOffers : ["Offers available"]
-  const activeOfferText = offersForDisplay[highlightIndex % offersForDisplay.length]
-  const offerIndicatorCount = Math.min(offersForDisplay.length, 5)
+  const offersList = Array.isArray(restaurant?.offers) ? restaurant.offers : []
+  const currentOfferIndex = offersList.length > 0 ? (highlightIndex % offersList.length) : 0
+  const activeOffer = offersList.length > 0 ? offersList[currentOfferIndex] : null
+
+  const offerIndicatorCount = Math.min(offersList.length > 0 ? offersList.length : 1, 5)
   const activeOfferIndicator = offerIndicatorCount > 0 ? highlightIndex % offerIndicatorCount : 0
-  const primaryOffer = Array.isArray(restaurant?.offers) && restaurant.offers.length > 0
-    ? restaurant.offers[0]
-    : null
-  const offerHeadline = primaryOffer?.title || restaurant?.offerText || activeOfferText
+
+  const offerHeadline = activeOffer?.title || restaurant?.offerText || "No offers currently available"
   const offerSubline =
-    primaryOffer?.description ||
-    primaryOffer?.subtitle ||
-    (primaryOffer?.code ? `Use ${primaryOffer.code}` : "Tap to view all offers")
+    activeOffer?.description ||
+    activeOffer?.subtitle ||
+    (activeOffer?.code ? `Use code ${activeOffer.code}` : "Tap to view all offers")
 
   // Auto-rotate images every 3 seconds
   useEffect(() => {
@@ -2082,14 +2096,17 @@ function RestaurantDetailsContent() {
     return () => clearInterval(interval)
   }, [restaurant?.offers?.length || 0])
 
-  // Auto-rotate highlight offer text every 2 seconds
+  // Auto-rotate highlight offer text every 3 seconds
   useEffect(() => {
+    const offersCount = Array.isArray(restaurant?.offers) ? restaurant.offers.length : 0;
+    if (offersCount <= 1) return; // No need to rotate if 0 or 1 offer
+
     const interval = setInterval(() => {
-      setHighlightIndex((prev) => (prev + 1) % highlightOffers.length)
-    }, 2000)
+      setHighlightIndex((prev) => (prev + 1) % offersCount)
+    }, 3000)
 
     return () => clearInterval(interval)
-  }, [highlightOffers.length])
+  }, [restaurant?.offers])
 
   // Render a single dish card with layout and performance optimizations
   const renderDishCard = (item, isRecommendedSection) => {
@@ -2128,7 +2145,61 @@ function RestaurantDetailsContent() {
           )}
 
           <div className="flex items-center gap-3 mt-1">
-            <p className="font-semibold text-gray-900 dark:text-white">{getFoodPriceLabel(item)}</p>
+            {(() => {
+              const priceStr = getFoodPriceLabel(item);
+              const isStartingFrom = priceStr.includes('Starting from');
+              const priceNum = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
+              if (isNaN(priceNum)) return <p className="font-semibold text-gray-900 dark:text-white">{priceStr}</p>;
+              console.log("[DEBUG]", item.name, "item.id=", item.id, "item._id=", item._id, "itemDiscounts=", restaurant?.itemDiscounts);
+              
+              let isFlatDiscount = false;
+              let discountValue = restaurant?.discount || 0;
+              const itemDiscount = (restaurant?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
+              if (itemDiscount) {
+                discountValue = itemDiscount.discountValue || 0;
+                isFlatDiscount = itemDiscount.discountType === 'FLAT';
+              } else {
+                const matchingRule = (restaurant?.discountRules || []).find(rule => {
+                  const val = Number(rule.conditionValue);
+                  if (rule.conditionType === 'PRICE_ABOVE' && priceNum > val) return true;
+                  if (rule.conditionType === 'PRICE_BELOW' && priceNum < val) return true;
+                  return false;
+                });
+                if (matchingRule) discountValue = matchingRule.discountValue || 0;
+              }
+              
+              if (discountValue > 0) {
+                const discountedPrice = Math.round(isFlatDiscount ? Math.max(0, priceNum - discountValue) : priceNum * (1 - discountValue / 100));
+                const discountLabel = isFlatDiscount ? `₹${discountValue} OFF` : `${discountValue}% OFF`;
+                return (
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-gray-900 dark:text-white">
+                        {isStartingFrom ? <span className="text-xs font-medium text-gray-500 mr-1">Starting from</span> : ''}
+                        ₹{discountedPrice}
+                      </p>
+                      <p className="text-xs text-gray-500 line-through">₹{priceNum}</p>
+                    </div>
+                    <div className="inline-flex">
+                      <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 px-1 py-0.5 rounded uppercase">
+                        {discountLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+              
+              if (isStartingFrom) {
+                return (
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-[11px] text-gray-500 font-medium">Starting from</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">₹{priceNum}</span>
+                  </div>
+                );
+              }
+              
+              return <p className="font-semibold text-gray-900 dark:text-white">{priceStr}</p>;
+            })()}
             {/* Preparation Time - Show if available */}
             {item.preparationTime && String(item.preparationTime).trim() && (
               <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
@@ -2499,6 +2570,12 @@ function RestaurantDetailsContent() {
                 <Percent className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
+                {restaurant?.discount > 0 && (
+                  <div className="inline-flex px-2 py-1 mb-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white text-[10px] sm:text-xs font-bold rounded shadow-sm uppercase tracking-wide items-center gap-1">
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.864 2.227l8.909 8.91a2.182 2.182 0 010 3.085l-7.364 7.364a2.182 2.182 0 01-3.085 0l-8.91-8.91A2.182 2.182 0 012 11.137V4.41A2.182 2.182 0 014.182 2.23h6.727a2.182 2.182 0 011.955-.003z"/></svg>
+                    FLAT {restaurant.discount}% OFF
+                  </div>
+                )}
                 <div className="relative h-5 overflow-hidden">
                   <AnimatePresence mode="wait">
                     <motion.span
@@ -3609,16 +3686,40 @@ function RestaurantDetailsContent() {
                       >
                         <span>Add item</span>
                         <div className="flex items-center gap-1">
-                          {selectedItem.originalPrice && selectedItem.originalPrice > selectedItem.price && (
-                            <span className="text-sm line-through text-red-200">
-                              {RUPEE_SYMBOL}{Math.round(selectedItem.originalPrice)}
-                            </span>
-                          )}
-                          <span className="text-base font-bold">
-                            {hasFoodVariants(selectedItem)
-                              ? `${getVariantForDish(selectedItem, selectedVariantId)?.name || "Default"} · ${RUPEE_SYMBOL}${Math.round(getVariantForDish(selectedItem, selectedVariantId)?.price || selectedItem.price)}`
-                              : `${RUPEE_SYMBOL}${Math.round(selectedItem.price)}`}
-                          </span>
+                          {(() => {
+                            const variant = getVariantForDish(selectedItem, selectedVariantId);
+                            const basePrice = hasFoodVariants(selectedItem) ? (variant?.price || selectedItem.price) : selectedItem.price;
+                            
+                            if (restaurant?.discount > 0) {
+                              const discountedPrice = basePrice * (1 - restaurant.discount / 100);
+                              return (
+                                <>
+                                  <span className="text-sm line-through text-red-200">
+                                    {RUPEE_SYMBOL}{Math.round(basePrice)}
+                                  </span>
+                                  <span className="text-base font-bold">
+                                    {hasFoodVariants(selectedItem) ? `${variant?.name || "Default"} · ` : ""}{RUPEE_SYMBOL}{Math.round(discountedPrice)}
+                                  </span>
+                                </>
+                              );
+                            } else if (selectedItem.originalPrice && selectedItem.originalPrice > basePrice) {
+                              return (
+                                <>
+                                  <span className="text-sm line-through text-red-200">
+                                    {RUPEE_SYMBOL}{Math.round(selectedItem.originalPrice)}
+                                  </span>
+                                  <span className="text-base font-bold">
+                                    {hasFoodVariants(selectedItem) ? `${variant?.name || "Default"} · ` : ""}{RUPEE_SYMBOL}{Math.round(basePrice)}
+                                  </span>
+                                </>
+                              );
+                            }
+                            return (
+                              <span className="text-base font-bold">
+                                {hasFoodVariants(selectedItem) ? `${variant?.name || "Default"} · ` : ""}{RUPEE_SYMBOL}{Math.round(basePrice)}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </Button>
                     </div>
@@ -3784,35 +3885,7 @@ function RestaurantDetailsContent() {
 
                   {/* Scrollable Content */}
                   <div className="flex-1 overflow-y-auto px-4 py-4">
-                    {/* Gold Exclusive Offer Section */}
-                    {restaurant?.restaurantOffers?.goldOffer && (
-                      <div className="mb-6">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                          {restaurant.restaurantOffers.goldOffer?.title || "Gold exclusive offer"}
-                        </h3>
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 flex items-start justify-between gap-4 border border-gray-100 dark:border-gray-700 shadow-md">
-                          <div className="flex items-start gap-3 flex-1">
-                            <Lock className="h-5 w-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                                {restaurant.restaurantOffers.goldOffer?.description || "Free delivery above ₹99"}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {restaurant.restaurantOffers.goldOffer?.unlockText || "join Gold to unlock"}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            className="bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded-lg whitespace-nowrap"
-                            onClick={() => {
-                              // Handle add gold
-                            }}
-                          >
-                            {restaurant.restaurantOffers.goldOffer?.buttonText || "Add Gold - ₹1"}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+
 
                     {/* Restaurant Coupons Section */}
                     {restaurant?.restaurantOffers?.coupons && Array.isArray(restaurant.restaurantOffers.coupons) && restaurant.restaurantOffers.coupons.length > 0 && (

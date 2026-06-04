@@ -24,7 +24,6 @@ export default function JoinRequest() {
   const [rejectionReason, setRejectionReason] = useState("")
   const [filters, setFilters] = useState({
     zone: "",
-    jobType: "",
     vehicleType: "",
   })
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -103,9 +102,6 @@ export default function JoinRequest() {
     let result = [...requests]
     
     // Client-side filtering for additional filters not supported by backend
-    if (filters.jobType) {
-      result = result.filter(request => request.jobType === filters.jobType)
-    }
 
     return result
   }, [requests, filters])
@@ -210,18 +206,17 @@ export default function JoinRequest() {
   }
 
   const handleResetFilters = () => {
-    setFilters({ zone: "", jobType: "", vehicleType: "" })
+    setFilters({ zone: "", vehicleType: "" })
   }
 
   const handleTabChange = (tab) => {
     setActiveTab(tab)
     setSearchQuery("") // Reset search when changing tabs
-    setFilters({ zone: "", jobType: "", vehicleType: "" }) // Reset filters
+    setFilters({ zone: "", vehicleType: "" }) // Reset filters
   }
 
   const activeFiltersCount = Object.values(filters).filter(v => v).length
   const zones = [...new Set(requests.map(r => r.zone))].filter(Boolean)
-  const jobTypes = [...new Set(requests.map(r => r.jobType))].filter(Boolean)
   const vehicleTypes = [...new Set(requests.map(r => r.vehicleType))].filter(Boolean)
 
   return (
@@ -355,12 +350,7 @@ export default function JoinRequest() {
                         <ArrowUpDown className="w-3 h-3 text-slate-400 cursor-pointer hover:text-slate-600" />
                       </div>
                     </th>
-                    <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">
-                      <div className="flex items-center gap-2">
-                        <span>Job Type</span>
-                        <ArrowUpDown className="w-3 h-3 text-slate-400 cursor-pointer hover:text-slate-600" />
-                      </div>
-                    </th>
+
                     <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">
                       <div className="flex items-center gap-2">
                         <span>Vehicle Type</span>
@@ -379,7 +369,7 @@ export default function JoinRequest() {
                 <tbody className="bg-white divide-y divide-slate-100">
                   {filteredRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-20 text-center">
+                      <td colSpan={7} className="px-6 py-20 text-center">
                         <p className="text-sm text-slate-500">
                           {error ? "Error loading requests" : "No requests found"}
                         </p>
@@ -426,9 +416,7 @@ export default function JoinRequest() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-slate-700">{request.zone}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-slate-700">{request.jobType}</span>
-                        </td>
+
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-slate-700">{request.vehicleType}</span>
                         </td>
@@ -961,19 +949,7 @@ export default function JoinRequest() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Job Type</label>
-              <select
-                value={filters.jobType}
-                onChange={(e) => setFilters({ ...filters, jobType: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              >
-                <option value="">All Job Types</option>
-                {jobTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
+
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Vehicle Type</label>
               <select

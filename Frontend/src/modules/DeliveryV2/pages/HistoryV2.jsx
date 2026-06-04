@@ -123,7 +123,7 @@ export const HistoryV2 = () => {
             </button>
             <div>
                <h1 className="text-xl font-black text-white uppercase tracking-tighter">Trip History</h1>
-               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Your delivery milestones</p>
+               <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mt-0.5">Your delivery milestones</p>
             </div>
           </div>
           <button onClick={() => setShowBonusModal(true)} className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-[#10B981] border border-green-500/20 relative active:scale-90 transition-all">

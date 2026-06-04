@@ -1,5 +1,30 @@
 import Promocode from '../models/Promocode.js';
 import { sendResponse } from '../utils/response.js';
+import { FoodRestaurant } from '../modules/food/restaurant/models/restaurant.model.js';
+
+const syncRestaurantDiscount = async (restaurantId) => {
+    try {
+        const now = new Date();
+        const activePromos = await Promocode.find({
+            restaurantId,
+            isActive: true,
+            expiryDate: { $gt: now }
+        });
+        
+        let maxDiscount = 0;
+        for (const promo of activePromos) {
+            if (!promo.usageLimit || promo.usageCount < promo.usageLimit) {
+                if (promo.discountType === 'PERCENTAGE' && promo.discountValue > maxDiscount) {
+                    maxDiscount = promo.discountValue;
+                }
+            }
+        }
+        
+        await FoodRestaurant.findByIdAndUpdate(restaurantId, { discount: maxDiscount });
+    } catch (err) {
+        console.error('Error syncing restaurant discount:', err);
+    }
+};
 
 // Restaurant: Create Promocode
 export const createPromocode = async (req, res, next) => {
@@ -28,6 +53,8 @@ export const createPromocode = async (req, res, next) => {
       expiryDate,
       usageLimit: usageLimit || null,
     });
+
+    await syncRestaurantDiscount(restaurantId);
 
     return sendResponse(res, 201, 'Promocode created successfully', { promocode });
   } catch (error) {
@@ -64,6 +91,8 @@ export const togglePromocodeStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Promocode not found or you do not have permission' });
     }
 
+    await syncRestaurantDiscount(restaurantId);
+
     return sendResponse(res, 200, 'Promocode status updated', { promocode });
   } catch (error) {
     next(error);
@@ -81,6 +110,8 @@ export const deletePromocode = async (req, res, next) => {
     if (!promocode) {
       return res.status(404).json({ success: false, message: 'Promocode not found or you do not have permission' });
     }
+
+    await syncRestaurantDiscount(restaurantId);
 
     return res.status(204).send();
   } catch (error) {

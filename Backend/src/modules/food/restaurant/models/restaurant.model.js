@@ -223,6 +223,18 @@ const restaurantSchema = new mongoose.Schema(
     featuredDish: { type: String },
     featuredPrice: { type: Number },
     offer: { type: String },
+    discount: { type: Number, default: 0, min: 0, max: 100 },
+    itemDiscounts: [{
+      itemId: { type: String },
+      discountValue: { type: Number },
+      discountType: { type: String, enum: ['PERCENTAGE', 'FLAT'], default: 'PERCENTAGE' }
+    }],
+    discountRules: [{
+      conditionType: { type: String, enum: ['PRICE_ABOVE', 'PRICE_BELOW', 'CATEGORY'] },
+      conditionValue: { type: String },
+      discountValue: { type: Number },
+      discountType: { type: String, enum: ['PERCENTAGE', 'FLAT'], default: 'PERCENTAGE' }
+    }],
     /** Rating fields for filtering/sorting (defaults to 0 if never rated). */
     rating: {
       type: Number,

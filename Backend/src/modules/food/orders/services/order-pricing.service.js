@@ -9,17 +9,41 @@ import { haversineKm } from './order.helpers.js';
 
 export async function calculateOrderPricing(userId, dto) {
   const restaurant = await FoodRestaurant.findById(dto.restaurantId)
-    .select("status location")
+    .select("status location itemDiscounts")
     .lean();
   if (!restaurant) throw new ValidationError("Restaurant not found");
   if (restaurant.status !== "approved")
     throw new ValidationError("Restaurant not available");
 
   const items = Array.isArray(dto.items) ? dto.items : [];
-  const subtotal = items.reduce(
-    (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1),
-    0,
-  );
+  let itemDiscountTotal = 0;
+  let subtotal = 0;
+  items.forEach((it) => {
+    let price = Number(it.price) || 0;
+    const qty = Number(it.quantity) || 1;
+    
+    if (restaurant.itemDiscounts && restaurant.itemDiscounts.length > 0) {
+      const itemDiscountRule = restaurant.itemDiscounts.find(
+        (rule) => String(rule.itemId) === String(it.itemId || it._id)
+      );
+      if (itemDiscountRule) {
+        const discountVal = Number(itemDiscountRule.discountValue) || 0;
+        if (discountVal > 0) {
+          let discountAmount = 0;
+          if (itemDiscountRule.discountType === 'FLAT') {
+            discountAmount = Math.min(price, discountVal);
+          } else {
+            discountAmount = (price * (discountVal / 100));
+          }
+          itemDiscountTotal += discountAmount * qty;
+          price = Math.max(0, price - discountAmount);
+        }
+      }
+    }
+    
+    subtotal += price * qty;
+  });
+  itemDiscountTotal = Math.floor(itemDiscountTotal);
 
   const feeDoc = await FoodFeeSettings.findOne({ isActive: true })
     .sort({ createdAt: -1 })
@@ -117,7 +141,31 @@ export async function calculateOrderPricing(userId, dto) {
 
   if (codeRaw) {
     const now = new Date();
-    const offer = await FoodOffer.findOne({ couponCode: codeRaw }).lean();
+    let offer = await FoodOffer.findOne({ couponCode: codeRaw }).lean();
+
+    if (!offer) {
+      const { default: Promocode } = await import('../../../../models/Promocode.js');
+      const promo = await Promocode.findOne({ code: codeRaw, restaurantId: dto.restaurantId }).lean();
+      if (promo) {
+        offer = {
+          _id: promo._id,
+          status: promo.isActive ? "active" : "inactive",
+          startDate: promo.startDate,
+          endDate: promo.expiryDate,
+          restaurantScope: "selected",
+          restaurantId: promo.restaurantId,
+          minOrderValue: promo.minOrderAmount || 0,
+          usageLimit: promo.usageLimit || 0,
+          usedCount: promo.usageCount || 0,
+          discountType: promo.discountType === 'PERCENTAGE' ? 'percentage' : 'flat',
+          discountValue: promo.discountValue,
+          maxDiscount: promo.maxDiscountAmount || 0,
+          perUserLimit: 0,
+          customerScope: "all"
+        };
+      }
+    }
+
     if (offer) {
       const statusOk = offer.status === "active";
       const startOk = !offer.startDate || now >= new Date(offer.startDate);
@@ -187,10 +235,10 @@ export async function calculateOrderPricing(userId, dto) {
     }
   }
 
-  const total = Math.max(
-    0,
-    subtotal + packagingFee + deliveryFee + platformFee + tax - discount,
-  );
+  const couponDiscount = discount;
+  const totalDiscount = couponDiscount;
+  const totalBeforeDiscount = subtotal + deliveryFee + tax + platformFee + packagingFee;
+  const total = Math.max(0, totalBeforeDiscount - totalDiscount);
 
   return {
     pricing: {
@@ -201,7 +249,9 @@ export async function calculateOrderPricing(userId, dto) {
       deliveryFeeBreakdown: deliveryFeeBreakdown || undefined,
       freeDeliveryUpTo: Number.isFinite(freeUpTo) ? freeUpTo : undefined,
       platformFee,
-      discount,
+      discount: totalDiscount,
+      itemDiscount: itemDiscountTotal > 0 ? itemDiscountTotal : undefined,
+      couponDiscount: couponDiscount > 0 ? couponDiscount : undefined,
       total,
       currency: "INR",
       couponCode: appliedCoupon?.code || codeRaw || null,

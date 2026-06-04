@@ -295,7 +295,9 @@ export default function Promocodes() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Value <span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">
+                        {formData.discountType === "PERCENTAGE" ? "Discount Percentage (%)" : "Flat Amount (₹)"} <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="number"
                         name="discountValue"

@@ -60,6 +60,37 @@ export const ProfileDetailsV2 = () => {
   const upiQrCameraInputRef = useRef(null)
 
   // Fetch profile data
+  const popupStatePushed = useRef(false);
+
+  useEffect(() => {
+    const isAnyModalOpen = !!(showVehiclePopup || showBankDetailsPopup || showDocumentModal || showDeletePopup || activePicker);
+    
+    if (isAnyModalOpen && !popupStatePushed.current) {
+      window.history.pushState({ popupOpen: true }, '');
+      popupStatePushed.current = true;
+    } else if (!isAnyModalOpen && popupStatePushed.current) {
+      popupStatePushed.current = false;
+      if (window.history.state?.popupOpen) {
+        window.history.back();
+      }
+    }
+  }, [showVehiclePopup, showBankDetailsPopup, showDocumentModal, showDeletePopup, activePicker]);
+
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (popupStatePushed.current) {
+        popupStatePushed.current = false;
+        setShowVehiclePopup(false);
+        setShowBankDetailsPopup(false);
+        setShowDocumentModal(false);
+        setShowDeletePopup(false);
+        setActivePicker(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   useEffect(() => {
     const parseWalletBalance = (response) => {
       const data = response?.data
@@ -480,16 +511,6 @@ export const ProfileDetailsV2 = () => {
               >
                 <ImageIcon className="w-5 h-5" />
               </button>
-
-              {profileImageUrl && (
-                <button 
-                  onClick={() => setShowDeletePopup(true)}
-                  className="bg-red-500 text-white p-3 rounded-2xl shadow-xl hover:bg-red-600 transition-all active:scale-95 border-4 border-white flex items-center justify-center"
-                  title="Remove"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
            </div>
         </div>
 
@@ -720,7 +741,7 @@ export const ProfileDetailsV2 = () => {
       </BottomPopup>
 
       {/* Vehicle Popup */}
-      <BottomPopup isOpen={showVehiclePopup} onClose={() => setShowVehiclePopup(false)} title="Vehicle Info" closeOnHandleClick={true} showCloseButton={false}>
+      <BottomPopup isOpen={showVehiclePopup} onClose={() => setShowVehiclePopup(false)} title="Vehicle Info" showHandle={false}>
          <div className="space-y-4 pb-10">
             <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 flex flex-col gap-4">
                 {/* Type Selection */}
@@ -775,7 +796,7 @@ export const ProfileDetailsV2 = () => {
                         <input 
                             type="text" 
                             value={vehicleInput.number} 
-                            onChange={(e) => setVehicleInput({...vehicleInput, number: e.target.value.toUpperCase()})} 
+                            onChange={(e) => setVehicleInput({...vehicleInput, number: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")})} 
                             placeholder="E.g. UP 80 AB 1234"
                             className="w-full bg-transparent text-lg font-black text-black outline-none border-b-2 border-transparent focus:border-blue-600 placeholder:text-gray-200"
                         />
@@ -828,8 +849,7 @@ export const ProfileDetailsV2 = () => {
         onClose={() => setShowBankDetailsPopup(false)} 
         title="Bank & Payments"
         maxHeight="85vh"
-        closeOnHandleClick={true}
-        showCloseButton={false}
+        showHandle={false}
       >
         <div className="space-y-5 pb-10">
           <div className="grid gap-4">

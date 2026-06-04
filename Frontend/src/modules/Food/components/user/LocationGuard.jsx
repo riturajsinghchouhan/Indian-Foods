@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { setLocation } from '@/app/slices/locationSlice'
 import { useLocation } from '@food/hooks/useLocation'
 import { useZone } from '@food/hooks/useZone'
-import PizzaTransition from '@/shared/components/PizzaTransition'
+
 
 export default function LocationGuard({ children }) {
   const dispatch = useDispatch()

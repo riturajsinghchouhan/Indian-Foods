@@ -379,6 +379,12 @@ export async function createOrder(userId, dto) {
           { upsert: true },
         );
       }
+    } else {
+      const { default: Promocode } = await import('../../../../models/Promocode.js');
+      await Promocode.updateOne(
+        { code: couponCode, restaurantId: dto.restaurantId },
+        { $inc: { usageCount: 1 } }
+      );
     }
   }
 

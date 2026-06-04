@@ -400,7 +400,7 @@ export default function Under250() {
     const fetchRestaurantsUnder250 = async () => {
       try {
         setLoadingRestaurants(true)
-        const response = await restaurantAPI.getRestaurants(zoneId ? { zoneId } : {})
+        const response = await restaurantAPI.getRestaurants(zoneId ? { zoneId } : {}, { noCache: true })
         const restaurantsRaw = Array.isArray(response?.data?.data?.restaurants)
           ? response.data.data.restaurants
           : []
@@ -413,7 +413,7 @@ export default function Under250() {
             if (!restaurantId) return null
 
             try {
-              const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurantId)
+              const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurantId, { noCache: true })
               const menu = getMenuFromResponse(menuResponse)
               const menuItems = flattenMenuItems(menu)
                 .filter((item) => Number(item?.price || 0) <= under250PriceLimit && item?.isAvailable !== false)
@@ -480,6 +480,7 @@ export default function Under250() {
                   (deliveryMinutes ? `${deliveryMinutes} mins` : "30 mins"),
                 distance: distanceInKm !== null ? formatDistance(distanceInKm) : fallbackDistance,
                 distanceInKm,
+                discount: restaurant?.discount || 0,
                 originalIndex: index,
                 menuItems,
               }
@@ -640,11 +641,33 @@ export default function Under250() {
     // Find restaurant name from the item or use provided parameter
     const restaurant = restaurantName || item.restaurant || "Under 250"
 
+    // Find restaurant to get its discount
+    const restaurantObj = under250Restaurants.find(r => 
+      r.menuItems?.some(m => m.id === item.id)
+    );
+    
+    // Evaluate Item-Specific and Smart Rules Discounts
+    let discountPercentage = restaurantObj?.discount || 0;
+    const specificItemDiscount = (restaurantObj?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
+    if (specificItemDiscount) {
+      discountPercentage = specificItemDiscount.discountValue || 0;
+    } else {
+      const matchingRule = (restaurantObj?.discountRules || []).find(rule => {
+        const val = Number(rule.conditionValue);
+        if (rule.conditionType === 'PRICE_ABOVE' && item.price > val) return true;
+        if (rule.conditionType === 'PRICE_BELOW' && item.price < val) return true;
+        return false;
+      });
+      if (matchingRule) discountPercentage = matchingRule.discountValue || 0;
+    }
+    
+    const finalPrice = discountPercentage > 0 ? Math.round(item.price * (1 - discountPercentage / 100)) : item.price;
+
     // Prepare cart item with all required properties
     const cartItem = {
       id: item.id,
       name: item.name,
-      price: item.price,
+      price: finalPrice, // Use discounted price
       image: item.image,
       restaurant: restaurant,
       description: item.description || "",
@@ -1171,9 +1194,46 @@ export default function Under250() {
                               </div>
                               <div className="flex items-center justify-between">
                                 <div>
-                                  <p className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
-                                    {RUPEE_SYMBOL}{Math.round(item.price)}
-                                  </p>
+                                  {(() => {
+                                    let discountPercentage = restaurant?.discount || 0;
+                                    const specificItemDiscount = (restaurant?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
+                                    if (specificItemDiscount) {
+                                      discountPercentage = specificItemDiscount.discountValue || 0;
+                                    } else {
+                                      const matchingRule = (restaurant?.discountRules || []).find(rule => {
+                                        const val = Number(rule.conditionValue);
+                                        if (rule.conditionType === 'PRICE_ABOVE' && item.price > val) return true;
+                                        if (rule.conditionType === 'PRICE_BELOW' && item.price < val) return true;
+                                        return false;
+                                      });
+                                      if (matchingRule) discountPercentage = matchingRule.discountValue || 0;
+                                    }
+
+                                    if (discountPercentage > 0) {
+                                      return (
+                                        <div className="flex flex-col gap-0.5">
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
+                                              {RUPEE_SYMBOL}{Math.round(item.price * (1 - discountPercentage / 100))}
+                                            </p>
+                                            <p className="text-xs md:text-sm text-gray-500 line-through">
+                                              {RUPEE_SYMBOL}{Math.round(item.price)}
+                                            </p>
+                                          </div>
+                                          <div className="inline-flex">
+                                            <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 px-1 py-0.5 rounded uppercase">
+                                              {discountPercentage}% OFF
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <p className="text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 dark:text-white">
+                                        {RUPEE_SYMBOL}{Math.round(item.price)}
+                                      </p>
+                                    );
+                                  })()}
                                   {item.bestPrice && (
                                     <p className="text-xs md:text-sm lg:text-base text-gray-500 dark:text-gray-400">Best price</p>
                                   )}
@@ -1528,14 +1588,40 @@ export default function Under250() {
                   >
                     <span>Add item</span>
                     <div className="flex items-center gap-1 md:gap-2">
-                      {selectedItem.originalPrice && selectedItem.originalPrice > selectedItem.price && (
-                        <span className="text-sm md:text-base lg:text-lg line-through text-red-200">
-                          {RUPEE_SYMBOL}{Math.round(selectedItem.originalPrice)}
-                        </span>
-                      )}
-                      <span className="text-base md:text-lg lg:text-xl font-bold">
-                        {RUPEE_SYMBOL}{Math.round(selectedItem.price)}
-                      </span>
+                      {/* Check if we have a restaurant discount for the selected item */}
+                      {(() => {
+                        const restaurant = under250Restaurants.find(r => 
+                          r.menuItems?.some(m => m.id === selectedItem.id)
+                        );
+                        if (restaurant?.discount > 0) {
+                          return (
+                            <>
+                              <span className="text-sm md:text-base lg:text-lg line-through text-red-200">
+                                {RUPEE_SYMBOL}{Math.round(selectedItem.price)}
+                              </span>
+                              <span className="text-base md:text-lg lg:text-xl font-bold">
+                                {RUPEE_SYMBOL}{Math.round(selectedItem.price * (1 - restaurant.discount / 100))}
+                              </span>
+                            </>
+                          );
+                        } else if (selectedItem.originalPrice && selectedItem.originalPrice > selectedItem.price) {
+                          return (
+                            <>
+                              <span className="text-sm md:text-base lg:text-lg line-through text-red-200">
+                                {RUPEE_SYMBOL}{Math.round(selectedItem.originalPrice)}
+                              </span>
+                              <span className="text-base md:text-lg lg:text-xl font-bold">
+                                {RUPEE_SYMBOL}{Math.round(selectedItem.price)}
+                              </span>
+                            </>
+                          );
+                        }
+                        return (
+                          <span className="text-base md:text-lg lg:text-xl font-bold">
+                            {RUPEE_SYMBOL}{Math.round(selectedItem.price)}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </Button>
                 </div>

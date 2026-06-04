@@ -377,6 +377,14 @@ const RestaurantImageCarousel = React.memo(
 
         {/* Shine Effect */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full transition-transform duration-1000 group-hover:animate-shine" />
+
+        {/* Discount Badge */}
+        {restaurant.discount > 0 && (
+          <div className="absolute top-3 left-0 px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white text-[10px] sm:text-xs font-bold rounded-r-lg shadow-md uppercase tracking-wide flex items-center gap-1.5 z-[11]">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.864 2.227l8.909 8.91a2.182 2.182 0 010 3.085l-7.364 7.364a2.182 2.182 0 01-3.085 0l-8.91-8.91A2.182 2.182 0 012 11.137V4.41A2.182 2.182 0 014.182 2.23h6.727a2.182 2.182 0 011.955-.003z"/></svg>
+            {restaurant.discount}% OFF ON ALL MEALS
+          </div>
+        )}
       </div>
     );
   },
@@ -1512,7 +1520,7 @@ export default function Home() {
         }
 
         debugLog("Fetching restaurants with params:", params);
-        const response = await restaurantAPI.getRestaurants(params);
+        const response = await restaurantAPI.getRestaurants(params, { noCache: true });
         debugLog("Restaurants API response:", response.data);
 
         // If a newer request started, ignore this response to avoid races/flicker.
@@ -1714,6 +1722,7 @@ export default function Home() {
                 openingTime: restaurant.openingTime || restaurant?.deliveryTimings?.openingTime || null,
                 closingTime: restaurant.closingTime || restaurant?.deliveryTimings?.closingTime || null,
                 zoneRank: restaurant.zoneRank || null,
+                discount: restaurant.discount || 0,
               };
             },
             );
@@ -3331,13 +3340,39 @@ export default function Home() {
                                   backendOrigin={BACKEND_ORIGIN}
                                 />
 
-                                {/* Featured Dish Badge - Top Left */}
-                                <div className="absolute top-4 left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105">
-                                  <div className="bg-black/70 backdrop-blur-lg text-white px-4 py-1.5 rounded-full text-[11px] font-medium tracking-tight flex items-center shadow-2xl border border-white/20">
-                                    {restaurant.featuredDish} • ₹
-                                    {restaurant.featuredPrice}
-                                  </div>
-                                </div>
+                                {/* Dynamic Discount or Featured Dish Badge - Top Left */}
+                                {(() => {
+                                  let maxDiscount = restaurant.discount || 0;
+                                  if (Array.isArray(restaurant.itemDiscounts) && restaurant.itemDiscounts.length > 0) {
+                                    const maxItem = Math.max(...restaurant.itemDiscounts.map(d => d.discountValue || 0));
+                                    if (maxItem > maxDiscount) maxDiscount = maxItem;
+                                  }
+                                  if (Array.isArray(restaurant.discountRules) && restaurant.discountRules.length > 0) {
+                                    const maxRule = Math.max(...restaurant.discountRules.map(r => r.discountValue || 0));
+                                    if (maxRule > maxDiscount) maxDiscount = maxRule;
+                                  }
+                                  
+                                  if (maxDiscount > 0) {
+                                    return (
+                                      <div className="absolute top-4 left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105">
+                                        <div className="bg-green-600/90 backdrop-blur-lg text-white px-4 py-1.5 rounded-full text-[11px] font-black tracking-widest flex items-center shadow-2xl border border-white/20 uppercase shadow-green-900/20">
+                                          UP TO {maxDiscount}% OFF
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  if (restaurant.featuredDish) {
+                                    return (
+                                      <div className="absolute top-4 left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105">
+                                        <div className="bg-black/70 backdrop-blur-lg text-white px-4 py-1.5 rounded-full text-[11px] font-medium tracking-tight flex items-center shadow-2xl border border-white/20">
+                                          {restaurant.featuredDish} • ₹{restaurant.featuredPrice}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
 
                                 {/* Bookmark Icon - Top Right */}
                                 <div className="absolute top-4 right-4 z-10 transform transition-transform duration-300 group-hover:scale-110">

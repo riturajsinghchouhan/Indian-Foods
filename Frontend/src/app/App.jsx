@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import AppRoutes from './routes'
 import SplashScreen from '@/shared/components/SplashScreen.jsx'
-import PizzaTransition from '@/shared/components/PizzaTransition.jsx'
+import PageLoader from '@/shared/components/PageLoader.jsx'
 
 function App() {
   const [showSplash, setShowSplash] = useState(() => {
@@ -33,7 +33,7 @@ function App() {
   return (
     <>
       {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
-      <PizzaTransition />
+      <PageLoader />
       <AppRoutes />
     </>
   )

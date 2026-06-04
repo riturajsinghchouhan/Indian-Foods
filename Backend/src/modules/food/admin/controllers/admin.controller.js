@@ -426,6 +426,10 @@ export async function updateRestaurantById(req, res, next) {
         if (!updated) {
             return res.status(404).json({ success: false, message: 'Restaurant not found' });
         }
+        await invalidateCache('restaurants:*');
+        await invalidateCache('restaurant_detail:*');
+        await invalidateCache('restaurant_menu:*');
+        await invalidateCache('restaurant:*');
         res.status(200).json({ success: true, message: 'Restaurant updated successfully', data: { restaurant: updated } });
     } catch (error) {
         next(error);

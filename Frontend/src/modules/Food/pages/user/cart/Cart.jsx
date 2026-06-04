@@ -1064,9 +1064,11 @@ export default function Cart() {
   const platformFee = pricing != null ? (pricing.platformFee ?? 0) : (feeSettings.platformFee ?? 0)
   const packagingFee = pricing != null ? (pricing.packagingFee ?? 0) : (feeSettings.packagingFee ?? 0)
   const gstCharges = pricing != null ? (pricing.tax ?? 0) : Math.round(subtotal * ((feeSettings.gstRate ?? 0) / 100))
-  const discount = pricing?.discount || (appliedCoupon ? Math.min(appliedCoupon.discount, subtotal * 0.5) : 0)
-  const totalBeforeDiscount = subtotal + deliveryFee + platformFee + packagingFee + gstCharges
-  const total = pricing?.total || (totalBeforeDiscount - discount)
+  const itemDiscount = pricing?.itemDiscount || 0;
+  const couponDiscount = pricing?.couponDiscount || (appliedCoupon ? Math.min(appliedCoupon.discount, subtotal * 0.5) : 0);
+  const discount = pricing?.discount || couponDiscount;
+  const totalBeforeDiscount = subtotal + deliveryFee + platformFee + packagingFee + gstCharges;
+  const total = pricing?.total || Math.max(0, totalBeforeDiscount - discount);
   const savings = pricing?.savings ?? Math.max(0, totalBeforeDiscount - total)
   
   // Calculate platform pricing comparison savings
@@ -2131,9 +2133,34 @@ export default function Cart() {
               <div className="bg-white dark:bg-[#1a1a1a] px-4 md:px-6 py-4 md:py-5 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100 dark:border-gray-800">
                 <div className="space-y-3 md:space-y-4">
                   <div className="space-y-6">
-                    {cart.map((item, index) => (
-                      <div key={item.id}>
-                        <div className="flex items-center gap-4">
+                    {cart.map((item, index) => {
+                      let displayPrice = item.price || 0;
+                      let originalDisplayPrice = item.originalPrice || displayPrice;
+
+                      if (restaurantData?.itemDiscounts && restaurantData.itemDiscounts.length > 0) {
+                        const itemDiscountRule = restaurantData.itemDiscounts.find(
+                          (rule) => String(rule.itemId) === String(item.itemId || item.id)
+                        );
+                        if (itemDiscountRule) {
+                          const discountVal = Number(itemDiscountRule.discountValue) || 0;
+                          if (discountVal > 0) {
+                            if (!item.originalPrice) {
+                               originalDisplayPrice = displayPrice;
+                            }
+                            let discountAmount = 0;
+                            if (itemDiscountRule.discountType === 'FLAT') {
+                              discountAmount = Math.min(originalDisplayPrice, discountVal);
+                            } else {
+                              discountAmount = originalDisplayPrice * (discountVal / 100);
+                            }
+                            displayPrice = Math.max(0, originalDisplayPrice - discountAmount);
+                          }
+                        }
+                      }
+
+                      return (
+                        <div key={item.id}>
+                          <div className="flex items-center gap-4">
                           {/* Veg/Non-veg indicator */}
                           <div className={`w-4 h-4 border-2 ${item.isVeg === true || item.foodType === 'Veg' ? 'border-green-600' : 'border-red-600'} flex items-center justify-center flex-shrink-0 rounded-[2px]`}>
                             <div className={`w-2 h-2 rounded-full ${item.isVeg === true || item.foodType === 'Veg' ? 'bg-green-600' : 'bg-red-600'}`} />
@@ -2180,16 +2207,28 @@ export default function Cart() {
                                 <Plus className="w-3.5 h-3.5" />
                               </button>
                             </div>
-                            <p className="text-sm md:text-base font-black text-gray-900 dark:text-gray-100">
-                              {RUPEE_SYMBOL}{((item.price || 0) * (item.quantity || 1)).toFixed(0)}
-                            </p>
+                            <div className="flex flex-col items-end text-right">
+                              <p className="text-sm md:text-base font-black text-gray-900 dark:text-gray-100">
+                                {RUPEE_SYMBOL}{(displayPrice * (item.quantity || 1)).toFixed(0)}
+                              </p>
+                              {originalDisplayPrice > displayPrice && (
+                                <div className="flex flex-col items-end gap-1 mt-0.5">
+                                  <p className="text-xs md:text-sm text-gray-400 line-through">
+                                    {RUPEE_SYMBOL}{(originalDisplayPrice * (item.quantity || 1)).toFixed(0)}
+                                  </p>
+                                  <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 px-1 py-0.5 rounded uppercase">
+                                    {Math.round(((originalDisplayPrice - displayPrice) / originalDisplayPrice) * 100)}% OFF
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                         {index < cart.length - 1 && (
                           <div className="mt-6 border-b border-gray-100 dark:border-gray-800/40 border-dashed" />
                         )}
                       </div>
-                    ))}
+                    )})}
                   </div>
                 </div>
 
@@ -2767,10 +2806,10 @@ export default function Cart() {
                       <span className="text-gray-600 dark:text-gray-400">GST</span>
                       <span className="text-gray-800 dark:text-gray-200 font-medium">{RUPEE_SYMBOL}{gstCharges.toFixed(2)}</span>
                     </div>
-                    {discount > 0 && (
+                    {couponDiscount > 0 && (
                        <div className="flex justify-between text-sm text-primary font-medium">
                          <span>Coupon Discount</span>
-                         <span>-{RUPEE_SYMBOL}{discount.toFixed(2)}</span>
+                         <span>-{RUPEE_SYMBOL}{couponDiscount.toFixed(2)}</span>
                        </div>
                     )}
 

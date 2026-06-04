@@ -46,6 +46,32 @@ export const PocketV2 = () => {
   const [depositAmount, setDepositAmount] = useState("");
   const [depositing, setDepositing] = useState(false);
 
+  // Handle back button for deposit popup
+  const popupStatePushed = useRef(false);
+
+  useEffect(() => {
+    if (showDepositPopup && !popupStatePushed.current) {
+      window.history.pushState({ popupOpen: true }, '');
+      popupStatePushed.current = true;
+    } else if (!showDepositPopup && popupStatePushed.current) {
+      popupStatePushed.current = false;
+      if (window.history.state?.popupOpen) {
+        window.history.back();
+      }
+    }
+  }, [showDepositPopup]);
+
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (popupStatePushed.current) {
+        popupStatePushed.current = false;
+        setShowDepositPopup(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -199,6 +225,13 @@ export const PocketV2 = () => {
   return (
     <div className="min-h-screen bg-[#f6e9dc] pb-32 font-poppins">
        
+       {/* Top Header */}
+       <div className="w-full safe-top sticky top-0 z-50 shadow-sm" style={{ backgroundColor: 'var(--dv-primary)' }}>
+         <div className="flex items-center justify-center px-4 py-4">
+            <h1 className="text-lg font-black text-white uppercase tracking-wider">Pocket details</h1>
+         </div>
+       </div>
+
        {/* 1. BANK DETAILS BANNER */}
        {!walletState.bankDetailsFilled && (
          <div className="bg-yellow-400 px-4 py-3 flex items-center gap-3 border-b border-yellow-500/20">
