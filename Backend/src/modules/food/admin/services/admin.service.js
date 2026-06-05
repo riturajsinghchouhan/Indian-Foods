@@ -4578,6 +4578,10 @@ export async function approveDeliveryPartner(id) {
                         addDeliveryPartnerBonus(
                             { deliveryPartnerId: String(referrer._id), amount: reward, reference: 'Referral bonus' },
                             null
+                        ),
+                        addDeliveryPartnerBonus(
+                            { deliveryPartnerId: String(partner._id), amount: reward, reference: 'Signup via referral bonus' },
+                            null
                         )
                     ]);
                 } else {

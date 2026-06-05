@@ -239,6 +239,12 @@ export const verifyUserOtpAndLogin = async (
                   refereeId: String(userDoc._id),
                   referralLogId: String(log._id),
                 }),
+                creditReferralReward(userDoc._id, reward, {
+                  role: "USER",
+                  referrerId: String(referrerId),
+                  referralLogId: String(log._id),
+                  note: "Signup via referral bonus",
+                }),
               ]);
             } else {
               await FoodReferralLog.create({
