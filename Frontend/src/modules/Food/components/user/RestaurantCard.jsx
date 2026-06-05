@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Star, Clock, IndianRupee, Heart } from "lucide-react";
 import OptimizedImage from "@food/components/OptimizedImage";
 
@@ -51,6 +51,94 @@ const RestaurantImageCarousel = React.memo(({ restaurant, priority = false, back
   }, [restaurant.images, restaurant.image, withCacheBuster]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentItemIndex, setCurrentItemIndex] = useState(0);
+
+  const bannerItems = React.useMemo(() => {
+    const items = [];
+    
+    if (restaurant.menu?.sections && Array.isArray(restaurant.menu.sections)) {
+      restaurant.menu.sections.forEach(sec => {
+        if (Array.isArray(sec.items)) items.push(...sec.items);
+      });
+    }
+
+    if (items.length === 0) {
+      if (Array.isArray(restaurant.popularItems) && restaurant.popularItems.length > 0) {
+        items.push(...restaurant.popularItems);
+      } else if (Array.isArray(restaurant.menuItems) && restaurant.menuItems.length > 0) {
+        items.push(...restaurant.menuItems);
+      }
+    }
+    
+    if (items.length === 0 && restaurant.featuredDish) {
+      items.push({
+        name: restaurant.featuredDish,
+        price: restaurant.featuredPrice || 0,
+        originalPrice: restaurant.featuredPrice || 0
+      });
+    }
+    
+    const discountedItems = items.map((item) => {
+      let priceNum = Number(item.price || item.originalPrice || 0);
+      
+      if (typeof item.price === 'string') {
+        const parsed = parseFloat(item.price.replace(/[^0-9.]/g, ''));
+        if (!isNaN(parsed)) priceNum = parsed;
+      }
+      
+      let discountedPrice = null;
+      let dText = 'SPECIAL OFFER';
+      
+      const specificDiscount = Array.isArray(restaurant.itemDiscounts) 
+        ? restaurant.itemDiscounts.find(d => String(d.itemId) === String(item.id || item._id || item.menuItemId)) 
+        : null;
+        
+      if (specificDiscount) {
+          const discountVal = Number(specificDiscount.discountValue) || 0;
+          const isFlat = String(specificDiscount.discountType || '').toUpperCase() === 'FLAT';
+          if (!isFlat) {
+              discountedPrice = priceNum * (1 - discountVal / 100);
+              dText = `${discountVal}% OFF`;
+          } else {
+              discountedPrice = Math.max(0, priceNum - discountVal);
+              dText = `FLAT ₹${discountVal} OFF`;
+          }
+      } else if (restaurant.discount > 0) {
+        discountedPrice = priceNum * (1 - restaurant.discount / 100);
+        dText = `${restaurant.discount}% OFF`;
+      } else {
+        const matchingRule = (restaurant.discountRules || []).find(rule => {
+          const val = Number(rule.conditionValue);
+          if (rule.conditionType === 'PRICE_ABOVE' && priceNum > val) return true;
+          if (rule.conditionType === 'PRICE_BELOW' && priceNum < val) return true;
+          return false;
+        });
+        if (matchingRule) {
+           const discountVal = matchingRule.discountValue || 0;
+           discountedPrice = priceNum * (1 - discountVal / 100);
+           dText = `${discountVal}% OFF`;
+        }
+      }
+      
+      return {
+        name: item.name,
+        price: priceNum,
+        discountedPrice: discountedPrice,
+        dText: dText
+      };
+    }).filter(item => item.discountedPrice !== null && item.discountedPrice < item.price);
+    
+    return discountedItems.slice(0, 5);
+  }, [restaurant]);
+
+  useEffect(() => {
+    if (bannerItems.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentItemIndex((prev) => (prev + 1) % bannerItems.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [bannerItems.length]);
+
   const [loadedBySrc, setLoadedBySrc] = useState({});
   const [, setAttemptedSrcs] = useState({});
   const [showShimmer, setShowShimmer] = useState(true);
@@ -167,6 +255,46 @@ const RestaurantImageCarousel = React.memo(({ restaurant, priority = false, back
         <div className="absolute top-3 left-0 px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white text-[10px] sm:text-xs font-bold rounded-r-lg shadow-md uppercase tracking-wide flex items-center gap-1.5 z-10">
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.864 2.227l8.909 8.91a2.182 2.182 0 010 3.085l-7.364 7.364a2.182 2.182 0 01-3.085 0l-8.91-8.91A2.182 2.182 0 012 11.137V4.41A2.182 2.182 0 014.182 2.23h6.727a2.182 2.182 0 011.955-.003z"/></svg>
           {restaurant.discount}% OFF ON ALL MEALS
+        </div>
+      )}
+
+      {/* Sliding Green Banner for Items */}
+      {bannerItems.length > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-[#1b4332] via-[#2d6a4f]/95 to-transparent pl-3 pr-6 py-2.5 z-[15]">
+          <div className="w-full relative overflow-hidden h-[42px]">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentItemIndex}
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -20, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-0 flex flex-col justify-center w-full"
+              >
+                <div className="flex items-center w-full">
+                  <span className="text-[10px] font-bold tracking-[0.08em] text-white/90 uppercase line-clamp-1 drop-shadow-sm">
+                    {bannerItems[currentItemIndex].dText}
+                  </span>
+                </div>
+                <div className="h-[1px] w-[85%] bg-white/20 my-[4px]" />
+                <div className="flex items-center justify-between w-[95%]">
+                  <span className="font-extrabold text-white text-sm tracking-wide line-clamp-1 truncate mr-3 drop-shadow-md">
+                    {bannerItems[currentItemIndex].name}
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {bannerItems[currentItemIndex].discountedPrice && bannerItems[currentItemIndex].discountedPrice < bannerItems[currentItemIndex].price ? (
+                      <>
+                        <span className="text-[11px] text-white/70 line-through font-medium drop-shadow-sm">₹{Math.round(bannerItems[currentItemIndex].price)}</span>
+                        <span className="font-black text-white text-sm drop-shadow-md">₹{Math.round(bannerItems[currentItemIndex].discountedPrice)}</span>
+                      </>
+                    ) : (
+                      <span className="font-black text-white text-sm drop-shadow-md">₹{Math.round(bannerItems[currentItemIndex].price)}</span>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       )}
     </div>

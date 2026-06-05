@@ -15,7 +15,8 @@ import {
   X,
   ThumbsUp,
   Pencil,
-  Check
+  Check,
+  Trash2
 } from "lucide-react"
 import RestaurantNavbar from "@food/components/restaurant/RestaurantNavbar"
 import BottomNavOrders from "@food/components/restaurant/BottomNavOrders"
@@ -1948,6 +1949,27 @@ export default function Inventory() {
     window.scrollTo({ top: el.offsetTop - 100, behavior: "smooth" })
   }
 
+  const handleDeleteFoodItem = async (foodId) => {
+    if (!window.confirm("Are you sure you want to delete this item?")) return;
+    try {
+      setIsLoading(true);
+      await restaurantAPI.deleteFood(foodId);
+      toast.success("Food item deleted successfully");
+      await fetchInitialData(); // Refresh the data
+    } catch (err) {
+      console.error("Delete Error details:", err?.response?.data || err);
+      const serverMessage = err?.response?.data?.error || err?.response?.data?.message;
+      if (serverMessage === "Food item not found or unauthorized") {
+        toast.success("Item is already deleted. Refreshing list...");
+        await fetchInitialData();
+      } else {
+        toast.error(serverMessage || err?.message || "Failed to delete item");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEditItem = (category, item) => {
     if (!item?.id) return
 
@@ -2144,8 +2166,8 @@ export default function Inventory() {
               ) : null}
             </div>
 
-            <div className="mt-4 flex gap-2 flex-wrap">
-              <div className="flex-1 min-w-[220px] relative">
+            <div className="mt-4 flex flex-col gap-3">
+              <div className="w-full relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
@@ -2166,16 +2188,26 @@ export default function Inventory() {
                 ) : null}
               </div>
 
-              <button
-                onClick={() => setFilterOpen(true)}
-                className="relative flex h-12 items-center justify-center gap-2 rounded-[20px] border border-[#e7d5e0] bg-white px-4 text-sm font-semibold text-secondary transition-colors hover:border-[#d5bdd0] hover:bg-[#f9f0f7]"
-              >
+              <div className="flex gap-2 flex-wrap items-center">
+                <button
+                  onClick={() => setFilterOpen(true)}
+                  className="relative flex h-12 items-center justify-center gap-2 rounded-[20px] border border-[#e7d5e0] bg-white px-4 text-sm font-semibold text-secondary transition-colors hover:border-[#d5bdd0] hover:bg-[#f9f0f7]"
+                >
                 <SlidersHorizontal className="w-4 h-4 text-primary" />
                 <span>Filters</span>
                 {selectedFilter !== "all" && (
                   <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-white" />
                 )}
               </button>
+
+              {activeTab !== "add-ons" && (
+                <button
+                  onClick={() => setIsAddPopupOpen(true)}
+                  className="h-12 rounded-[20px] bg-primary px-4 text-sm font-semibold text-white shadow-[0_18px_32px_-24px_rgba(126,56,102,0.7)] transition-colors hover:bg-secondary"
+                >
+                  + Add item
+                </button>
+              )}
 
               {activeTab === "add-ons" && (
                 <button
@@ -2185,10 +2217,11 @@ export default function Inventory() {
                 >
                   {isAddAddonOpen ? "Close" : "Add Add-on"}
                 </button>
-              )}
+                )}
+              </div>
             </div>
 
-            <div className="mt-4 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+            <div className="mt-3 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
               {activeFilterOptions.map((option) => {
                 const count = activeTab === "add-ons"
                   ? (addonFilterCounts[option.value] || 0)
@@ -2583,6 +2616,14 @@ export default function Inventory() {
                                     >
                                       <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                       {isRejectedItem ? "Fix" : "Edit"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteFoodItem(item.id || item._id)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all shadow-sm bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white"
+                                      title="Delete Item"
+                                    >
+                                      <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                     </button>
                                   </div>
 
@@ -3143,13 +3184,7 @@ export default function Inventory() {
       {/* Floating Menu Button & Popup (hidden on Add-ons tab) */}
       {activeTab !== "add-ons" && (
         <div className="fixed right-4 bottom-24 z-30 flex flex-col items-end gap-2">
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setIsAddPopupOpen(true)}
-            className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white shadow-[0_22px_40px_-24px_rgba(126,56,102,0.72)]"
-          >
-            + Add item
-          </motion.button>
+
           <motion.button
             type="button"
             whileTap={{ scale: 0.96 }}

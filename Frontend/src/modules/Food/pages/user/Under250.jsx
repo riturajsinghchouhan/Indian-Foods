@@ -772,6 +772,8 @@ export default function Under250() {
                 distance: distanceInKm !== null ? formatDistance(distanceInKm) : fallbackDistance,
                 distanceInKm,
                 discount: restaurant?.discount || 0,
+                itemDiscounts: Array.isArray(restaurant?.itemDiscounts) ? restaurant.itemDiscounts : [],
+                discountRules: Array.isArray(restaurant?.discountRules) ? restaurant.discountRules : [],
                 isActive: restaurant?.isActive !== false,
                 isAcceptingOrders: restaurant?.isAcceptingOrders !== false,
                 openDays: Array.isArray(restaurant?.openDays) ? restaurant.openDays : [],
@@ -1228,7 +1230,7 @@ export default function Under250() {
         className={`fixed top-0 left-0 right-0 z-40 w-full md:hidden transition-all duration-300 bg-white/60 dark:bg-black/60 backdrop-blur-xl shadow-sm border-b border-white/20 dark:border-white/10`}
       >
         <div className="relative z-50 pt-1 pb-1 px-2">
-          <PageNavbar textColor="black" zIndex={20} showProfile={true} showLogo={true} />
+          <PageNavbar textColor="black" zIndex={20} showProfile={false} showLogo={true} />
         </div>
       </div>
 
@@ -1483,9 +1485,9 @@ export default function Under250() {
                     <Link className="flex justify-center mt-2 md:mt-3 lg:mt-4" to={`/user/restaurants/${restaurantSlug}?under250=true`}>
                       <Button
                         variant="outline"
-                        className="w-min align-center text-center rounded-lg md:rounded-xl mx-auto bg-gray-50 dark:bg-[#1a1a1a] hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-white text-gray-700 border-gray-200 dark:border-gray-800 h-9 md:h-10 lg:h-11 px-4 md:px-6 lg:px-8 text-sm md:text-base lg:text-lg"
+                        className="w-min align-center text-center rounded-lg md:rounded-xl mx-auto bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 h-9 md:h-10 lg:h-11 px-4 md:px-6 lg:px-8 text-sm md:text-base lg:text-lg font-semibold transition-colors duration-200"
                       >
-                        View full menu <ArrowRight className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 ml-2 text-gray-700 dark:text-gray-300" />
+                        View full menu <ArrowRight className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 ml-2 text-red-600 dark:text-red-400" />
                       </Button>
                     </Link>
                   </div>

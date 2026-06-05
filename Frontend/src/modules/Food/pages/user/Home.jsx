@@ -194,6 +194,128 @@ const RestaurantImageCarousel = React.memo(
       return validImages.map((img) => withCacheBuster(img));
     }, [restaurant.images, restaurant.image, withCacheBuster]);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [currentItemIndex, setCurrentItemIndex] = useState(0);
+
+    const bannerItems = useMemo(() => {
+      const items = [];
+      
+      // If backend populated dish names inside itemDiscounts, use them directly!
+      if (Array.isArray(restaurant.itemDiscounts) && restaurant.itemDiscounts.some(d => d.name)) {
+          restaurant.itemDiscounts.forEach(d => {
+              if (d.name) {
+                  items.push({
+                      id: d.itemId,
+                      name: d.name,
+                      price: d.price || 0
+                  });
+              }
+          });
+      }
+
+      if (items.length === 0 && restaurant.menu?.sections && Array.isArray(restaurant.menu.sections)) {
+        restaurant.menu.sections.forEach(sec => {
+          if (Array.isArray(sec.items)) items.push(...sec.items);
+        });
+      }
+
+      if (items.length === 0) {
+        if (Array.isArray(restaurant.popularItems) && restaurant.popularItems.length > 0) {
+          items.push(...restaurant.popularItems);
+        } else if (Array.isArray(restaurant.menuItems) && restaurant.menuItems.length > 0) {
+          items.push(...restaurant.menuItems);
+        }
+      }
+      
+      if (items.length === 0 && restaurant.featuredDish) {
+        items.push({
+          name: restaurant.featuredDish,
+          price: restaurant.featuredPrice || 0,
+          originalPrice: restaurant.featuredPrice || 0
+        });
+      }
+      
+      const globalOffers = Array.isArray(restaurant.offers) ? restaurant.offers : [];
+      let bestGlobalOffer = null;
+      globalOffers.forEach(offer => {
+          if (!bestGlobalOffer || (Number(offer.discountValue) > Number(bestGlobalOffer.discountValue))) {
+              bestGlobalOffer = offer;
+          }
+      });
+
+      const discountedItems = items.map((item) => {
+        let priceNum = Number(item.price || item.originalPrice || 0);
+        
+        if (typeof item.price === 'string') {
+          const parsed = parseFloat(item.price.replace(/[^0-9.]/g, ''));
+          if (!isNaN(parsed)) priceNum = parsed;
+        }
+        
+        let discountedPrice = null;
+        let dText = 'SPECIAL OFFER';
+        
+        const specificDiscount = Array.isArray(restaurant.itemDiscounts) 
+          ? restaurant.itemDiscounts.find(d => String(d.itemId) === String(item.id || item._id || item.menuItemId)) 
+          : null;
+          
+        if (specificDiscount) {
+            const discountVal = Number(specificDiscount.discountValue) || 0;
+            const isFlat = String(specificDiscount.discountType || '').toUpperCase() === 'FLAT';
+            if (!isFlat) {
+                discountedPrice = priceNum * (1 - discountVal / 100);
+                dText = `${discountVal}% OFF`;
+            } else {
+                discountedPrice = Math.max(0, priceNum - discountVal);
+                dText = `FLAT ₹${discountVal} OFF`;
+            }
+        } else if (!discountedPrice && bestGlobalOffer) {
+            const discountVal = Number(bestGlobalOffer.discountValue) || 0;
+            const isFlat = String(bestGlobalOffer.discountType || '').toUpperCase() === 'FLAT';
+            if (!isFlat) {
+                const maxD = Number(bestGlobalOffer.maxDiscount) || Infinity;
+                const calcD = priceNum * (discountVal / 100);
+                const actualD = Math.min(calcD, maxD);
+                discountedPrice = priceNum - actualD;
+                dText = bestGlobalOffer.title || `${discountVal}% OFF`;
+            } else {
+                discountedPrice = Math.max(0, priceNum - discountVal);
+                dText = bestGlobalOffer.title || `FLAT ₹${discountVal} OFF`;
+            }
+        } else if (!discountedPrice && restaurant.discount > 0) {
+          discountedPrice = priceNum * (1 - restaurant.discount / 100);
+          dText = `${restaurant.discount}% OFF`;
+        } else {
+          const matchingRule = (restaurant.discountRules || []).find(rule => {
+            const val = Number(rule.conditionValue);
+            if (rule.conditionType === 'PRICE_ABOVE' && priceNum > val) return true;
+            if (rule.conditionType === 'PRICE_BELOW' && priceNum < val) return true;
+            return false;
+          });
+          if (matchingRule) {
+             const discountVal = matchingRule.discountValue || 0;
+             discountedPrice = priceNum * (1 - discountVal / 100);
+             dText = `${discountVal}% OFF`;
+          }
+        }
+        
+        return {
+          name: item.name,
+          price: priceNum,
+          discountedPrice: discountedPrice,
+          dText: dText
+        };
+      }).filter(item => item.discountedPrice !== null && item.discountedPrice < item.price);
+      
+      return discountedItems.slice(0, 5);
+    }, [restaurant]);
+
+    useEffect(() => {
+      if (bannerItems.length <= 1) return;
+      const interval = setInterval(() => {
+        setCurrentItemIndex((prev) => (prev + 1) % bannerItems.length);
+      }, 2000);
+      return () => clearInterval(interval);
+    }, [bannerItems.length]);
+
     const [loadedBySrc, setLoadedBySrc] = useState({});
     const [, setAttemptedSrcs] = useState({});
     const [isImageUnavailable, setIsImageUnavailable] = useState(false);
@@ -385,6 +507,68 @@ const RestaurantImageCarousel = React.memo(
             {restaurant.discount}% OFF ON ALL MEALS
           </div>
         )}
+
+        {/* Sliding Green Banner for Items or Static Fallback */}
+        {bannerItems.length > 0 ? (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-[#00b761] to-transparent z-[20]" style={{ height: '40%' }}>
+            <div className="h-full flex flex-col justify-end w-full relative overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentItemIndex}
+                  initial={{ x: "100%", opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: "-100%", opacity: 0 }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  className="absolute inset-0 flex flex-col justify-end pl-4 sm:pl-5 pb-4 sm:pb-5"
+                >
+                  <p className="text-white text-xs sm:text-sm font-medium uppercase tracking-wide mb-1 drop-shadow-md">
+                    {bannerItems[currentItemIndex].dText}
+                  </p>
+                  <div className="h-px bg-white/40 mb-2 w-24"></div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white text-base sm:text-lg font-bold drop-shadow-md truncate max-w-[60%]">
+                      {bannerItems[currentItemIndex].name}
+                    </p>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      {bannerItems[currentItemIndex].discountedPrice && bannerItems[currentItemIndex].discountedPrice < bannerItems[currentItemIndex].price ? (
+                        <>
+                          <span className="text-xs sm:text-sm text-white/80 line-through font-medium drop-shadow-sm">₹{Math.round(bannerItems[currentItemIndex].price)}</span>
+                          <span className="font-black text-white text-base sm:text-lg drop-shadow-md">₹{Math.round(bannerItems[currentItemIndex].discountedPrice)}</span>
+                        </>
+                      ) : (
+                        <span className="font-black text-white text-base sm:text-lg drop-shadow-md">₹{Math.round(bannerItems[currentItemIndex].price)}</span>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </div>
+        ) : (() => {
+            let maxDiscount = restaurant.discount || 0;
+            if (Array.isArray(restaurant.discountRules) && restaurant.discountRules.length > 0) {
+              const maxRule = Math.max(...restaurant.discountRules.map(r => r.discountValue || 0));
+              if (maxRule > maxDiscount) maxDiscount = maxRule;
+            }
+            if (maxDiscount > 0) {
+              return (
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-[#00b761] to-transparent z-[20]" style={{ height: '40%' }}>
+                  <div className="h-full flex flex-col justify-end">
+                    <div className="pl-4 sm:pl-5 pb-4 sm:pb-5">
+                      <p className="text-white text-xs sm:text-sm font-medium uppercase tracking-wide mb-1">
+                        SPECIAL OFFER
+                      </p>
+                      <div className="h-px bg-white/30 mb-2 w-24"></div>
+                      <p className="text-white text-base sm:text-lg font-bold">
+                        UP TO {maxDiscount}% OFF
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+        })()}
       </div>
     );
   },
@@ -1751,6 +1935,11 @@ export default function Home() {
                     ? `${restaurant.cuisines[0]} Special`
                     : "Special Dish"),
                 featuredPrice: restaurant.featuredPrice || 249, // Use from API or default
+                menuItems: restaurant.menu?.sections 
+                  ? restaurant.menu.sections.reduce((acc, section) => acc.concat(section.items || []), [])
+                  : (Array.isArray(restaurant.menuItems) ? restaurant.menuItems : (Array.isArray(restaurant.topItems) ? restaurant.topItems : [])),
+                popularItems: Array.isArray(restaurant.popularItems) ? restaurant.popularItems : [],
+                itemDiscounts: Array.isArray(restaurant.itemDiscounts) ? restaurant.itemDiscounts : [],
                 offer: offerText,
                 slug: restaurant.slug,
                 restaurantId: restaurant.restaurantId,
@@ -2786,7 +2975,7 @@ export default function Home() {
                   <div className="flex items-center gap-2 min-w-0">
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">What's on your mind today?</h2>
                     <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
-                    <Link to="/food/user/categories" className="text-sm font-bold text-gray-400 dark:text-gray-500 flex items-center gap-0.5 whitespace-nowrap shrink-0">
+                    <Link to="/food/user/categories" className="text-sm font-bold text-gray-800 dark:text-gray-200 flex items-center gap-0.5 whitespace-nowrap shrink-0 hover:text-gray-900 dark:hover:text-white transition-colors">
                       View All <ArrowDownUp className="h-3 w-3 rotate-90" />
                     </Link>
                   </div>
@@ -2822,7 +3011,7 @@ export default function Home() {
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                           />
                         </div>
-                        <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300 text-center leading-tight line-clamp-1 w-full px-0.5">
+                        <span className="text-[10px] font-extrabold text-gray-900 dark:text-gray-100 text-center leading-tight line-clamp-1 w-full px-0.5">
                           {category.name}
                         </span>
                       </Link>
@@ -3393,39 +3582,7 @@ export default function Home() {
                                   backendOrigin={BACKEND_ORIGIN}
                                 />
 
-                                {/* Dynamic Discount or Featured Dish Badge - Top Left */}
-                                {(() => {
-                                  let maxDiscount = restaurant.discount || 0;
-                                  if (Array.isArray(restaurant.itemDiscounts) && restaurant.itemDiscounts.length > 0) {
-                                    const maxItem = Math.max(...restaurant.itemDiscounts.map(d => d.discountValue || 0));
-                                    if (maxItem > maxDiscount) maxDiscount = maxItem;
-                                  }
-                                  if (Array.isArray(restaurant.discountRules) && restaurant.discountRules.length > 0) {
-                                    const maxRule = Math.max(...restaurant.discountRules.map(r => r.discountValue || 0));
-                                    if (maxRule > maxDiscount) maxDiscount = maxRule;
-                                  }
-                                  
-                                  if (maxDiscount > 0) {
-                                    return (
-                                      <div className="absolute top-4 left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105">
-                                        <div className="bg-green-600/90 backdrop-blur-lg text-white px-4 py-1.5 rounded-full text-[11px] font-black tracking-widest flex items-center shadow-2xl border border-white/20 uppercase shadow-green-900/20">
-                                          UP TO {maxDiscount}% OFF
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-                                  
-                                  if (restaurant.featuredDish) {
-                                    return (
-                                      <div className="absolute top-4 left-4 flex items-center z-10 transform transition-transform duration-300 group-hover:scale-105">
-                                        <div className="bg-black/70 backdrop-blur-lg text-white px-4 py-1.5 rounded-full text-[11px] font-medium tracking-tight flex items-center shadow-2xl border border-white/20">
-                                          {restaurant.featuredDish} • ₹{restaurant.featuredPrice}
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                })()}
+
 
                                 {/* Bookmark Icon - Top Right */}
                                 <div className="absolute top-4 right-4 z-10 transform transition-transform duration-300 group-hover:scale-110">

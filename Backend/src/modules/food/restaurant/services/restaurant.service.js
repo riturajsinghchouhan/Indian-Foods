@@ -1336,7 +1336,8 @@ export const listApprovedRestaurants = async (query = {}) => {
         deliveryTimings: 1,
         discount: 1,
         itemDiscounts: 1,
-        discountRules: 1
+        discountRules: 1,
+        menu: 1
     };
 
     // Use $geoNear only when geo is explicitly needed (radius filter or nearest sorting).
@@ -1410,7 +1411,60 @@ export const listApprovedRestaurants = async (query = {}) => {
         ]);
 
         const total = totalDocs?.[0]?.count || 0;
-        return { restaurants: pageDocs, total, page, limit };
+        const restaurantsRawGeo = pageDocs;
+        
+        // Populate dish names and prices for itemDiscounts
+        try {
+            const allItemIds = [];
+            restaurantsRawGeo.forEach(r => {
+                if (Array.isArray(r.itemDiscounts)) {
+                    r.itemDiscounts.forEach(d => {
+                        if (d.itemId) allItemIds.push(d.itemId);
+                    });
+                }
+            });
+
+            if (allItemIds.length > 0) {
+                const { FoodItem } = await import('../../admin/models/food.model.js');
+                const { getFoodDisplayPrice } = await import('../../admin/services/foodVariant.service.js');
+                const itemDocs = await FoodItem.find({ _id: { $in: allItemIds } }).select('name price variants priceOnOtherPlatforms').lean();
+                const itemMap = new Map();
+                itemDocs.forEach(item => {
+                    itemMap.set(String(item._id), item);
+                });
+
+                restaurantsRawGeo.forEach(r => {
+                    if (Array.isArray(r.itemDiscounts)) {
+                        r.itemDiscounts.forEach(d => {
+                            if (d.itemId && itemMap.has(String(d.itemId))) {
+                                const itemDoc = itemMap.get(String(d.itemId));
+                                d.name = itemDoc.name || 'Special Dish';
+                                d.price = getFoodDisplayPrice(itemDoc);
+                            }
+                        });
+                    }
+                });
+            }
+        } catch (err) {
+            // Silently ignore
+        }
+        
+        const restaurants = (restaurantsRawGeo || []).map((r) => ({
+            ...r,
+            restaurantId: r._id,
+            id: r._id,
+            name: r.restaurantName || '',
+            rating: normalizeRatingValue(r.rating),
+            totalRatings: normalizeTotalRatingsValue(r.totalRatings),
+            profileImage: r.profileImage ? { url: r.profileImage } : null,
+            coverImages: Array.isArray(r.coverImages) ? r.coverImages : [],
+            openingTime: r.openingTime || null,
+            closingTime: r.closingTime || null,
+            openDays: Array.isArray(r.openDays) ? r.openDays : [],
+            menuImages: Array.isArray(r.menuImages) ? r.menuImages : []
+        }));
+
+        return { restaurants, total, page, limit };
     }
 
     // Non-geo path: normal query + sort converted to aggregate for computedZoneRank
@@ -1463,6 +1517,42 @@ export const listApprovedRestaurants = async (query = {}) => {
 
     const total = totalDocs?.[0]?.count || 0;
     const restaurantsRaw = pageDocs;
+    
+    // Populate dish names and prices for itemDiscounts
+    try {
+        const allItemIds = [];
+        restaurantsRaw.forEach(r => {
+            if (Array.isArray(r.itemDiscounts)) {
+                r.itemDiscounts.forEach(d => {
+                    if (d.itemId) allItemIds.push(d.itemId);
+                });
+            }
+        });
+
+        if (allItemIds.length > 0) {
+            const { FoodItem } = await import('../../admin/models/food.model.js');
+            const { getFoodDisplayPrice } = await import('../../admin/services/foodVariant.service.js');
+            const itemDocs = await FoodItem.find({ _id: { $in: allItemIds } }).select('name price variants priceOnOtherPlatforms').lean();
+            const itemMap = new Map();
+            itemDocs.forEach(item => {
+                itemMap.set(String(item._id), item);
+            });
+
+            restaurantsRaw.forEach(r => {
+                if (Array.isArray(r.itemDiscounts)) {
+                    r.itemDiscounts.forEach(d => {
+                        if (d.itemId && itemMap.has(String(d.itemId))) {
+                            const itemDoc = itemMap.get(String(d.itemId));
+                            d.name = itemDoc.name || 'Special Dish';
+                            d.price = getFoodDisplayPrice(itemDoc);
+                        }
+                    });
+                }
+            });
+        }
+    } catch (err) {
+        // Silently ignore if population fails
+    }
 
     const restaurants = (restaurantsRaw || []).map((r) => ({
         ...r,

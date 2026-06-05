@@ -474,3 +474,19 @@ export async function bulkCreateFood(restaurantId, items = []) {
 
     return results;
 }
+
+export async function deleteFood(userId, foodId) {
+    const context = await getRestaurantContext(userId);
+    if (!mongoose.Types.ObjectId.isValid(foodId)) {
+        throw new ValidationError("Invalid food ID");
+    }
+    const foodItem = await FoodItem.findOne({
+        _id: foodId,
+        restaurantId: context.restaurantId
+    });
+    if (!foodItem) {
+        throw new ValidationError("Food item not found or unauthorized");
+    }
+    await FoodItem.findByIdAndDelete(foodId);
+    return { success: true, message: "Food item deleted successfully" };
+}

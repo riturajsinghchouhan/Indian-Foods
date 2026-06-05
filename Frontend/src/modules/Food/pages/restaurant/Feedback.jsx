@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
-import { Bell, HelpCircle, Menu, Search, SlidersHorizontal, Calendar, ChevronLeft, X, Loader2, ChevronRight, Star } from "lucide-react"
+import { Bell, HelpCircle, Menu, Search, SlidersHorizontal, Calendar, ChevronLeft, X, Loader2, ChevronRight, Star, RotateCcw } from "lucide-react"
 import { DateRangeCalendar } from "@food/components/ui/date-range-calendar"
 import BottomNavOrders from "@food/components/restaurant/BottomNavOrders"
 import { restaurantAPI } from "@food/api"
@@ -397,11 +397,19 @@ export default function Feedback() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => window.location.reload()}
+              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-all"
+              aria-label="Refresh"
+            >
+              <RotateCcw className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+            </button>
+            <button
+              type="button"
               onClick={() => navigate("/food/restaurant/help-centre/support")}
               className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-all"
               aria-label="Open support"
             >
-              <HelpCircle className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+              <HelpCircle className="w-5 h-5 text-gray-700 dark:text-gray-300" />
             </button>
           </div>
         </div>

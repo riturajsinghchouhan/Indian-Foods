@@ -36,6 +36,7 @@ import {
   MessageCircle,
   Send,
   Mail,
+  Tag,
 } from "lucide-react"
 import { Button } from "@food/components/ui/button"
 import { Badge } from "@food/components/ui/badge"
@@ -59,6 +60,7 @@ import {
 } from "@food/utils/foodVariants"
 import fssaiLogo from "@food/assets/fssai.png"
 import { RestaurantDetailSkeleton } from "@food/components/ui/loading-skeletons"
+import MenuScanAnimation from "@food/components/user/MenuScanAnimation"
 
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
@@ -130,6 +132,7 @@ function RestaurantDetailsContent() {
   const [selectedMenuCategory, setSelectedMenuCategory] = useState("all")
   const [visibleItemCount, setVisibleItemCount] = useState(50)
   const dishCardRefs = useRef({})
+  const [showScanAnimation, setShowScanAnimation] = useState(true)
 
   const getLineItemIdForDish = (item, variant = null) =>
     buildCartLineId(item?.id || item?._id || "", variant?.id || variant?._id || "")
@@ -194,6 +197,22 @@ function RestaurantDetailsContent() {
   const fetchedRestaurantRef = useRef(false) // Track if restaurant has been fetched for current slug
   const fetchedSlugRef = useRef(null)
   const fetchedZoneIdRef = useRef(null)
+  
+  // Public offers state for dynamic pricing
+  const [publicOffers, setPublicOffers] = useState([])
+  const publicOffersFetchedRef = useRef(false)
+
+  useEffect(() => {
+    if (!publicOffersFetchedRef.current) {
+      publicOffersFetchedRef.current = true
+      restaurantAPI.getPublicOffers().then(res => {
+        const list = res?.data?.data?.allOffers || res?.data?.allOffers || [];
+        setPublicOffers(list);
+      }).catch(err => {
+        debugWarn("Failed to fetch public offers:", err)
+      });
+    }
+  }, [])
 
   useEffect(() => {
     // Scroll to top when the component mounts (e.g. from search navigation)
@@ -580,6 +599,8 @@ function RestaurantDetailsContent() {
             isActive: actualRestaurant?.isActive !== false, // Default to true if not specified
             isAcceptingOrders: actualRestaurant?.isAcceptingOrders !== false, // Default to true if not specified
             discount: actualRestaurant?.discount || apiRestaurant?.discount || 0,
+            itemDiscounts: Array.isArray(actualRestaurant?.itemDiscounts) ? actualRestaurant.itemDiscounts : (Array.isArray(apiRestaurant?.itemDiscounts) ? apiRestaurant.itemDiscounts : []),
+            discountRules: Array.isArray(actualRestaurant?.discountRules) ? actualRestaurant.discountRules : (Array.isArray(apiRestaurant?.discountRules) ? apiRestaurant.discountRules : []),
           }
 
           debugLog('? Transformed restaurant:', transformedRestaurant)
@@ -1237,21 +1258,7 @@ function RestaurantDetailsContent() {
     const basePrice = resolvedVariant?.price ?? item.price;
     const priceNum = typeof basePrice === 'number' ? basePrice : parseFloat(String(basePrice).replace(/[^0-9.]/g, '')) || 0;
     // Evaluate Item-Specific and Smart Rules Discounts
-    let isFlatDiscount = false;
-    let discountValue = restaurant?.discount || 0;
-    const itemDiscount = (restaurant?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
-    if (itemDiscount) {
-      discountValue = itemDiscount.discountValue || 0;
-      isFlatDiscount = itemDiscount.discountType === 'FLAT';
-    } else {
-      const matchingRule = (restaurant?.discountRules || []).find(rule => {
-        const val = Number(rule.conditionValue);
-        if (rule.conditionType === 'PRICE_ABOVE' && priceNum > val) return true;
-        if (rule.conditionType === 'PRICE_BELOW' && priceNum < val) return true;
-        return false;
-      });
-      if (matchingRule) discountValue = matchingRule.discountValue || 0;
-    }
+    const { discountValue, isFlatDiscount } = calculateBestDiscount(item, priceNum);
     const finalPrice = discountValue > 0 ? Math.round(isFlatDiscount ? Math.max(0, priceNum - discountValue) : priceNum * (1 - discountValue / 100)) : priceNum;
 
     // Prepare cart item with all required properties
@@ -1712,21 +1719,67 @@ function RestaurantDetailsContent() {
     setShowItemDetail(true)
   }
 
+  // Helper function to calculate the best discount considering minOrderValue
+  const calculateBestDiscount = (item, priceNum) => {
+    let bestDiscountAmount = 0;
+    let bestDiscountValue = 0;
+    let bestIsFlatDiscount = false;
+
+    // 1. Check item specific discount
+    const itemDiscount = (restaurant?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
+    if (itemDiscount) {
+      const discountValue = itemDiscount.discountValue || 0;
+      const isFlatDiscount = String(itemDiscount.discountType || '').toUpperCase() === 'FLAT';
+      const discountAmount = isFlatDiscount ? discountValue : (priceNum * discountValue) / 100;
+      if (discountAmount > bestDiscountAmount) {
+        bestDiscountAmount = discountAmount;
+        bestDiscountValue = discountValue;
+        bestIsFlatDiscount = isFlatDiscount;
+      }
+    }
+
+    // 2. Check restaurant discount rules
+    const matchingRule = (restaurant?.discountRules || []).find(rule => {
+      const val = Number(rule.conditionValue);
+      if (rule.conditionType === 'PRICE_ABOVE' && priceNum > val) return true;
+      if (rule.conditionType === 'PRICE_BELOW' && priceNum < val) return true;
+      return false;
+    });
+    if (matchingRule) {
+      const discountValue = matchingRule.discountValue || 0;
+      // Default to percentage for rules
+      const discountAmount = (priceNum * discountValue) / 100;
+      if (discountAmount > bestDiscountAmount) {
+        bestDiscountAmount = discountAmount;
+        bestDiscountValue = discountValue;
+        bestIsFlatDiscount = false;
+      }
+    }
+
+    return {
+      discountValue: bestDiscountValue,
+      isFlatDiscount: bestIsFlatDiscount,
+      discountAmount: bestDiscountAmount
+    };
+  };
+
   // Helper function to calculate final price after discount
   const getFinalPrice = (item) => {
-    // If discount exists, calculate from originalPrice, otherwise use price directly
-    if (item.originalPrice && item.discountAmount && item.discountAmount > 0) {
-      // Calculate discounted price from originalPrice
-      let discountedPrice = item.originalPrice;
-      if (item.discountType === 'Percent') {
-        discountedPrice = item.originalPrice - (item.originalPrice * item.discountAmount / 100);
-      } else if (item.discountType === 'Fixed') {
-        discountedPrice = item.originalPrice - item.discountAmount;
-      }
-      return Math.max(0, discountedPrice);
+    let priceNum = item.price || 0;
+    
+    // Attempt to parse price if it's a string like "Starting from ₹199"
+    if (typeof priceNum === 'string') {
+      const parsed = parseFloat(priceNum.replace(/[^0-9.]/g, ''));
+      if (!isNaN(parsed)) priceNum = parsed;
     }
-    // Otherwise, use price as the final price
-    return Math.max(0, item.price || 0);
+
+    const { discountAmount } = calculateBestDiscount(item, priceNum);
+
+    if (discountAmount > 0) {
+      return Math.max(0, priceNum - discountAmount);
+    }
+    
+    return Math.max(0, priceNum);
   };
 
   // Filter menu items based on active filters
@@ -2152,36 +2205,28 @@ function RestaurantDetailsContent() {
               if (isNaN(priceNum)) return <p className="font-semibold text-gray-900 dark:text-white">{priceStr}</p>;
               console.log("[DEBUG]", item.name, "item.id=", item.id, "item._id=", item._id, "itemDiscounts=", restaurant?.itemDiscounts);
               
-              let isFlatDiscount = false;
-              let discountValue = restaurant?.discount || 0;
-              const itemDiscount = (restaurant?.itemDiscounts || []).find(d => String(d.itemId) === String(item.id || item._id));
-              if (itemDiscount) {
-                discountValue = itemDiscount.discountValue || 0;
-                isFlatDiscount = itemDiscount.discountType === 'FLAT';
-              } else {
-                const matchingRule = (restaurant?.discountRules || []).find(rule => {
-                  const val = Number(rule.conditionValue);
-                  if (rule.conditionType === 'PRICE_ABOVE' && priceNum > val) return true;
-                  if (rule.conditionType === 'PRICE_BELOW' && priceNum < val) return true;
-                  return false;
-                });
-                if (matchingRule) discountValue = matchingRule.discountValue || 0;
-              }
+              const { discountValue, isFlatDiscount, discountAmount } = calculateBestDiscount(item, priceNum);
               
-              if (discountValue > 0) {
-                const discountedPrice = Math.round(isFlatDiscount ? Math.max(0, priceNum - discountValue) : priceNum * (1 - discountValue / 100));
-                const discountLabel = isFlatDiscount ? `₹${discountValue} OFF` : `${discountValue}% OFF`;
+              if (discountAmount > 0) {
+                
+                const discountedPrice = Math.max(0, Math.round(priceNum - discountAmount));
+                
+                // Calculate effective percentage for badge
+                const effectivePercentage = Math.round(((priceNum - discountedPrice) / priceNum) * 100);
+                const discountLabel = isFlatDiscount ? `₹${discountValue} OFF` : `${effectivePercentage}% OFF`;
+                
                 return (
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col gap-0.5 mt-0.5">
                     <div className="flex items-center gap-2">
-                      <p className="font-bold text-gray-900 dark:text-white">
-                        {isStartingFrom ? <span className="text-xs font-medium text-gray-500 mr-1">Starting from</span> : ''}
+                      <span className="font-bold text-gray-900 dark:text-white text-[15px]">
+                        {isStartingFrom ? <span className="text-[11px] font-medium text-gray-500 mr-1">Starting from</span> : ''}
                         ₹{discountedPrice}
-                      </p>
-                      <p className="text-xs text-gray-500 line-through">₹{priceNum}</p>
+                      </span>
                     </div>
-                    <div className="inline-flex">
-                      <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 px-1 py-0.5 rounded uppercase">
+                    <div className="flex items-center gap-1.5 mt-[1px]">
+                      <span className="text-[11px] text-gray-500 line-through">₹{priceNum}</span>
+                      <span className="text-[9px] font-bold text-green-600 bg-green-50 border border-green-200 px-1 py-[1px] rounded uppercase flex items-center">
+                        <Tag size={8} className="mr-[2px]" />
                         {discountLabel}
                       </span>
                     </div>
@@ -2376,7 +2421,17 @@ function RestaurantDetailsContent() {
     : "New"
 
   if (loadingRestaurant && !restaurant) {
-    return <RestaurantDetailSkeleton />
+    return (
+      <>
+        {showScanAnimation && (
+          <MenuScanAnimation
+            duration={2200}
+            onComplete={() => setShowScanAnimation(false)}
+          />
+        )}
+        <RestaurantDetailSkeleton />
+      </>
+    )
   }
 
   if (restaurantError && !restaurant) {
@@ -2427,6 +2482,14 @@ function RestaurantDetailsContent() {
       className={`min-h-screen bg-white dark:bg-[#0a0a0a] flex flex-col transition-all duration-300 ${shouldShowGrayscale ? 'grayscale opacity-75' : ''
         }`}
     >
+      {/* ── Menu Scan Intro Animation ── */}
+      {showScanAnimation && (
+        <MenuScanAnimation
+          duration={2200}
+          onComplete={() => setShowScanAnimation(false)}
+        />
+      )}
+
       {/* Header - Back, Search, Menu (like reference image) */}
       <div className="px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 pt-3 md:pt-4 lg:pt-5 pb-2 md:pb-3 bg-white dark:bg-[#0a0a0a]">
         <div className="max-w-7xl mx-auto flex items-center justify-between">

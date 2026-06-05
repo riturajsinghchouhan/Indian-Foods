@@ -818,6 +818,8 @@ export const restaurantAPI = {
     restaurantClient.post("/food/restaurant/foods/bulk", items ?? []),
   updateFood: (id, body) =>
     restaurantClient.patch(`/food/restaurant/foods/${String(id)}`, body ?? {}),
+  deleteFood: (id) =>
+    restaurantClient.delete(`/food/restaurant/foods/${String(id)}`),
   /** Orders (restaurant dashboard) */
   getOrders: (() => {
     // Single-flight de-dupe to avoid duplicate GETs in React StrictMode / double-mount.

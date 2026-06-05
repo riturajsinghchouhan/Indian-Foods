@@ -8,8 +8,11 @@ export default function PageLoader() {
   const location = useLocation()
   
   useEffect(() => {
-    // Skip default page loader for routes with custom loaders (like under-250)
-    if (location.pathname.includes('/under-250')) {
+    // Skip default page loader for routes with custom loaders (like under-250 and restaurant details)
+    if (
+      location.pathname.includes('/under-250') || 
+      location.pathname.includes('/restaurants/')
+    ) {
       setIsNavigating(false)
       return
     }
