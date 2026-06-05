@@ -198,18 +198,18 @@ const RestaurantImageCarousel = React.memo(
 
     const bannerItems = useMemo(() => {
       const items = [];
-      
+
       // If backend populated dish names inside itemDiscounts, use them directly!
       if (Array.isArray(restaurant.itemDiscounts) && restaurant.itemDiscounts.some(d => d.name)) {
-          restaurant.itemDiscounts.forEach(d => {
-              if (d.name) {
-                  items.push({
-                      id: d.itemId,
-                      name: d.name,
-                      price: d.price || 0
-                  });
-              }
-          });
+        restaurant.itemDiscounts.forEach(d => {
+          if (d.name) {
+            items.push({
+              id: d.itemId,
+              name: d.name,
+              price: d.price || 0
+            });
+          }
+        });
       }
 
       if (items.length === 0 && restaurant.menu?.sections && Array.isArray(restaurant.menu.sections)) {
@@ -225,7 +225,7 @@ const RestaurantImageCarousel = React.memo(
           items.push(...restaurant.menuItems);
         }
       }
-      
+
       if (items.length === 0 && restaurant.featuredDish) {
         items.push({
           name: restaurant.featuredDish,
@@ -233,53 +233,53 @@ const RestaurantImageCarousel = React.memo(
           originalPrice: restaurant.featuredPrice || 0
         });
       }
-      
+
       const globalOffers = Array.isArray(restaurant.offers) ? restaurant.offers : [];
       let bestGlobalOffer = null;
       globalOffers.forEach(offer => {
-          if (!bestGlobalOffer || (Number(offer.discountValue) > Number(bestGlobalOffer.discountValue))) {
-              bestGlobalOffer = offer;
-          }
+        if (!bestGlobalOffer || (Number(offer.discountValue) > Number(bestGlobalOffer.discountValue))) {
+          bestGlobalOffer = offer;
+        }
       });
 
       const discountedItems = items.map((item) => {
         let priceNum = Number(item.price || item.originalPrice || 0);
-        
+
         if (typeof item.price === 'string') {
           const parsed = parseFloat(item.price.replace(/[^0-9.]/g, ''));
           if (!isNaN(parsed)) priceNum = parsed;
         }
-        
+
         let discountedPrice = null;
         let dText = 'SPECIAL OFFER';
-        
-        const specificDiscount = Array.isArray(restaurant.itemDiscounts) 
-          ? restaurant.itemDiscounts.find(d => String(d.itemId) === String(item.id || item._id || item.menuItemId)) 
+
+        const specificDiscount = Array.isArray(restaurant.itemDiscounts)
+          ? restaurant.itemDiscounts.find(d => String(d.itemId) === String(item.id || item._id || item.menuItemId))
           : null;
-          
+
         if (specificDiscount) {
-            const discountVal = Number(specificDiscount.discountValue) || 0;
-            const isFlat = String(specificDiscount.discountType || '').toUpperCase() === 'FLAT';
-            if (!isFlat) {
-                discountedPrice = priceNum * (1 - discountVal / 100);
-                dText = `${discountVal}% OFF`;
-            } else {
-                discountedPrice = Math.max(0, priceNum - discountVal);
-                dText = `FLAT ₹${discountVal} OFF`;
-            }
+          const discountVal = Number(specificDiscount.discountValue) || 0;
+          const isFlat = String(specificDiscount.discountType || '').toUpperCase() === 'FLAT';
+          if (!isFlat) {
+            discountedPrice = priceNum * (1 - discountVal / 100);
+            dText = `${discountVal}% OFF`;
+          } else {
+            discountedPrice = Math.max(0, priceNum - discountVal);
+            dText = `FLAT ₹${discountVal} OFF`;
+          }
         } else if (!discountedPrice && bestGlobalOffer) {
-            const discountVal = Number(bestGlobalOffer.discountValue) || 0;
-            const isFlat = String(bestGlobalOffer.discountType || '').toUpperCase() === 'FLAT';
-            if (!isFlat) {
-                const maxD = Number(bestGlobalOffer.maxDiscount) || Infinity;
-                const calcD = priceNum * (discountVal / 100);
-                const actualD = Math.min(calcD, maxD);
-                discountedPrice = priceNum - actualD;
-                dText = bestGlobalOffer.title || `${discountVal}% OFF`;
-            } else {
-                discountedPrice = Math.max(0, priceNum - discountVal);
-                dText = bestGlobalOffer.title || `FLAT ₹${discountVal} OFF`;
-            }
+          const discountVal = Number(bestGlobalOffer.discountValue) || 0;
+          const isFlat = String(bestGlobalOffer.discountType || '').toUpperCase() === 'FLAT';
+          if (!isFlat) {
+            const maxD = Number(bestGlobalOffer.maxDiscount) || Infinity;
+            const calcD = priceNum * (discountVal / 100);
+            const actualD = Math.min(calcD, maxD);
+            discountedPrice = priceNum - actualD;
+            dText = bestGlobalOffer.title || `${discountVal}% OFF`;
+          } else {
+            discountedPrice = Math.max(0, priceNum - discountVal);
+            dText = bestGlobalOffer.title || `FLAT ₹${discountVal} OFF`;
+          }
         } else if (!discountedPrice && restaurant.discount > 0) {
           discountedPrice = priceNum * (1 - restaurant.discount / 100);
           dText = `${restaurant.discount}% OFF`;
@@ -291,12 +291,12 @@ const RestaurantImageCarousel = React.memo(
             return false;
           });
           if (matchingRule) {
-             const discountVal = matchingRule.discountValue || 0;
-             discountedPrice = priceNum * (1 - discountVal / 100);
-             dText = `${discountVal}% OFF`;
+            const discountVal = matchingRule.discountValue || 0;
+            discountedPrice = priceNum * (1 - discountVal / 100);
+            dText = `${discountVal}% OFF`;
           }
         }
-        
+
         return {
           name: item.name,
           price: priceNum,
@@ -304,7 +304,7 @@ const RestaurantImageCarousel = React.memo(
           dText: dText
         };
       }).filter(item => item.discountedPrice !== null && item.discountedPrice < item.price);
-      
+
       return discountedItems.slice(0, 5);
     }, [restaurant]);
 
@@ -503,7 +503,7 @@ const RestaurantImageCarousel = React.memo(
         {/* Discount Badge */}
         {restaurant.discount > 0 && (
           <div className="absolute top-3 left-0 px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white text-[10px] sm:text-xs font-bold rounded-r-lg shadow-md uppercase tracking-wide flex items-center gap-1.5 z-[11]">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.864 2.227l8.909 8.91a2.182 2.182 0 010 3.085l-7.364 7.364a2.182 2.182 0 01-3.085 0l-8.91-8.91A2.182 2.182 0 012 11.137V4.41A2.182 2.182 0 014.182 2.23h6.727a2.182 2.182 0 011.955-.003z"/></svg>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.864 2.227l8.909 8.91a2.182 2.182 0 010 3.085l-7.364 7.364a2.182 2.182 0 01-3.085 0l-8.91-8.91A2.182 2.182 0 012 11.137V4.41A2.182 2.182 0 014.182 2.23h6.727a2.182 2.182 0 011.955-.003z" /></svg>
             {restaurant.discount}% OFF ON ALL MEALS
           </div>
         )}
@@ -545,29 +545,29 @@ const RestaurantImageCarousel = React.memo(
             </div>
           </div>
         ) : (() => {
-            let maxDiscount = restaurant.discount || 0;
-            if (Array.isArray(restaurant.discountRules) && restaurant.discountRules.length > 0) {
-              const maxRule = Math.max(...restaurant.discountRules.map(r => r.discountValue || 0));
-              if (maxRule > maxDiscount) maxDiscount = maxRule;
-            }
-            if (maxDiscount > 0) {
-              return (
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-[#00b761] to-transparent z-[20]" style={{ height: '40%' }}>
-                  <div className="h-full flex flex-col justify-end">
-                    <div className="pl-4 sm:pl-5 pb-4 sm:pb-5">
-                      <p className="text-white text-xs sm:text-sm font-medium uppercase tracking-wide mb-1">
-                        SPECIAL OFFER
-                      </p>
-                      <div className="h-px bg-white/30 mb-2 w-24"></div>
-                      <p className="text-white text-base sm:text-lg font-bold">
-                        UP TO {maxDiscount}% OFF
-                      </p>
-                    </div>
+          let maxDiscount = restaurant.discount || 0;
+          if (Array.isArray(restaurant.discountRules) && restaurant.discountRules.length > 0) {
+            const maxRule = Math.max(...restaurant.discountRules.map(r => r.discountValue || 0));
+            if (maxRule > maxDiscount) maxDiscount = maxRule;
+          }
+          if (maxDiscount > 0) {
+            return (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-[#00b761] to-transparent z-[20]" style={{ height: '40%' }}>
+                <div className="h-full flex flex-col justify-end">
+                  <div className="pl-4 sm:pl-5 pb-4 sm:pb-5">
+                    <p className="text-white text-xs sm:text-sm font-medium uppercase tracking-wide mb-1">
+                      SPECIAL OFFER
+                    </p>
+                    <div className="h-px bg-white/30 mb-2 w-24"></div>
+                    <p className="text-white text-base sm:text-lg font-bold">
+                      UP TO {maxDiscount}% OFF
+                    </p>
                   </div>
                 </div>
-              );
-            }
-            return null;
+              </div>
+            );
+          }
+          return null;
         })()}
       </div>
     );
@@ -596,8 +596,8 @@ export default function Home() {
   const { openSearch, closeSearch, searchValue, setSearchValue } =
     useSearchOverlay();
   const { openLocationSelector } = useLocationSelector();
-  const { 
-    vegMode, 
+  const {
+    vegMode,
     setVegMode: setVegModeContext,
     vegModeOption,
     setVegModeOption
@@ -605,7 +605,7 @@ export default function Home() {
   const [prevVegMode, setPrevVegMode] = useState(vegMode);
   const [showVegModePopup, setShowVegModePopup] = useState(false);
   const [showSwitchOffPopup, setShowSwitchOffPopup] = useState(false);
-  
+
   const [isApplyingVegMode, setIsApplyingVegMode] = useState(false);
   const [isSwitchingOffVegMode, setIsSwitchingOffVegMode] = useState(false);
   const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0, triangleLeft: 0 });
@@ -649,7 +649,7 @@ export default function Home() {
 
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [heroBannerImages, setHeroBannerImages] = useState(() => homePageCache.heroBannerImages || []);
-  const [heroBannersData, setHeroBannersData] = useState(() => homePageCache.heroBannersData || []); 
+  const [heroBannersData, setHeroBannersData] = useState(() => homePageCache.heroBannersData || []);
   const [loadingBanners, setLoadingBanners] = useState(() => !homePageCache.heroBannerImages);
   const [hasScrolledPastBanner, setHasScrolledPastBanner] = useState(false);
   const [landingCategories, setLandingCategories] = useState([]);
@@ -1507,19 +1507,19 @@ export default function Home() {
           label: it.label || it.name,
         }));
         setLandingExploreMore(exploreMoreData);
-        
+
         const settings = settingsRes?.data?.data || {};
         const heading = settings.exploreMoreHeading || "Explore More";
         setExploreMoreHeading(heading);
         setRecommendedRestaurantIds(settings.recommendedRestaurantIds || []);
         setUnder250PriceLimit(Number(settings.under250PriceLimit) || 250);
-        
+
         const recRest = settings.recommendedRestaurants || [];
         setRecommendedRestaurantsFromSettings(recRest);
-        
+
         const video = typeof settings.festBannerVideoUrl === "string" ? settings.festBannerVideoUrl : "";
         setFestBannerVideoUrl(video);
-        
+
         // Update cache
         homePageCache.landingExploreMore = exploreMoreData;
         homePageCache.exploreMoreHeading = heading;
@@ -1568,7 +1568,7 @@ export default function Home() {
         setHeroBannerImages(images);
         setHeroBannersData(list);
         setCurrentBannerIndex(0);
-        
+
         homePageCache.heroBannerImages = images;
         homePageCache.heroBannersData = list;
         homePageCache.effectiveZoneId = effectiveZoneId;
@@ -1653,14 +1653,14 @@ export default function Home() {
   // Fetch restaurants from API with filters
   const fetchRestaurants = useCallback(
     async (filters = {}) => {
-      const isDefaultFetch = Object.keys(filters).length === 0 || 
+      const isDefaultFetch = Object.keys(filters).length === 0 ||
         (!filters.sortBy && !filters.selectedCuisine && (!filters.activeFilters || filters.activeFilters.size === 0));
-        
+
       if (isDefaultFetch && homePageCache.restaurantsData && homePageCache.effectiveZoneId === effectiveZoneId) {
         setLoadingRestaurants(false);
         return;
       }
-      
+
       const requestSeq = ++restaurantsRequestSeqRef.current;
       try {
         setLoadingRestaurants(true);
@@ -1935,7 +1935,7 @@ export default function Home() {
                     ? `${restaurant.cuisines[0]} Special`
                     : "Special Dish"),
                 featuredPrice: restaurant.featuredPrice || 249, // Use from API or default
-                menuItems: restaurant.menu?.sections 
+                menuItems: restaurant.menu?.sections
                   ? restaurant.menu.sections.reduce((acc, section) => acc.concat(section.items || []), [])
                   : (Array.isArray(restaurant.menuItems) ? restaurant.menuItems : (Array.isArray(restaurant.topItems) ? restaurant.topItems : [])),
                 popularItems: Array.isArray(restaurant.popularItems) ? restaurant.popularItems : [],
@@ -2001,7 +2001,7 @@ export default function Home() {
               // Default: sort by zoneRank first, then by distance
               const aRank = a.zoneRank !== null && a.zoneRank !== undefined ? a.zoneRank : Infinity;
               const bRank = b.zoneRank !== null && b.zoneRank !== undefined ? b.zoneRank : Infinity;
-              
+
               if (aRank !== bRank) {
                 return aRank - bRank;
               }
@@ -2021,10 +2021,10 @@ export default function Home() {
           startTransition(() => {
             const finalSorted = sortRestaurantsForDisplay(transformedRestaurants);
             setRestaurantsData(finalSorted);
-            
-            const isDefaultFetch = Object.keys(filters).length === 0 || 
+
+            const isDefaultFetch = Object.keys(filters).length === 0 ||
               (!filters.sortBy && !filters.selectedCuisine && (!filters.activeFilters || filters.activeFilters.size === 0));
-            
+
             if (isDefaultFetch) {
               homePageCache.restaurantsData = finalSorted;
               homePageCache.effectiveZoneId = effectiveZoneId;
@@ -2767,10 +2767,10 @@ export default function Home() {
     return (
       <div className="fixed inset-0 z-[100] w-full bg-[#1e1332] overflow-hidden flex flex-col justify-center">
         <img src={outOfZoneBg} alt="Out of zone background" className="absolute inset-0 w-full h-full object-cover z-0" />
-        
+
         {/* Dark overlay at bottom for text readability */}
         <div className="absolute bottom-0 w-full h-[70%] bg-gradient-to-t from-[#1b152d] via-black/60 to-transparent z-10 pointer-events-none"></div>
-        
+
         <div className="relative z-20 flex flex-col items-center justify-center px-6 text-center h-full pb-20">
           <h2 className="text-3xl font-black text-white mb-3 tracking-tight drop-shadow-lg">
             We are coming soon in your city
@@ -2778,8 +2778,8 @@ export default function Home() {
           <p className="text-base text-gray-200 mb-10 max-w-sm drop-shadow-md">
             Please change the location to continue ordering.
           </p>
-          
-          <Button 
+
+          <Button
             onClick={() => navigate('/food/user/address-selector')}
             className="w-full max-w-[280px] bg-red-600 hover:bg-red-700 text-white font-bold h-14 rounded-2xl shadow-xl transition-transform active:scale-95 text-lg"
           >
@@ -3352,148 +3352,148 @@ export default function Home() {
                 <h2 className="text-xs sm:text-sm lg:text-base font-semibold text-gray-400 tracking-widest uppercase">
                   {filteredRestaurants.length} Restaurants Delivering to You
                 </h2>
-<span className="text-base sm:text-lg lg:text-2xl text-gray-500 font-normal">
+                <span className="text-base sm:text-lg lg:text-2xl text-gray-500 font-normal">
                   Featured
                 </span>
               </div>
             </div>
           )}
-            {shouldShowOutOfZoneHome ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center min-h-[480px] overflow-visible">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                  className="flex flex-col items-center max-w-sm mx-auto relative"
-                >
-                  <div className="relative mb-14">
-                    {/* Multi-layered Glow System */}
+          {shouldShowOutOfZoneHome ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center min-h-[480px] overflow-visible">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="flex flex-col items-center max-w-sm mx-auto relative"
+              >
+                <div className="relative mb-14">
+                  {/* Multi-layered Glow System */}
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.4, 1],
+                      opacity: [0.15, 0.35, 0.15],
+                    }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute inset-0 bg-primary rounded-full blur-[70px]"
+                  />
+                  <motion.div
+                    animate={{
+                      scale: [1.3, 1, 1.3],
+                      opacity: [0.1, 0.25, 0.1],
+                    }}
+                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                    className="absolute inset-0 bg-rose-400 rounded-full blur-[50px]"
+                  />
+
+                  {/* Floating Decorative Icons */}
+                  <motion.div
+                    animate={{ y: [0, -15, 0], rotate: [0, 15, 0], scale: [1, 1.1, 1] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute -top-10 -left-10 text-orange-400/40"
+                  >
+                    <Pizza className="w-12 h-12" strokeWidth={1} />
+                  </motion.div>
+                  <motion.div
+                    animate={{ y: [0, 15, 0], rotate: [0, -20, 0], scale: [1, 1.05, 1] }}
+                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                    className="absolute -bottom-6 -right-12 text-rose-400/40"
+                  >
+                    <UtensilsCrossed className="w-10 h-10" strokeWidth={1} />
+                  </motion.div>
+                  <motion.div
+                    animate={{ x: [0, 12, 0], y: [0, -10, 0] }}
+                    transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+                    className="absolute top-4 -right-14 text-amber-400/30"
+                  >
+                    <Flame className="w-8 h-8" strokeWidth={1} />
+                  </motion.div>
+
+                  <motion.div
+                    animate={{ y: [0, -25, 0] }}
+                    transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="relative z-10 w-44 h-44 bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-sm rounded-[3rem] shadow-[0_20px_50px_rgba(126,56,102,0.3)] flex items-center justify-center border border-white/50 dark:border-white/10 overflow-hidden"
+                  >
+                    <img
+                      src={chefMascot}
+                      alt="Chef Mascot"
+                      className="w-full h-full object-contain p-2 transform scale-115 drop-shadow-2xl"
+                    />
+                  </motion.div>
+
+                  {/* Animated Particles with varied colors */}
+                  {[...Array(5)].map((_, i) => (
                     <motion.div
+                      key={i}
                       animate={{
-                        scale: [1, 1.4, 1],
-                        opacity: [0.15, 0.35, 0.15],
+                        y: [0, -120],
+                        x: [0, (i - 2) * 40],
+                        opacity: [0, 0.6, 0],
+                        scale: [0, 1, 0]
                       }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      className="absolute inset-0 bg-primary rounded-full blur-[70px]"
-                    />
-                    <motion.div
-                      animate={{
-                        scale: [1.3, 1, 1.3],
-                        opacity: [0.1, 0.25, 0.1],
+                      transition={{
+                        duration: 3 + i * 0.2,
+                        repeat: Infinity,
+                        delay: i * 0.6,
+                        ease: "easeOut"
                       }}
-                      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                      className="absolute inset-0 bg-rose-400 rounded-full blur-[50px]"
+                      className={`absolute top-1/2 left-1/2 w-${2 + (i % 2)} h-${2 + (i % 2)} ${i % 2 === 0 ? 'bg-primary/40' : 'bg-rose-400/40'} rounded-full`}
                     />
+                  ))}
+                </div>
 
-                    {/* Floating Decorative Icons */}
-                    <motion.div 
-                      animate={{ y: [0, -15, 0], rotate: [0, 15, 0], scale: [1, 1.1, 1] }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      className="absolute -top-10 -left-10 text-orange-400/40"
-                    >
-                      <Pizza className="w-12 h-12" strokeWidth={1} />
-                    </motion.div>
-                    <motion.div 
-                      animate={{ y: [0, 15, 0], rotate: [0, -20, 0], scale: [1, 1.05, 1] }}
-                      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                      className="absolute -bottom-6 -right-12 text-rose-400/40"
-                    >
-                      <UtensilsCrossed className="w-10 h-10" strokeWidth={1} />
-                    </motion.div>
-                    <motion.div 
-                      animate={{ x: [0, 12, 0], y: [0, -10, 0] }}
-                      transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                      className="absolute top-4 -right-14 text-amber-400/30"
-                    >
-                      <Flame className="w-8 h-8" strokeWidth={1} />
-                    </motion.div>
+                <h3 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight leading-tight bg-gradient-to-r from-primary via-rose-500 to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
+                  Coming Soon!
+                </h3>
+                <p className="text-base sm:text-lg font-medium text-gray-500 dark:text-gray-400 leading-relaxed px-4 max-w-xs">
+                  Currently we are not operating on this area. We are coming soon to your location!
+                </p>
 
-                    <motion.div
-                      animate={{ y: [0, -25, 0] }}
-                      transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-                      className="relative z-10 w-44 h-44 bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-sm rounded-[3rem] shadow-[0_20px_50px_rgba(126,56,102,0.3)] flex items-center justify-center border border-white/50 dark:border-white/10 overflow-hidden"
-                    >
-                      <img 
-                        src={chefMascot} 
-                        alt="Chef Mascot" 
-                        className="w-full h-full object-contain p-2 transform scale-115 drop-shadow-2xl"
-                      />
-                    </motion.div>
-                    
-                    {/* Animated Particles with varied colors */}
-                    {[...Array(5)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        animate={{ 
-                          y: [0, -120], 
-                          x: [0, (i - 2) * 40],
-                          opacity: [0, 0.6, 0],
-                          scale: [0, 1, 0]
-                        }}
-                        transition={{ 
-                          duration: 3 + i * 0.2, 
-                          repeat: Infinity, 
-                          delay: i * 0.6,
-                          ease: "easeOut" 
-                        }}
-                        className={`absolute top-1/2 left-1/2 w-${2 + (i % 2)} h-${2 + (i % 2)} ${i % 2 === 0 ? 'bg-primary/40' : 'bg-rose-400/40'} rounded-full`}
-                      />
-                    ))}
-                  </div>
-
-                  <h3 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight leading-tight bg-gradient-to-r from-primary via-rose-500 to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-shift">
-                    Coming Soon!
-                  </h3>
-                  <p className="text-base sm:text-lg font-medium text-gray-500 dark:text-gray-400 leading-relaxed px-4 max-w-xs">
-                    Currently we are not operating on this area. We are coming soon to your location!
-                  </p>
-                  
-                  <div className="mt-12 flex items-center gap-3">
-                    <motion.div 
-                      animate={{ width: [8, 40, 8], opacity: [0.2, 0.5, 0.2] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                      className="h-1.5 bg-primary rounded-full" 
-                    />
-                    <motion.div 
-                      animate={{ width: [40, 8, 40], opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                      className="h-1.5 bg-primary rounded-full" 
-                    />
-                    <motion.div 
-                      animate={{ width: [8, 40, 8], opacity: [0.2, 0.5, 0.2] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                      className="h-1.5 bg-primary rounded-full" 
-                    />
-                  </div>
-                </motion.div>
-              </div>
-            ) : (
-              <>
-                <div
-                  className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-4 lg:gap-5 xl:gap-6 px-4 pt-1 sm:pt-1.5 lg:pt-2 items-stretch ${isLoadingFilterResults || loadingRestaurants ? "opacity-50" : "opacity-100"} transition-opacity duration-300`}>
-                  {showRestaurantSkeleton && visibleRestaurants.length === 0 ? (
-                    Array.from({ length: 6 }).map((_, i) => (
-                      <div key={`skel-card-${i}`} className="h-full">
-                        <div className="overflow-hidden gap-0 border-0 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] rounded-[28px] flex flex-col h-full w-full relative shadow-sm border border-orange-50 dark:border-orange-900/10 shadow-[0_4px_20px_rgba(249,115,22,0.04)]">
-                          {/* Image Skeleton */}
-                          <div className="relative h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72 bg-[#f7f5f2] dark:bg-zinc-800 animate-pulse flex flex-col items-center justify-center">
-                             <ShopPlaceholder />
+                <div className="mt-12 flex items-center gap-3">
+                  <motion.div
+                    animate={{ width: [8, 40, 8], opacity: [0.2, 0.5, 0.2] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="h-1.5 bg-primary rounded-full"
+                  />
+                  <motion.div
+                    animate={{ width: [40, 8, 40], opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="h-1.5 bg-primary rounded-full"
+                  />
+                  <motion.div
+                    animate={{ width: [8, 40, 8], opacity: [0.2, 0.5, 0.2] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                    className="h-1.5 bg-primary rounded-full"
+                  />
+                </div>
+              </motion.div>
+            </div>
+          ) : (
+            <>
+              <div
+                className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-4 lg:gap-5 xl:gap-6 px-4 pt-1 sm:pt-1.5 lg:pt-2 items-stretch ${isLoadingFilterResults || loadingRestaurants ? "opacity-50" : "opacity-100"} transition-opacity duration-300`}>
+                {showRestaurantSkeleton && visibleRestaurants.length === 0 ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={`skel-card-${i}`} className="h-full">
+                      <div className="overflow-hidden gap-0 border-0 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] rounded-[28px] flex flex-col h-full w-full relative shadow-sm border border-orange-50 dark:border-orange-900/10 shadow-[0_4px_20px_rgba(249,115,22,0.04)]">
+                        {/* Image Skeleton */}
+                        <div className="relative h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72 bg-[#f7f5f2] dark:bg-zinc-800 animate-pulse flex flex-col items-center justify-center">
+                          <ShopPlaceholder />
+                        </div>
+                        {/* Content Skeleton */}
+                        <div className="p-3 sm:p-4 lg:p-5 pt-3 sm:pt-4 lg:pt-5 flex flex-col flex-grow">
+                          <div className="flex items-start justify-between gap-2 mb-2 lg:mb-3">
+                            <div className="h-6 lg:h-8 w-48 lg:w-64 bg-orange-100 dark:bg-orange-900/30 rounded-md animate-pulse"></div>
+                            <div className="h-6 lg:h-8 w-16 bg-orange-200 dark:bg-orange-800/40 rounded-3xl animate-pulse"></div>
                           </div>
-                          {/* Content Skeleton */}
-                          <div className="p-3 sm:p-4 lg:p-5 pt-3 sm:pt-4 lg:pt-5 flex flex-col flex-grow">
-                             <div className="flex items-start justify-between gap-2 mb-2 lg:mb-3">
-                               <div className="h-6 lg:h-8 w-48 lg:w-64 bg-orange-100 dark:bg-orange-900/30 rounded-md animate-pulse"></div>
-                               <div className="h-6 lg:h-8 w-16 bg-orange-200 dark:bg-orange-800/40 rounded-3xl animate-pulse"></div>
-                             </div>
-                             <div className="flex items-center gap-2 mb-2 lg:mb-3">
-                                <div className="h-4 lg:h-5 w-24 bg-orange-50 dark:bg-orange-900/20 rounded animate-pulse"></div>
-                             </div>
+                          <div className="flex items-center gap-2 mb-2 lg:mb-3">
+                            <div className="h-4 lg:h-5 w-24 bg-orange-50 dark:bg-orange-900/20 rounded animate-pulse"></div>
                           </div>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    visibleRestaurants.map((restaurant, index) => {
+                    </div>
+                  ))
+                ) : (
+                  visibleRestaurants.map((restaurant, index) => {
                     const nameStr =
                       typeof restaurant?.name === "string"
                         ? restaurant.name.trim()
@@ -3685,25 +3685,25 @@ export default function Home() {
                       </div>
                     );
                   }))}
-                </div>
+              </div>
 
-                <div className="flex flex-col items-center pt-2 sm:pt-3 gap-2 px-4">
-                  {hasMoreRestaurants && (
-                    <Button
-                      variant="outline"
-                      onClick={loadMoreRestaurants}
-                      className="text-sm font-medium border-gray-300 hover:border-gray-400">
-                      Load more restaurants
-                    </Button>
-                  )}
-                  <div
-                    ref={restaurantLoadMoreRef}
-                    className="h-1 w-full"
-                    aria-hidden="true"
-                  />
-                </div>
-              </>
-            )}
+              <div className="flex flex-col items-center pt-2 sm:pt-3 gap-2 px-4">
+                {hasMoreRestaurants && (
+                  <Button
+                    variant="outline"
+                    onClick={loadMoreRestaurants}
+                    className="text-sm font-medium border-gray-300 hover:border-gray-400">
+                    Load more restaurants
+                  </Button>
+                )}
+                <div
+                  ref={restaurantLoadMoreRef}
+                  className="h-1 w-full"
+                  aria-hidden="true"
+                />
+              </div>
+            </>
+          )}
         </motion.section>
       </div>
 
@@ -4130,7 +4130,7 @@ export default function Home() {
               }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-2xl p-6 w-[calc(100%-2rem)] max-w-xs"
               onClick={(e) => e.stopPropagation()}>
-              
+
               {/* Title */}
               <h3 className="text-base font-bold text-gray-900 dark:text-white mb-3">
                 See veg dishes from

@@ -1535,7 +1535,10 @@ export async function assignDeliveryPartnerAdmin(
   deliveryPartnerId,
   adminId,
 ) {
-  const order = await FoodOrder.findById(orderId);
+  const identity = buildOrderIdentityFilter(orderId);
+  if (!identity) throw new ValidationError("Order id required");
+
+  const order = await FoodOrder.findOne(identity);
   if (!order) throw new NotFoundError("Order not found");
   
   if (order.dispatch?.deliveryPartnerId && order.dispatch?.status === "accepted") {
