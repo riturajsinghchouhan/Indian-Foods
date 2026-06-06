@@ -3639,7 +3639,7 @@ export default function Home() {
                                           )}
                                       </div>
                                     </div>
-                                    <div className={`flex-shrink-0 ${Number(restaurant.rating) > 0 ? "bg-green-600" : "bg-gray-400"} text-white px-3 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-md transform transition-transform duration-300 group-hover:scale-110`}>
+                                    <div className="flex-shrink-0 bg-green-600 text-white px-3 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-md transform transition-transform duration-300 group-hover:scale-110">
                                       <span className="text-sm lg:text-lg font-black tracking-tight">
                                         {Number(restaurant.rating) > 0 ? Number(restaurant.rating).toFixed(1) : "NEW"}
                                       </span>
