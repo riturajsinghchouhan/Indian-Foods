@@ -909,14 +909,23 @@ export default function Cart() {
         })
 
         if (response?.data?.success && response?.data?.data?.pricing) {
-          setPricing(response.data.data.pricing)
+          const newPricing = response.data.data.pricing
+          setPricing(newPricing)
 
-          // Update applied coupon if backend returns one
-          if (response.data.data.pricing.appliedCoupon && !appliedCoupon) {
-            const coupon = availableCoupons.find(c => c.code === response.data.data.pricing.appliedCoupon.code)
+          if (newPricing.couponError && appliedCoupon) {
+            toast.error(newPricing.couponError)
+            setAppliedCoupon(null)
+            setCouponCode("")
+            setManualCouponCode("")
+          } else if (newPricing.appliedCoupon && !appliedCoupon) {
+            const coupon = availableCoupons.find(c => c.code === newPricing.appliedCoupon.code)
             if (coupon) {
               setAppliedCoupon(coupon)
             }
+          } else if (!newPricing.appliedCoupon && appliedCoupon) {
+            setAppliedCoupon(null)
+            setCouponCode("")
+            setManualCouponCode("")
           }
         }
       } catch (error) {
@@ -1375,6 +1384,11 @@ export default function Cart() {
         })
 
         const pricingData = response?.data?.data?.pricing
+        if (pricingData?.couponError) {
+          toast.error(pricingData.couponError)
+          return
+        }
+
         if (!pricingData || !pricingData.appliedCoupon) {
           toast.error("Coupon not applicable")
           return
@@ -1438,6 +1452,12 @@ export default function Cart() {
       const pricingData = response?.data?.data?.pricing
       if (!pricingData) {
         toast.error("Unable to validate coupon")
+        return
+      }
+
+      if (pricingData.couponError) {
+        toast.error(pricingData.couponError)
+        setCouponCode("")
         return
       }
 

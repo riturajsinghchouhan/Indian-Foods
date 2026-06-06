@@ -18,9 +18,12 @@ export async function calculateOrderPricing(userId, dto) {
   const items = Array.isArray(dto.items) ? dto.items : [];
   let itemDiscountTotal = 0;
   let subtotal = 0;
+  let eligibleSubtotalForCoupon = 0;
+
   items.forEach((it) => {
     let price = Number(it.price) || 0;
     const qty = Number(it.quantity) || 1;
+    let hasItemDiscount = false;
     
     if (restaurant.itemDiscounts && restaurant.itemDiscounts.length > 0) {
       const itemDiscountRule = restaurant.itemDiscounts.find(
@@ -37,11 +40,15 @@ export async function calculateOrderPricing(userId, dto) {
           }
           itemDiscountTotal += discountAmount * qty;
           price = Math.max(0, price - discountAmount);
+          hasItemDiscount = true;
         }
       }
     }
     
     subtotal += price * qty;
+    if (!hasItemDiscount) {
+      eligibleSubtotalForCoupon += price * qty;
+    }
   });
   itemDiscountTotal = Math.floor(itemDiscountTotal);
 
@@ -141,6 +148,7 @@ export async function calculateOrderPricing(userId, dto) {
 
   let discount = 0;
   let appliedCoupon = null;
+  let couponError = null;
   const codeRaw = dto.couponCode
     ? String(dto.couponCode).trim().toUpperCase()
     : "";
@@ -224,20 +232,30 @@ export async function calculateOrderPricing(userId, dto) {
         firstOrderOk;
 
       if (allowed) {
-        if (offer.discountType === "percentage") {
-          const raw = subtotal * (Number(offer.discountValue) / 100);
-          const capped = Number(offer.maxDiscount)
-            ? Math.min(raw, Number(offer.maxDiscount))
-            : raw;
-          discount = Math.max(0, Math.min(subtotal, Math.floor(capped)));
+        if (eligibleSubtotalForCoupon <= 0) {
+          couponError = "This coupon is not applicable on discounted items. Please try other items.";
         } else {
-          discount = Math.max(
-            0,
-            Math.min(subtotal, Math.floor(Number(offer.discountValue) || 0)),
-          );
+          if (offer.discountType === "percentage") {
+            const raw = eligibleSubtotalForCoupon * (Number(offer.discountValue) / 100);
+            const capped = Number(offer.maxDiscount)
+              ? Math.min(raw, Number(offer.maxDiscount))
+              : raw;
+            discount = Math.max(0, Math.min(eligibleSubtotalForCoupon, Math.floor(capped)));
+          } else {
+            discount = Math.max(
+              0,
+              Math.min(eligibleSubtotalForCoupon, Math.floor(Number(offer.discountValue) || 0)),
+            );
+          }
+          appliedCoupon = { code: codeRaw, discount };
         }
-        appliedCoupon = { code: codeRaw, discount };
+      } else {
+        if (!minOk) {
+          couponError = `Minimum order value of ${offer.minOrderValue} required for this coupon.`;
+        }
       }
+    } else {
+      couponError = "Invalid or expired coupon code.";
     }
   }
 
@@ -268,6 +286,7 @@ export async function calculateOrderPricing(userId, dto) {
       currency: "INR",
       couponCode: appliedCoupon?.code || codeRaw || null,
       appliedCoupon,
+      couponError,
     },
   };
 }
