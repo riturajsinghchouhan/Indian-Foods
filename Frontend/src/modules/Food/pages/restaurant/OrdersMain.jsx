@@ -2687,19 +2687,19 @@ export default function OrdersMain() {
         {showNewOrderPopup && (
           <>
             <motion.div
-              className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4"
+              className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 pb-[110px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}>
               <motion.div
-                className="w-[95%] max-w-md max-h-[calc(100vh-2rem)] bg-white rounded-[2rem] shadow-2xl overflow-hidden p-1 flex flex-col"
+                className="w-[95%] max-w-md max-h-full bg-white rounded-[2rem] shadow-2xl overflow-hidden p-1 flex flex-col"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
-                <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
+                <div className="px-4 py-2.5 bg-white border-b border-gray-200 flex items-center justify-between">
                   <div className="flex-1">
                     <h3 className="text-base font-bold text-gray-900">
                       {(popupOrder || newOrder)?.orderId || "#Order"}
@@ -2729,10 +2729,10 @@ export default function OrdersMain() {
                 </div>
 
                 {/* Content */}
-                <div className="px-4 pt-4 pb-4 flex-1 overflow-y-auto min-h-0">
+                <div className="px-4 pt-3 pb-3 flex-1 overflow-y-auto min-h-0">
                   {/* Scheduled Indicator */}
                   {(popupOrder || newOrder)?.scheduledAt && (
-                    <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-3">
+                    <div className="mb-3 bg-green-50 border border-green-200 rounded-lg p-2.5 flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                         <Calendar className="w-4 h-4 text-green-600" />
                       </div>
@@ -2757,7 +2757,7 @@ export default function OrdersMain() {
                   )}
 
                   {/* Customer info */}
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <h4 className="text-sm font-semibold text-gray-900">
                       {(popupOrder || newOrder)?.items?.[0]?.name ||
                         "New Order"}
@@ -2778,7 +2778,7 @@ export default function OrdersMain() {
 
                   {/* Restaurant Note */}
                   {(popupOrder || newOrder)?.restaurantNote && (
-                    <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
                       <div className="flex items-center gap-2 mb-1">
                         <FileText className="w-4 h-4 text-blue-600" />
                         <p className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">
@@ -2792,10 +2792,10 @@ export default function OrdersMain() {
                   )}
 
                   {/* Details Accordion */}
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <button
                       onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
-                      className="w-full flex items-center justify-between py-2 border-b border-gray-200">
+                      className="w-full flex items-center justify-between py-1.5 border-b border-gray-200">
                       <div className="flex items-center gap-2">
                         <svg
                           className="w-5 h-5 text-gray-700"
@@ -2865,7 +2865,7 @@ export default function OrdersMain() {
 
                   {/* Cutlery preference */}
                   <div
-                    className={`mb-4 flex items-center gap-2 rounded-lg p-3 ${(popupOrder || newOrder)?.sendCutlery === false
+                    className={`mb-3 flex items-center gap-2 rounded-lg p-2.5 ${(popupOrder || newOrder)?.sendCutlery === false
                         ? "bg-orange-50"
                         : "bg-gray-50"
                       }`}>
@@ -2896,7 +2896,7 @@ export default function OrdersMain() {
                   </div>
 
                   {/* Total bill */}
-                  <div className="mb-4 flex items-center justify-between py-3 border-y border-gray-200">
+                  <div className="mb-3 flex items-center justify-between py-2 border-y border-gray-200">
                     <div className="flex items-center gap-2">
                       <svg
                         className="w-5 h-5 text-gray-700"
@@ -2928,7 +2928,7 @@ export default function OrdersMain() {
                       raw != null ? String(raw).toLowerCase().trim() : "";
                     const isCod = m === "cash" || m === "cod";
                     return (
-                      <div className="mb-4 flex items-center justify-between py-2">
+                      <div className="mb-3 flex items-center justify-between py-1.5">
                         <span className="text-sm font-medium text-gray-700">
                           Payment
                         </span>
@@ -2941,8 +2941,8 @@ export default function OrdersMain() {
                   })()}
 
                   {/* Preparation time */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-3">
+                  <div className="mb-1">
+                    <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-gray-700">
                         Preparation time
                       </span>
@@ -2965,7 +2965,7 @@ export default function OrdersMain() {
                   </div>
                 </div>
 
-                <div className="px-4 pb-4 pt-3 border-t border-gray-200 bg-white">
+                <div className="px-4 pb-3 pt-2.5 border-t border-gray-200 bg-white">
                   {(() => {
                     const activePopupOrder = popupOrder || newOrder;
                     const popupStatus =
@@ -3044,7 +3044,7 @@ export default function OrdersMain() {
                         <button
                           onClick={handleRejectClick}
                           disabled={isAcceptingOrder}
-                          className="w-full bg-white border-2 border-red-500 text-red-600 py-3 rounded-lg font-semibold text-sm hover:bg-red-50 transition-colors disabled:opacity-60">
+                          className="w-full bg-white border-2 border-red-500 text-red-600 py-2.5 rounded-lg font-semibold text-sm hover:bg-red-50 transition-colors disabled:opacity-60">
                           Reject Order
                         </button>
                       </div>
@@ -3062,13 +3062,13 @@ export default function OrdersMain() {
         {showRejectPopup && (
           <>
             <motion.div
-              className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4"
+              className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4 pb-[110px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={handleRejectCancel}>
               <motion.div
-                className="w-[95%] max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+                className="w-[95%] max-w-md max-h-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
@@ -3085,7 +3085,7 @@ export default function OrdersMain() {
                 </div>
 
                 {/* Content */}
-                <div className="px-4 py-4 max-h-[60vh] overflow-y-auto">
+                <div className="px-4 py-4 flex-1 overflow-y-auto min-h-0">
                   <div className="space-y-2">
                     {rejectReasons.map((reason) => (
                       <button
@@ -3156,13 +3156,13 @@ export default function OrdersMain() {
         {showCancelPopup && orderToCancel && (
           <>
             <motion.div
-              className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4"
+              className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4 pb-[110px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={handleCancelPopupClose}>
               <motion.div
-                className="w-[95%] max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+                className="w-[95%] max-w-md max-h-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
@@ -3179,7 +3179,7 @@ export default function OrdersMain() {
                 </div>
 
                 {/* Content */}
-                <div className="px-4 py-4">
+                <div className="px-4 py-4 flex-1 overflow-y-auto min-h-0">
                   <div className="space-y-3">
                     {rejectReasons.map((reason) => (
                       <button
