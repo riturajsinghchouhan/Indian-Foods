@@ -509,6 +509,30 @@ export default function OrderTracking() {
   const [isUpdatingInstructions, setIsUpdatingInstructions] = useState(false)
   const [resolvedLookupId, setResolvedLookupId] = useState("")
   const [timerNow, setTimerNow] = useState(Date.now())
+  const [cancelSecondsRemaining, setCancelSecondsRemaining] = useState(0)
+
+  useEffect(() => {
+    if (!order?.createdAt) return;
+    
+    const calculateRemaining = () => {
+      const createdTime = new Date(order.createdAt).getTime();
+      const now = Date.now();
+      const diffInSeconds = Math.floor((65000 - (now - createdTime)) / 1000); // 65 second window matching backend
+      return Math.max(0, diffInSeconds);
+    };
+
+    setCancelSecondsRemaining(calculateRemaining());
+
+    const timer = setInterval(() => {
+      const remaining = calculateRemaining();
+      setCancelSecondsRemaining(remaining);
+      if (remaining <= 0) {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [order?.createdAt]);
   
   // Rating states
   const [showRatingModal, setShowRatingModal] = useState(false)
@@ -2015,7 +2039,7 @@ export default function OrderTracking() {
           </div>
         </motion.div>
 
-        {!isAdminAccepted && orderStatus !== 'cancelled' && orderStatus !== 'delivered' && (
+        {cancelSecondsRemaining > 0 && orderStatus !== 'cancelled' && orderStatus !== 'delivered' && orderStatus !== 'picked_up' && (
           <motion.div
             className="flex flex-col gap-3"
             initial={{ opacity: 0, y: 20 }}
@@ -2027,10 +2051,10 @@ export default function OrderTracking() {
               className="w-full text-red-600 border-red-100 hover:bg-red-50 h-12 rounded-xl font-semibold"
               onClick={handleCancelOrder}
             >
-              Cancel Order
+              Cancel Order ({cancelSecondsRemaining}s)
             </Button>
             <p className="text-[10px] text-gray-400 text-center px-4">
-              You can cancel your order until the restaurant accepts it.
+              You can cancel your order for free within the next {cancelSecondsRemaining} seconds.
             </p>
           </motion.div>
         )}

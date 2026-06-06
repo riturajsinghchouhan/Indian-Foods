@@ -28,6 +28,7 @@ const feeSettingsSchema = new mongoose.Schema(
         globalGstOnCommission: { type: Number, min: 0, max: 100, default: 18 },
         globalPaymentGatewayFee: { type: Number, min: 0, max: 100, default: 2 },
         globalTcs: { type: Number, min: 0, max: 100, default: 1 },
+        applyGlobalTaxes: { type: Boolean, default: true },
         isActive: { type: Boolean, default: true, index: true }
     },
     { collection: 'food_fee_settings', timestamps: true }

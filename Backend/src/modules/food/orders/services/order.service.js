@@ -750,8 +750,16 @@ export async function cancelOrder(orderId, userId, reason, refundDestination = "
   if (!order) throw new NotFoundError("Order not found");
 
   const allowed = ["created"];
-  if (!allowed.includes(order.orderStatus))
-    throw new ValidationError("Order cannot be cancelled");
+  const timeSinceCreation = Date.now() - new Date(order.createdAt).getTime();
+  const isWithin60Seconds = timeSinceCreation <= 65000; // 65 seconds grace period
+  
+  if (!allowed.includes(order.orderStatus) && !isWithin60Seconds) {
+    throw new ValidationError("Order cannot be cancelled after 60 seconds");
+  }
+  
+  if (["delivered", "picked_up", "cancelled_by_user", "cancelled_by_restaurant"].includes(order.orderStatus)) {
+      throw new ValidationError("Order cannot be cancelled in its current state");
+  }
 
   const from = order.orderStatus;
   order.orderStatus = "cancelled_by_user";
@@ -896,7 +904,7 @@ export async function cancelOrder(orderId, userId, reason, refundDestination = "
     ],
     {
       title: "Order Cancelled ❌",
-      body: `Order #${order.order_id || order._id} has been cancelled successfully.${refundDetail}`,
+      body: `Order #${order.order_id || order._id} has been cancelled by the customer. Reason: ${reason || "No reason provided"}.${refundDetail}`,
       image: "https://i.ibb.co/3m2Yh7r/Appzeto-Brand-Image.png",
       data: {
         type: "order_cancelled",
@@ -914,10 +922,25 @@ export async function cancelOrder(orderId, userId, reason, refundDestination = "
         orderMongoId: order._id?.toString?.(),
         orderId: order._id.toString(),
         orderStatus: order.orderStatus,
-        message: `Order #${order.order_id || order._id} has been cancelled successfully.${refundDetail}`
+        message: `Order #${order.order_id || order._id} has been cancelled by the customer. Reason: ${reason || "No reason provided"}.${refundDetail}`
       };
       io.to(rooms.user(userId)).emit("order_status_update", payload);
       io.to(rooms.restaurant(order.restaurantId)).emit("order_status_update", payload);
+      
+      const assignedRiderId = order.dispatch?.deliveryPartnerId;
+      if (assignedRiderId) {
+          io.to(rooms.delivery(assignedRiderId)).emit("order_status_update", payload);
+      } else if (Array.isArray(order.dispatch?.offeredTo)) {
+          // If cancelled before a rider accepts it, dismiss the popup for everyone it was offered to
+          const claimedPayload = {
+            orderId: order._id.toString(),
+            orderMongoId: order._id?.toString?.(),
+            claimedBy: 'cancelled',
+          };
+          for (const offer of order.dispatch.offeredTo) {
+            io.to(rooms.delivery(offer.partnerId)).emit('order_claimed', claimedPayload);
+          }
+      }
     }
   } catch (err) {
     logger.warn(`cancelOrder socket emit failed: ${err?.message || err}`);

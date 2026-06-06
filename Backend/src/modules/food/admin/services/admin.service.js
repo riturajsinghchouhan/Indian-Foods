@@ -1653,7 +1653,8 @@ export async function getRestaurantCommissionBootstrap() {
             globalRestaurantCommission: feeSettings.globalRestaurantCommission || 0,
             globalGstOnCommission: feeSettings.globalGstOnCommission || 0,
             globalPaymentGatewayFee: feeSettings.globalPaymentGatewayFee || 0,
-            globalTcs: feeSettings.globalTcs || 0
+            globalTcs: feeSettings.globalTcs || 0,
+            applyGlobalTaxes: feeSettings.applyGlobalTaxes !== false
         }
     };
 }
@@ -1706,7 +1707,7 @@ export async function deleteRestaurantCommission(id) {
 }
 
 export async function updateGlobalRestaurantCommissionSettings(body) {
-    const { globalRestaurantCommission, globalGstOnCommission, globalPaymentGatewayFee, globalTcs } = body;
+    const { globalRestaurantCommission, globalGstOnCommission, globalPaymentGatewayFee, globalTcs, applyGlobalTaxes } = body;
     let settings = await FoodFeeSettings.findOne({ isActive: true }).sort({ createdAt: -1 });
     if (!settings) {
         settings = new FoodFeeSettings();
@@ -1716,13 +1717,15 @@ export async function updateGlobalRestaurantCommissionSettings(body) {
     if (globalGstOnCommission !== undefined) settings.globalGstOnCommission = Number(globalGstOnCommission);
     if (globalPaymentGatewayFee !== undefined) settings.globalPaymentGatewayFee = Number(globalPaymentGatewayFee);
     if (globalTcs !== undefined) settings.globalTcs = Number(globalTcs);
+    if (applyGlobalTaxes !== undefined) settings.applyGlobalTaxes = Boolean(applyGlobalTaxes);
     
     await settings.save();
     return {
         globalRestaurantCommission: settings.globalRestaurantCommission,
         globalGstOnCommission: settings.globalGstOnCommission,
         globalPaymentGatewayFee: settings.globalPaymentGatewayFee,
-        globalTcs: settings.globalTcs
+        globalTcs: settings.globalTcs,
+        applyGlobalTaxes: settings.applyGlobalTaxes
     };
 }
 

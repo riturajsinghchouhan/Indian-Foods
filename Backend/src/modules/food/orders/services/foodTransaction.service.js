@@ -94,9 +94,11 @@ export async function getRestaurantCommissionSnapshot(orderDoc) {
 
   const globalSettings = await FoodFeeSettings.findOne({ isActive: true }).sort({ createdAt: -1 }).lean() || {};
   
-  const gstOnCommission = Number(globalSettings.globalGstOnCommission) || 0;
-  const pgFee = Number(globalSettings.globalPaymentGatewayFee) || 0;
-  const tcs = Number(globalSettings.globalTcs) || 0;
+  const applyTaxes = globalSettings.applyGlobalTaxes !== false;
+  
+  const gstOnCommission = applyTaxes ? (Number(globalSettings.globalGstOnCommission) || 0) : 0;
+  const pgFee = applyTaxes ? (Number(globalSettings.globalPaymentGatewayFee) || 0) : 0;
+  const tcs = applyTaxes ? (Number(globalSettings.globalTcs) || 0) : 0;
 
   const totalPaid = Number(orderDoc?.pricing?.total) || 0;
   

@@ -27,7 +27,8 @@ export default function RestaurantCommission() {
     globalRestaurantCommission: 0,
     globalGstOnCommission: 18,
     globalPaymentGatewayFee: 2,
-    globalTcs: 1
+    globalTcs: 1,
+    applyGlobalTaxes: true
   })
   const [isRestaurantSelectOpen, setIsRestaurantSelectOpen] = useState(false)
   const [selectedCommission, setSelectedCommission] = useState(null)
@@ -95,7 +96,8 @@ export default function RestaurantCommission() {
           globalRestaurantCommission: data.globalSettings.globalRestaurantCommission || 0,
           globalGstOnCommission: data.globalSettings.globalGstOnCommission || 0,
           globalPaymentGatewayFee: data.globalSettings.globalPaymentGatewayFee || 0,
-          globalTcs: data.globalSettings.globalTcs || 0
+          globalTcs: data.globalSettings.globalTcs || 0,
+          applyGlobalTaxes: data.globalSettings.applyGlobalTaxes !== false
         })
       }
     } catch (error) {
@@ -197,6 +199,7 @@ export default function RestaurantCommission() {
         globalGstOnCommission: Number(globalSettings.globalGstOnCommission),
         globalPaymentGatewayFee: Number(globalSettings.globalPaymentGatewayFee),
         globalTcs: Number(globalSettings.globalTcs),
+        applyGlobalTaxes: Boolean(globalSettings.applyGlobalTaxes)
       })
       toast.success('Global settings updated successfully')
     } catch (error) {
@@ -399,11 +402,29 @@ export default function RestaurantCommission() {
 
           {/* Global Configurations Section */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-6">
-            <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <Percent className="w-4 h-4 text-blue-600" />
-              Global Settings (Applied to all restaurants)
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <Percent className="w-4 h-4 text-blue-600" />
+                Global Settings (Applied to all restaurants)
+              </h2>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-slate-700">Apply Taxes</span>
+                <button
+                  onClick={() => setGlobalSettings({ ...globalSettings, applyGlobalTaxes: !globalSettings.applyGlobalTaxes })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    globalSettings.applyGlobalTaxes ? "bg-blue-600" : "bg-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      globalSettings.applyGlobalTaxes ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+            
+            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 transition-opacity ${!globalSettings.applyGlobalTaxes ? 'opacity-50 pointer-events-none' : ''}`}>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Global Default Commission (%)</label>
                 <div className="relative">
