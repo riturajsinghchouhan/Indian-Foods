@@ -52,6 +52,10 @@ export const extractImages = (source, backendOrigin = "") => {
   const normalize = (val) => {
     if (!val) return "";
     if (typeof val === "string") return normalizeImageUrl(val, backendOrigin);
+    if (Array.isArray(val)) {
+      if (val.length === 0) return "";
+      return normalize(val[0]);
+    }
     if (typeof val === "object") {
       const src = val.url || val.secure_url || val.imageUrl || val.image || val.src || "";
       return typeof src === "string" ? normalizeImageUrl(src, backendOrigin) : "";

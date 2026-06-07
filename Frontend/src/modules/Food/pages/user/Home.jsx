@@ -576,6 +576,8 @@ const RestaurantImageCarousel = React.memo(
 
 const homePageCache = {
   effectiveZoneId: null,
+  lat: null,
+  lng: null,
   landingExploreMore: null,
   exploreMoreHeading: null,
   recommendedRestaurantIds: null,
@@ -1656,7 +1658,10 @@ export default function Home() {
       const isDefaultFetch = Object.keys(filters).length === 0 ||
         (!filters.sortBy && !filters.selectedCuisine && (!filters.activeFilters || filters.activeFilters.size === 0));
 
-      if (isDefaultFetch && homePageCache.restaurantsData && homePageCache.effectiveZoneId === effectiveZoneId) {
+      const isLocationSame = homePageCache.lat === effectiveLocation?.latitude && 
+                             homePageCache.lng === effectiveLocation?.longitude;
+
+      if (isDefaultFetch && homePageCache.restaurantsData && homePageCache.effectiveZoneId === effectiveZoneId && isLocationSame) {
         setLoadingRestaurants(false);
         return;
       }
@@ -1710,6 +1715,8 @@ export default function Home() {
           params.radiusKm = 1.0;
         } else if (filters.activeFilters?.has("distance-under-2km")) {
           params.radiusKm = 2.0;
+        } else {
+          params.radiusKm = 15.0;
         }
 
         // Price filters
@@ -2028,6 +2035,8 @@ export default function Home() {
             if (isDefaultFetch) {
               homePageCache.restaurantsData = finalSorted;
               homePageCache.effectiveZoneId = effectiveZoneId;
+              homePageCache.lat = effectiveLocation?.latitude;
+              homePageCache.lng = effectiveLocation?.longitude;
             }
           });
 

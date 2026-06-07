@@ -350,6 +350,32 @@ export default function Under250() {
   const touchEndYRef = useRef(0)
   const isBannerSwipingRef = useRef(false)
 
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+  const lastScrollYRef = useRef(0)
+
+  useEffect(() => {
+    let scrollTimeout = null
+    const handleScroll = () => {
+      if (scrollTimeout) return
+      scrollTimeout = setTimeout(() => {
+        const currentScrollY = window.scrollY
+        if (currentScrollY > lastScrollYRef.current && currentScrollY > 100) {
+          setIsHeaderVisible(false)
+        } else if (currentScrollY < lastScrollYRef.current) {
+          setIsHeaderVisible(true)
+        }
+        lastScrollYRef.current = currentScrollY
+        scrollTimeout = null
+      }, 50)
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+      if (scrollTimeout) clearTimeout(scrollTimeout)
+    }
+  }, [])
+
   const sortOptions = [
     { id: null, label: 'Relevance' },
     { id: 'rating-high', label: 'Rating: High to Low' },
@@ -686,12 +712,7 @@ export default function Under250() {
           return;
         }
 
-        // Mark as fetched immediately to avoid double fetching
-        newRestaurantsToFetch.forEach(r => {
-           fetchedIdsRef.current.add(String(r?.restaurantId || r?._id))
-        })
-
-        if (under250Restaurants.length > 0 && !cancelled) {
+        if (!cancelled) {
           setLoadingMore(true)
         }
 
@@ -792,6 +813,12 @@ export default function Under250() {
 
         if (!cancelled) {
           const validNewRestaurants = newRestaurantsWithUnder250Dishes.filter(Boolean)
+          
+          // Mark IDs as fetched ONLY after successful completion (not before async call)
+          // This prevents React StrictMode double-mount from skipping restaurants
+          newRestaurantsToFetch.forEach(r => {
+             fetchedIdsRef.current.add(String(r?.restaurantId || r?._id))
+          })
           
           setUnder250Restaurants(prev => {
              const updated = [...prev, ...validNewRestaurants];
@@ -1227,7 +1254,7 @@ export default function Under250() {
       )}
       <div
         ref={stickyHeaderRef}
-        className={`fixed top-0 left-0 right-0 z-40 w-full md:hidden transition-all duration-300 bg-white/60 dark:bg-black/60 backdrop-blur-xl shadow-sm border-b border-white/20 dark:border-white/10`}
+        className={`absolute top-0 left-0 right-0 z-40 w-full md:hidden bg-white/95 dark:bg-black/95 backdrop-blur-xl shadow-sm border-b border-gray-100 dark:border-white/10`}
       >
         <div className="relative z-50 pt-1 pb-1 px-2">
           <PageNavbar textColor="black" zIndex={20} showProfile={false} showLogo={true} />
@@ -1292,11 +1319,12 @@ export default function Under250() {
       </div>
 
       {/* Content Section */}
-      <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 space-y-0 pt-2 sm:pt-3 md:pt-4 lg:pt-6 pb-6 md:pb-8 lg:pb-10">
+      <div className="relative max-w-7xl mx-auto space-y-0 pb-6 md:pb-8 lg:pb-10">
 
-        <section className="space-y-1 sm:space-y-1.5">
+        <div className={`sticky z-30 transition-all duration-300 bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-xl shadow-sm border-b border-gray-100 dark:border-gray-800 top-0 pt-2 sm:pt-3 md:pt-4 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12`}>
+          <section className="space-y-1 sm:space-y-1.5">
           <div
-            className="flex gap-3 sm:gap-4 md:gap-5 lg:gap-6 overflow-x-auto md:overflow-x-visible overflow-y-visible scrollbar-hide scroll-smooth px-2 sm:px-3 py-2 sm:py-3 md:py-4"
+            className="flex gap-3 sm:gap-4 md:gap-5 lg:gap-6 overflow-x-auto md:overflow-x-visible overflow-y-visible scrollbar-hide scroll-smooth px-2 sm:px-3 pt-1 pb-1 sm:pt-2 sm:pb-2 md:pt-3 md:pb-3"
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none",
@@ -1307,14 +1335,14 @@ export default function Under250() {
             {/* All Button */}
             <div className="flex-shrink-0 cursor-pointer" onClick={() => handleCategorySwitch(null)}>
               <motion.div
-                className="flex flex-col items-center gap-2 w-[62px] sm:w-24 md:w-28"
+                className="flex flex-col items-center gap-2 w-[72px] sm:w-20 md:w-24"
                 whileHover={{ scale: 1.1, y: -4 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
-                <div className={`w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-md transition-all flex items-center justify-center bg-white ${!activeCategory ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+                <div className={`w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-md transition-all flex items-center justify-center bg-white ${!activeCategory ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
                    <div className={`w-full h-full flex items-center justify-center ${!activeCategory ? 'bg-primary/10 text-primary' : 'bg-gray-50 text-gray-400'}`}>
-                      <UtensilsCrossed className="w-6 h-6 sm:w-10 sm:h-10 md:w-12 md:h-12" />
+                      <UtensilsCrossed className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10" />
                    </div>
                 </div>
                 <span className={`text-xs sm:text-sm md:text-base font-semibold text-gray-800 dark:text-gray-200 text-center pb-1 ${!activeCategory ? 'text-primary' : ''}`}>
@@ -1325,9 +1353,9 @@ export default function Under250() {
             {loadingCategories ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <div key={`skel-cat-${i}`} className="flex-shrink-0">
-                  <div className="flex flex-col items-center gap-2 w-[62px] sm:w-24 md:w-28">
-                    <div className="w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full shadow-md bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
-                    <div className="h-3 sm:h-4 w-12 sm:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse pb-1"></div>
+                  <div className="flex flex-col items-center gap-2 w-[72px] sm:w-20 md:w-24">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full shadow-md bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+                    <div className="h-3 sm:h-4 w-14 sm:w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse pb-1"></div>
                   </div>
                 </div>
               ))
@@ -1337,18 +1365,18 @@ export default function Under250() {
                 return (
                   <div key={category.id} className="flex-shrink-0 cursor-pointer" onClick={() => handleCategorySwitch(isActive ? null : category.id)}>
                       <motion.div
-                        className="flex flex-col items-center gap-2 w-[62px] sm:w-24 md:w-28"
+                        className="flex flex-col items-center gap-2 w-[72px] sm:w-20 md:w-24"
                         whileHover={{ scale: 1.1, y: -4 }}
                         whileTap={{ scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 300, damping: 20 }}
                       >
-                        <div className={`w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-md transition-all ${isActive ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+                        <div className={`w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-md transition-all ${isActive ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
                           <OptimizedImage
                             src={category.image}
                             alt={category.name}
                             className="w-full h-full bg-white rounded-full"
                             objectFit="cover"
-                            sizes="(max-width: 640px) 62px, (max-width: 768px) 96px, 112px"
+                            sizes="(max-width: 640px) 72px, (max-width: 768px) 80px, 96px"
                             placeholder="blur"
                           />
                         </div>
@@ -1362,8 +1390,11 @@ export default function Under250() {
             )}
           </div>
         </section>
+        </div>
 
-        <section className="py-2 sm:py-3 md:py-4">
+        {/* Filters Section (Not Sticky) */}
+        <div className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 pt-1 md:pt-2">
+          <section className="py-2 sm:py-3 md:py-4">
           <div className="flex items-center gap-2 md:gap-3">
             <Button
               variant="outline"
@@ -1388,10 +1419,11 @@ export default function Under250() {
               <span className="text-xs sm:text-sm md:text-base font-medium">Under 30 mins</span>
             </Button>
           </div>
-        </section>
-
+          </section>
+        </div>
 
         {/* Restaurant Menu Sections */}
+        <div className="px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 pt-4">
         {loadingRestaurants || isSwitchingCategory ? (
           <div className="space-y-8 sm:space-y-10 md:space-y-12">
             {Array.from({ length: 3 }).map((_, rIndex) => (
@@ -1495,6 +1527,7 @@ export default function Under250() {
               </section>
             )
           }))}
+        </div>
       </div>
 
       {/* Infinite Scroll Elements */}

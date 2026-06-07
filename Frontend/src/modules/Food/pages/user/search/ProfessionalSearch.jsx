@@ -16,6 +16,7 @@ import { createPortal } from "react-dom"
 import OptimizedImage from "@food/components/OptimizedImage"
 import { useVoiceSearch } from "@food/hooks/useVoiceSearch"
 import PremiumLoader from "./PremiumLoader"
+import { calculateDistance } from "@food/utils/common"
 
 // Simple in-memory session cache to provide instant loads on re-visits
 const sessionSearchCache = new Map();
@@ -418,7 +419,10 @@ export default function ProfessionalSearch() {
                             <span className="text-gray-200">•</span>
                             <div className="flex items-center gap-1.5">
                                <MapPin className="w-3.5 h-3.5 text-primary" />
-                               {r.location?.area || "Nearby"}
+                               {userCoords?.latitude && r.location?.coordinates ? 
+                                 `${calculateDistance(userCoords.latitude, userCoords.longitude, r.location.coordinates[1], r.location.coordinates[0]).toFixed(1)} km` 
+                                 : (r.location?.area || "Nearby")
+                               }
                             </div>
                          </div>
                          <div className="text-[10px] font-black text-white bg-gradient-to-r from-primary to-[#a05485] px-3 py-1.5 rounded-full uppercase tracking-widest shadow-lg shadow-primary/20">

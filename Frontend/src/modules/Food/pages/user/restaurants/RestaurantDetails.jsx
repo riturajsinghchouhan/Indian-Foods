@@ -73,20 +73,37 @@ const RESTAURANT_DETAILS_FILTERS_STORAGE_KEY = "food-restaurant-details-filters"
 
 const DishImage = ({ src, alt, className = "" }) => {
   const [failed, setFailed] = useState(false)
-  if (src && !failed) {
+  const [loaded, setLoaded] = useState(false)
+
+  if (!src || failed) {
     return (
+      <div className={`w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 ${className}`}>
+        <span className="text-xs text-gray-400">No image</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`relative w-full h-full ${className}`}>
+      {/* Placeholder / Skeleton */}
+      {!loaded && (
+        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse flex items-center justify-center">
+          <Utensils className="h-6 w-6 text-gray-400 dark:text-gray-500 opacity-50" />
+        </div>
+      )}
+      
+      {/* Actual Image */}
       <img
         src={src}
         alt={alt}
         loading="lazy"
-        className={className}
-        onError={() => setFailed(true)}
+        className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          setFailed(true)
+          setLoaded(true)
+        }}
       />
-    )
-  }
-  return (
-    <div className="w-full h-full flex items-center justify-center">
-      <span className="text-xs text-gray-400">No image</span>
     </div>
   )
 }
@@ -915,10 +932,16 @@ function RestaurantDetailsContent() {
 
                 setMenuUnavailable(!menuHasItems)
 
-                // Set first 3 sections (Recommended, Starters, Main Course) as expanded by default
-                const defaultExpandedSections = new Set(
-                  Array.from({ length: Math.min(3, finalMenuSections.length) }, (_, idx) => idx)
-                )
+                // Set all sections and subsections as expanded by default
+                const defaultExpandedSections = new Set()
+                finalMenuSections.forEach((section, originalIndex) => {
+                  defaultExpandedSections.add(originalIndex)
+                  if (section.subsections && Array.isArray(section.subsections)) {
+                    section.subsections.forEach((_, subIndex) => {
+                      defaultExpandedSections.add(`${originalIndex}-${subIndex}`)
+                    })
+                  }
+                })
                 setExpandedSections(defaultExpandedSections)
 
                 debugLog('Fetched menu sections with recommended items:', finalMenuSections)
@@ -2005,18 +2028,21 @@ function RestaurantDetailsContent() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [totalFilteredItems])
 
+
+
   useEffect(() => {
     if (!hasActiveMenuFilters) return
 
-    const nextExpanded = new Set()
-    filteredSections.forEach(({ section, originalIndex }) => {
-      nextExpanded.add(originalIndex)
-      toRenderableArray(section?.subsections).forEach((_, subIndex) => {
-        nextExpanded.add(`${originalIndex}-${subIndex}`)
+    setExpandedSections(prev => {
+      const nextExpanded = new Set(prev)
+      filteredSections.forEach(({ section, originalIndex }) => {
+        nextExpanded.add(originalIndex)
+        toRenderableArray(section?.subsections).forEach((_, subIndex) => {
+          nextExpanded.add(`${originalIndex}-${subIndex}`)
+        })
       })
+      return nextExpanded
     })
-
-    setExpandedSections(nextExpanded)
   }, [filteredSections, hasActiveMenuFilters])
 
   useEffect(() => {

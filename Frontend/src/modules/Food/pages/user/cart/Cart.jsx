@@ -2889,6 +2889,16 @@ export default function Cart() {
                 )}
               </div>
 
+              {/* Cancellation Policy */}
+              <div className="bg-gray-50 dark:bg-[#1a1a1a]/30 px-4 md:px-6 py-4 rounded-2xl text-left">
+                <h3 className="text-[15px] font-bold text-gray-400 dark:text-gray-500 mb-0.5 tracking-tight">
+                  Cancellation policy:
+                </h3>
+                <p className="text-[13px] text-gray-400 dark:text-gray-500 leading-snug tracking-tight">
+                  Please double-check your order and address details.<br />
+                  Orders are non-refundable once placed.
+                </p>
+              </div>
             </div>
           </div>
         </div>
