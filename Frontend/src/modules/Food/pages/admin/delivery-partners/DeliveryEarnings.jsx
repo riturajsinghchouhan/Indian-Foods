@@ -134,9 +134,9 @@ export default function DeliveryEarnings() {
       deliveryPartnerPhone: earning.deliveryPartnerPhone || 'N/A',
       orderId: earning.orderId || 'N/A',
       restaurantName: earning.restaurantName || 'N/A',
-      amount: formatCurrency(earning.amount),
-      orderTotal: formatCurrency(earning.orderTotal),
-      deliveryFee: formatCurrency(earning.deliveryFee),
+      amount: Number(earning.amount || 0).toFixed(2),
+      orderTotal: Number(earning.orderTotal || 0).toFixed(2),
+      deliveryFee: Number(earning.deliveryFee || 0).toFixed(2),
       orderStatus: earning.orderStatus || 'N/A',
       createdAt: formatDate(earning.createdAt)
     }))
@@ -147,7 +147,7 @@ export default function DeliveryEarnings() {
           headers.map(h => h.label).join(","),
           ...data.map(row => headers.map(h => `"${row[h.key] || ''}"`).join(","))
         ].join("\n")
-        const csvBlob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+        const csvBlob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" })
         const csvLink = document.createElement("a")
         csvLink.href = URL.createObjectURL(csvBlob)
         csvLink.download = `delivery_earnings_${new Date().toISOString().split('T')[0]}.csv`

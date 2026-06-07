@@ -2408,12 +2408,14 @@ export async function updateRestaurantMenuById(id, menu) {
 export async function getPendingRestaurants() {
     const restaurants = await FoodRestaurant.find({ status: { $in: ['pending', 'rejected'] } })
         .populate('zoneId', 'name zoneName')
+        .populate('previousZoneId', 'name zoneName')
         .sort({ createdAt: -1 })
         .lean();
     return restaurants.map((r, i) => ({
         ...r,
         sl: i + 1,
         zone: r.zoneId?.zoneName || r.zoneId?.name || null,
+        previousZone: r.previousZoneId?.zoneName || r.previousZoneId?.name || null,
     }));
 }
 
@@ -3444,9 +3446,12 @@ export async function approveRestaurant(id) {
             $set: {
                 status: 'approved',
                 approvedAt: new Date(),
-                rejectedAt: undefined,
-                rejectionReason: undefined,
-                pendingUpdateReason: undefined
+            },
+            $unset: {
+                rejectedAt: "",
+                rejectionReason: "",
+                pendingUpdateReason: "",
+                previousZoneId: ""
             }
         },
         { new: true, runValidators: false }
@@ -3484,7 +3489,10 @@ export async function rejectRestaurant(id, reason) {
                 rejectedAt: new Date(),
                 rejectionReason: typeof reason === 'string' ? reason.trim() : undefined,
                 approvedAt: null,
-                pendingUpdateReason: undefined
+            },
+            $unset: {
+                pendingUpdateReason: "",
+                previousZoneId: ""
             }
         },
         { new: true, runValidators: false }

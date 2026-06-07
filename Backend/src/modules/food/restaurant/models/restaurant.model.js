@@ -204,6 +204,10 @@ const restaurantSchema = new mongoose.Schema(
       ref: "FoodZone",
       index: true,
     },
+    previousZoneId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FoodZone",
+    },
     businessModel: {
       type: String,
       trim: true,

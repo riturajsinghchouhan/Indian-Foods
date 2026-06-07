@@ -748,7 +748,23 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                 onClick={async () => {
                   const nextState = !isOnline;
                   if (nextState) {
-                      setShowPhotoModal(true);
+                      if (!navigator.geolocation) {
+                          toast.error("Geolocation is not supported by your browser.");
+                          return;
+                      }
+                      
+                      // Show a small loading state if needed, but since it's fast we just request
+                      navigator.geolocation.getCurrentPosition(
+                        () => {
+                            // GPS is enabled and accessible
+                            setShowPhotoModal(true);
+                        },
+                        (err) => {
+                            // GPS is blocked or disabled
+                            toast.error("Please enable your GPS for current location");
+                        },
+                        { timeout: 10000, enableHighAccuracy: true }
+                      );
                   } else {
                       toggleOnline(); // Store action
                       deliveryAPI.updateOnlineStatus(false).catch(() => {});

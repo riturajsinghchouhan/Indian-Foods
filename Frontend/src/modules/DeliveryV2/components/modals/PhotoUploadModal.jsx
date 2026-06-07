@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, MapPin, X, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function PhotoUploadModal({ isOpen, onClose, onUpload }) {
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -74,8 +75,8 @@ export function PhotoUploadModal({ isOpen, onClose, onUpload }) {
             } else {
               setFaceDetected(false);
               setDetecting(true);
-              requestAnimationFrame(checkFace);
             }
+            requestAnimationFrame(checkFace);
           } catch (e) {
             fallbackFaceDetection();
           }
@@ -130,20 +131,38 @@ export function PhotoUploadModal({ isOpen, onClose, onUpload }) {
         }
       } else {
         const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`);
-        const data = await res.json();
-        if (data.results && data.results[0]) {
-          return data.results[0].formatted_address;
+        if (apiKey) {
+          const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`);
+          const data = await res.json();
+          if (data.results && data.results[0]) {
+            return data.results[0].formatted_address;
+          }
         }
       }
     } catch (err) {
       console.error("Geocoding failed:", err);
     }
-    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`; // fallback
+    
+    // Fallback to OpenStreetMap (Nominatim) if Google Maps fails or key is invalid
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+      const data = await res.json();
+      if (data && data.display_name) {
+        return data.display_name;
+      }
+    } catch (osmErr) {
+      console.error("Geocoding with OSM failed:", osmErr);
+    }
+    
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`; // Final fallback
   };
 
   const capturePhoto = async () => {
-    if (!videoRef.current || !faceDetected) return;
+    if (!videoRef.current) return;
+    if (!faceDetected) {
+      toast.error("Please align your face. Only a proper, uncovered face should be visible in the selfie.");
+      return;
+    }
 
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
@@ -263,10 +282,9 @@ export function PhotoUploadModal({ isOpen, onClose, onUpload }) {
               {/* Capture Button */}
               <button
                 onClick={capturePhoto}
-                disabled={!faceDetected}
-                className={`mt-6 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${faceDetected ? 'bg-blue-600 hover:bg-blue-700 active:scale-95' : 'bg-gray-200 cursor-not-allowed'}`}
+                className={`mt-6 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${faceDetected ? 'bg-blue-600 hover:bg-blue-700 active:scale-95' : 'bg-gray-200 hover:bg-gray-300 active:scale-95'}`}
               >
-                <Camera className={`w-7 h-7 ${faceDetected ? 'text-white' : 'text-gray-400'}`} />
+                <Camera className={`w-7 h-7 ${faceDetected ? 'text-white' : 'text-gray-500'}`} />
               </button>
             </div>
           ) : (

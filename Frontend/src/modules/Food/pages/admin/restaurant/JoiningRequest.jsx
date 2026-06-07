@@ -861,14 +861,26 @@ export default function JoiningRequest() {
                             </div>
                           ) : null
                         })()}
-                        {(r?.zoneId || r?.zone) && (
+                        {(r?.zoneId || r?.zone || r?.previousZoneId || r?.previousZone) && (
                           <div className="flex items-start gap-3 mt-3">
                             <Map className="w-5 h-5 text-slate-400 mt-0.5" />
                             <div>
                               <p className="text-xs text-slate-500">Service Zone</p>
-                              <p className="text-sm font-medium text-slate-900">
-                                {r?.zoneId?.name || r?.zoneId?.zoneName || r?.zone || "Assigned"}
-                              </p>
+                              <div className="text-sm font-medium text-slate-900">
+                                {r?.previousZoneId || r?.previousZone ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="line-through text-slate-500">
+                                      {r?.previousZoneId?.name || r?.previousZoneId?.zoneName || r?.previousZone || "Unassigned"}
+                                    </span>
+                                    <span className="text-slate-400">→</span>
+                                    <span className="text-blue-600">
+                                      {r?.zoneId?.name || r?.zoneId?.zoneName || r?.zone || "Assigned"}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  r?.zoneId?.name || r?.zoneId?.zoneName || r?.zone || "Assigned"
+                                )}
+                              </div>
                             </div>
                           </div>
                         )}

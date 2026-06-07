@@ -3,7 +3,10 @@ import { downloadFile } from "@/shared/utils/downloadUtils"
 export const exportReportsToCSV = (data, headers, filename = "report") => {
   const rows = data.map((item, index) => {
     return headers.map(header => {
-      const value = item[header.key] || item[header] || ""
+      let value = item[header.key] || item[header] || ""
+      if (typeof value === 'string') {
+        value = value.replace(/[₹\u20B9]/g, '').trim()
+      }
       return typeof value === 'object' ? JSON.stringify(value) : value
     })
   })
@@ -14,7 +17,7 @@ export const exportReportsToCSV = (data, headers, filename = "report") => {
     ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
   ].join("\n")
   
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" })
   const link = document.createElement("a")
   const url = URL.createObjectURL(blob)
   link.setAttribute("href", url)
@@ -28,7 +31,10 @@ export const exportReportsToCSV = (data, headers, filename = "report") => {
 export const exportReportsToExcel = (data, headers, filename = "report") => {
   const rows = data.map((item) => {
     return headers.map(header => {
-      const value = item[header.key] || item[header] || ""
+      let value = item[header.key] || item[header] || ""
+      if (typeof value === 'string') {
+        value = value.replace(/[₹\u20B9]/g, '').trim()
+      }
       return typeof value === 'object' ? JSON.stringify(value) : value
     })
   })
@@ -39,7 +45,7 @@ export const exportReportsToExcel = (data, headers, filename = "report") => {
     ...rows.map(row => row.join("\t"))
   ].join("\n")
   
-  const blob = new Blob([csvContent], { type: "application/vnd.ms-excel" })
+  const blob = new Blob(["\uFEFF" + csvContent], { type: "application/vnd.ms-excel" })
   const link = document.createElement("a")
   const url = URL.createObjectURL(blob)
   link.setAttribute("href", url)

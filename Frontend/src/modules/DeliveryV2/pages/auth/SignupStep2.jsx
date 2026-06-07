@@ -186,9 +186,9 @@ export default function SignupStep2() {
     }
     return createEmptyUploadedDocs()
   })
-  const [activePicker, setActivePicker] = useState(null) // { docType: string, title: string, ref: any }
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploading, setUploading] = useState({})
+  const [isSuccess, setIsSuccess] = useState(false)
 
   // Hydrate files from IndexedDB on load
   useEffect(() => {
@@ -374,14 +374,8 @@ export default function SignupStep2() {
         sessionStorage.removeItem("deliverySignupDetails")
         sessionStorage.removeItem("deliverySignupDocs")
         await clearAllFilesFromDB()
-        if (isCompleteProfile) {
-          sessionStorage.removeItem("deliveryNeedsRegistration")
-          toast.success("Registration successful. Please login with OTP.")
-          setTimeout(() => navigate("/food/delivery/login", { replace: true }), 1500)
-        } else {
-          toast.success("Profile submitted. Waiting for admin approval.")
-          setTimeout(() => navigate("/food/delivery", { replace: true }), 1500)
-        }
+        sessionStorage.removeItem("deliveryNeedsRegistration")
+        setIsSuccess(true)
       }
     } catch (error) {
       debugError("Error submitting registration:", error)
@@ -480,6 +474,28 @@ export default function SignupStep2() {
             />
           </div>
         )}
+      </div>
+    )
+  }
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-xl border border-gray-100">
+          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <Check className="w-10 h-10 text-amber-500" />
+          </div>
+          <h2 className="text-2xl font-black text-gray-900 mb-3 tracking-tight">Profile Under Review</h2>
+          <p className="text-gray-500 font-medium leading-relaxed mb-8">
+            Your profile has been submitted successfully. It is currently under review by the admin. We will notify you once your request is approved.
+          </p>
+          <button
+            onClick={() => navigate("/food/delivery/login", { replace: true })}
+            className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold text-base hover:bg-black transition-all active:scale-95 shadow-lg shadow-gray-900/20"
+          >
+            Back to Login
+          </button>
+        </div>
       </div>
     )
   }

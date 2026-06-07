@@ -193,7 +193,7 @@ export default function SafetyEmergencyReports() {
             </span>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 sm:mt-0 items-stretch sm:items-center flex-wrap lg:flex-nowrap">
             {/* Priority Filter */}
             <select
               value={priorityFilter}
@@ -201,7 +201,7 @@ export default function SafetyEmergencyReports() {
                 setPriorityFilter(e.target.value)
                 setCurrentPage(1)
               }}
-              className="px-4 py-2.5 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+              className="px-4 py-2.5 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 flex-1 sm:flex-none"
             >
               <option value="all">All Priority</option>
               <option value="low">Low</option>
@@ -217,7 +217,7 @@ export default function SafetyEmergencyReports() {
                 setStatusFilter(e.target.value)
                 setCurrentPage(1)
               }}
-              className="px-4 py-2.5 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+              className="px-4 py-2.5 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-400 flex-1 sm:flex-none"
             >
               <option value="all">All Status</option>
               <option value="unread">Unread</option>
@@ -227,7 +227,7 @@ export default function SafetyEmergencyReports() {
             </select>
 
             {/* Search */}
-            <div className="relative flex-1 sm:flex-initial min-w-[250px]">
+            <div className="relative flex-1 sm:w-[280px] lg:w-[350px] w-full">
               <input
                 type="text"
                 placeholder="Ex: Search by name or email"

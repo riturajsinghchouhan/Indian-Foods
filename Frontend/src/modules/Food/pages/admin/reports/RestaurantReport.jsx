@@ -220,7 +220,6 @@ export default function RestaurantReport() {
                 >
                   <option value="All types">All types</option>
                   <option value="Commission">Commission</option>
-                  <option value="Subscription">Subscription</option>
                 </select>
                 <ChevronDown className="absolute right-2 bottom-2.5 w-4 h-4 text-slate-500 pointer-events-none" />
               </div>
@@ -275,11 +274,11 @@ export default function RestaurantReport() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <h2 className="text-xl font-bold text-slate-900">Restaurant Report Table {totalRestaurants}</h2>
 
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 sm:flex-initial min-w-[250px]">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-[320px] lg:w-[400px]">
                 <input
                   type="text"
-                  placeholder="Ex: search restaurant nam"
+                  placeholder="Ex: search restaurant name..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-4 pr-10 py-2.5 w-full text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

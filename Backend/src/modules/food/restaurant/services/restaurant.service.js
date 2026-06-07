@@ -694,7 +694,7 @@ export const updateRestaurantProfile = async (restaurantId, body = {}) => {
     }
 
     const currentRestaurant = await FoodRestaurant.findById(restaurantId)
-        .select('restaurantName restaurantNameNormalized ownerPhone ownerPhoneDigits ownerPhoneLast10 primaryContactNumber status')
+        .select('restaurantName restaurantNameNormalized ownerPhone ownerPhoneDigits ownerPhoneLast10 primaryContactNumber status zoneId')
         .lean();
 
     if (!currentRestaurant) {
@@ -783,9 +783,14 @@ export const updateRestaurantProfile = async (restaurantId, body = {}) => {
 
     if (body.zoneId !== undefined) {
         const zoneId = String(body.zoneId || '').trim();
-        update.zoneId = zoneId && mongoose.Types.ObjectId.isValid(zoneId)
+        const newZoneId = zoneId && mongoose.Types.ObjectId.isValid(zoneId)
             ? new mongoose.Types.ObjectId(zoneId)
             : undefined;
+            
+        if (String(newZoneId) !== String(currentRestaurant.zoneId)) {
+            update.zoneId = newZoneId;
+            update.previousZoneId = currentRestaurant.zoneId;
+        }
     }
 
     // Bank + UPI fields (Explore -> Update Bank Details page)
@@ -1080,7 +1085,8 @@ export const updateRestaurantProfile = async (restaurantId, body = {}) => {
                     'upiQrImage',
                     'estimatedDeliveryTime',
                     'estimatedDeliveryTimeMinutes',
-                    'zoneId'
+                    'zoneId',
+                    'previousZoneId'
                 ].join(' ')
             }
         ).lean();

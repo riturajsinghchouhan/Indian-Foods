@@ -104,8 +104,17 @@ export default function BusinessSetup() {
         toast.error("Email is required");
         return;
       }
-      if (!EMAIL_REGEX.test(formData.email.trim())) {
+      
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(formData.email.trim())) {
         toast.error("Please enter a valid email address");
+        return;
+      }
+      
+      const emailDomain = formData.email.trim().split('@')[1]?.toLowerCase();
+      const invalidDomains = ['gnali.com', 'gmai.com', 'gamil.com', 'gmail.con', 'gmail.comm', 'yahoo.comm', 'yahoo.con', 'hotmal.com', 'hotmail.con'];
+      if (invalidDomains.includes(emailDomain) || emailDomain?.endsWith('.comm')) {
+        toast.error("Invalid email domain. Please check for typos (e.g., gnali.com, .comm).");
         return;
       }
 
@@ -113,9 +122,8 @@ export default function BusinessSetup() {
         toast.error("Phone number is required");
         return;
       }
-      const phoneRegex = /^\d{7,15}$/;
-      if (!phoneRegex.test(formData.phoneNumber.trim())) {
-        toast.error("Please enter a valid phone number (7-15 digits)");
+      if (!/^\d{10}$/.test(formData.phoneNumber.trim())) {
+        toast.error("Phone number must be exactly 10 digits");
         return;
       }
 
@@ -130,6 +138,32 @@ export default function BusinessSetup() {
       }
       if (!/^\d{4,10}$/.test(formData.pincode.trim())) {
         toast.error("Please enter a valid pincode (4-10 digits)");
+        return;
+      }
+      
+      if (formData.supportEmail?.trim()) {
+        const sEmail = formData.supportEmail.trim();
+        if (!emailRegex.test(sEmail)) {
+          toast.error("Please enter a valid support email address");
+          return;
+        }
+        const sDomain = sEmail.split('@')[1]?.toLowerCase();
+        if (invalidDomains.includes(sDomain) || sDomain?.endsWith('.comm')) {
+          toast.error("Invalid support email domain. Please check for typos.");
+          return;
+        }
+      }
+      
+      if (formData.supportPhone?.trim()) {
+        const sPhone = formData.supportPhone.trim().replace(/\D/g, "");
+        if (!/^\d{10}$/.test(sPhone)) {
+          toast.error("Support phone number must be exactly 10 digits");
+          return;
+        }
+      }
+      
+      if (!logoPreview && !logoFile) {
+        toast.error("Company logo picture is required. Please upload a logo.");
         return;
       }
 
@@ -318,7 +352,7 @@ export default function BusinessSetup() {
                     type="text"
                     placeholder="Enter Your Phone Number"
                     value={formData.phoneNumber}
-                    maxLength={15}
+                    maxLength={10}
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, "");
                       handleInputChange("phoneNumber", val);
@@ -394,9 +428,13 @@ export default function BusinessSetup() {
                     </label>
                     <input
                       type="text"
-                      placeholder="+91 1234567890"
+                      placeholder="e.g. 1234567890"
                       value={formData.supportPhone || ""}
-                      onChange={(e) => handleInputChange("supportPhone", e.target.value)}
+                      maxLength={10}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        handleInputChange("supportPhone", val);
+                      }}
                       className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>

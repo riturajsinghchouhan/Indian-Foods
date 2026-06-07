@@ -264,17 +264,17 @@ export default function EarningAddonHistory() {
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 sm:mt-0 items-stretch sm:items-center flex-wrap lg:flex-nowrap">
               <button
                 onClick={handleCheckAllCompletions}
                 disabled={isCheckingCompletions}
-                className="px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+                className="px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center gap-2 transition-all flex-1 sm:flex-none justify-center"
                 title="Check all delivery partners for completed offers"
               >
                 <RefreshCw className={`w-4 h-4 ${isCheckingCompletions ? 'animate-spin' : ''}`} />
                 <span>{isCheckingCompletions ? 'Checking...' : 'Check Completions'}</span>
               </button>
-              <div className="relative flex-1 sm:flex-initial min-w-[250px]">
+              <div className="relative flex-1 w-full sm:w-[280px] lg:w-[350px]">
                 <input
                   type="text"
                   placeholder="Ex: search delivery man or offer"
@@ -610,53 +610,63 @@ export default function EarningAddonHistory() {
 
       {/* Settings Dialog */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-md bg-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
+        <DialogContent className="max-w-md bg-white p-0 border-0 shadow-xl overflow-hidden rounded-xl">
+          <DialogHeader className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
+              <Settings className="w-5 h-5 text-slate-500" />
               Table Settings
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
             <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                <Columns className="w-4 h-4" />
-                Visible Columns
+              <h3 className="text-sm font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <Columns className="w-4 h-4 text-emerald-500" />
+                Customize Visible Columns
               </h3>
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {Object.entries(columnsConfig).map(([key, label]) => (
                   <label
                     key={key}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      visibleColumns[key] 
+                        ? 'border-emerald-200 bg-emerald-50/50' 
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                    }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns[key]}
-                      onChange={() => toggleColumn(key)}
-                      className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
-                    />
-                    <span className="text-sm text-slate-700">{label}</span>
-                    {visibleColumns[key] && (
-                      <Check className="w-4 h-4 text-emerald-600 ml-auto" />
-                    )}
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[key]}
+                        onChange={() => toggleColumn(key)}
+                        className="w-5 h-5 opacity-0 absolute inset-0 cursor-pointer"
+                      />
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                        visibleColumns[key] ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300'
+                      }`}>
+                        {visibleColumns[key] && <Check className="w-3.5 h-3.5 text-white" />}
+                      </div>
+                    </div>
+                    <span className={`text-sm font-medium ${visibleColumns[key] ? 'text-emerald-900' : 'text-slate-700'}`}>
+                      {label}
+                    </span>
                   </label>
                 ))}
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-              <button
-                onClick={resetColumns}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              >
-                Reset
-              </button>
-              <button
-                onClick={() => setIsSettingsOpen(false)}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"
-              >
-                Apply
-              </button>
-            </div>
+          </div>
+          <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
+            <button
+              onClick={resetColumns}
+              className="px-5 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              Reset
+            </button>
+            <button
+              onClick={() => setIsSettingsOpen(false)}
+              className="px-5 py-2 text-sm font-medium rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shadow-sm"
+            >
+              Apply Changes
+            </button>
           </div>
         </DialogContent>
       </Dialog>

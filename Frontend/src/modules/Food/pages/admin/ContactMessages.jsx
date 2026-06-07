@@ -125,7 +125,7 @@ export default function ContactMessages() {
             </span>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 sm:mt-0 items-stretch sm:items-center">
             {/* Rating Filter */}
             <select
               value={ratingFilter}
@@ -144,7 +144,7 @@ export default function ContactMessages() {
             </select>
 
             {/* Search */}
-            <div className="relative flex-1 sm:flex-initial min-w-[250px]">
+            <div className="relative flex-1 sm:w-[320px] lg:w-[450px]">
               <input
                 type="text"
                 placeholder="Ex: Search by name, email, order ID, restaurant, food items"

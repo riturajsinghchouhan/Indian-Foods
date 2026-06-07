@@ -436,8 +436,8 @@ export default function DeliveryBoyCommission() {
             </div>
           </div>
 
-          <div className="mb-4 flex items-center gap-3">
-            <div className="relative flex-1 sm:flex-initial min-w-[250px]">
+          <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto flex-wrap">
+            <div className="relative flex-1 w-full sm:w-[280px] lg:w-[350px]">
               <input
                 type="text"
                 placeholder="Ex: Search by name or distance."

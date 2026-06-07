@@ -148,6 +148,26 @@ export default function FeedNavbar({ className = "" }) {
 
     const next = !isOnline;
     
+    if (next) {
+        if (!navigator.geolocation) {
+            toast.error("Geolocation is not supported by your browser.");
+            return;
+        }
+        
+        try {
+            await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    timeout: 10000,
+                    maximumAge: 0,
+                    enableHighAccuracy: true
+                });
+            });
+        } catch (err) {
+            toast.error("Please enable your GPS for current location");
+            return; // Do not move to next step
+        }
+    }
+    
     // Update state immediately for better UX
     setIsOnline(next);
     showSingleToast(next);

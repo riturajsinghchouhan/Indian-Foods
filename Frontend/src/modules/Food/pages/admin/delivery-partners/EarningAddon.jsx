@@ -517,7 +517,7 @@ export default function EarningAddon() {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-lg bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm"
-                placeholder="e.g., Complete 50 orders and earn \u20B9500"
+                placeholder="e.g., Complete 50 orders and earn ₹500"
               />
             </div>
 

@@ -79,9 +79,9 @@ export const ViewSupportTicketV2 = () => {
                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Subject</p>
                <h4 className="text-sm font-black text-gray-950">{ticket.subject}</h4>
             </div>
-            <div className="space-y-1 pt-4 border-t border-gray-50">
+             <div className="space-y-1 pt-4 border-t border-gray-50">
                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Detail Description</p>
-               <p className="text-xs text-gray-600 font-medium leading-relaxed">{ticket.description}</p>
+               <p className="text-xs text-gray-600 font-medium leading-relaxed break-words break-all">{ticket.description}</p>
             </div>
          </div>
 
@@ -105,7 +105,7 @@ export const ViewSupportTicketV2 = () => {
 
          <div className="mt-10 flex flex-col items-center justify-center opacity-20 gap-4">
             <Mail className="w-12 h-12" />
-            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-center">AppZeto Support Fleet</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-center">Indian Bite Support Fleet</p>
          </div>
       </div>
     </div>

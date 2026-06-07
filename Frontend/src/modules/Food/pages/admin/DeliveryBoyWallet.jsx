@@ -167,7 +167,7 @@ export default function DeliveryBoyWallet() {
                 {total}
               </span>
             </div>
-            <div className="relative flex-1 sm:flex-initial min-w-[200px] max-w-xs">
+            <div className="relative flex-1 w-full sm:w-[280px] lg:w-[350px]">
               <input
                 type="text"
                 placeholder="Search by name or phone"
