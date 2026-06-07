@@ -13,7 +13,7 @@ import { useOrders } from "@food/context/OrdersContext"
 import { useLocation as useUserLocation } from "@food/hooks/useLocation"
 import { useZone } from "@food/hooks/useZone"
 import { useLocationSelector } from "@food/components/user/UserLayout"
-import { orderAPI, restaurantAPI, adminAPI, userAPI, API_ENDPOINTS } from "@food/api"
+import { orderAPI, restaurantAPI, adminAPI, userAPI, publicAPI, API_ENDPOINTS } from "@food/api"
 import { API_BASE_URL } from "@food/api/config"
 import { initRazorpayPayment } from "@food/utils/razorpay"
 import { toast } from "sonner"
@@ -127,6 +127,26 @@ export default function Cart() {
   const [showPaymentSheet, setShowPaymentSheet] = useState(false)
   const [walletBalance, setWalletBalance] = useState(0)
   const [isLoadingWallet, setIsLoadingWallet] = useState(false)
+  const [onlinePaymentOnly, setOnlinePaymentOnly] = useState(false)
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await publicAPI.getBusinessSettings()
+        if (response.data?.success && response.data?.data) {
+          const isOnlineOnly = !!response.data.data.onlinePaymentOnly;
+          setOnlinePaymentOnly(isOnlineOnly)
+          if (isOnlineOnly) {
+            setSelectedPaymentMethod(prev => prev === "cash" ? "razorpay" : prev)
+          }
+        }
+      } catch (error) {
+        debugError("Error fetching business settings:", error)
+      }
+    }
+    fetchSettings()
+  }, [])
+
   const [restaurantNote, setRestaurantNote] = useState(() => {
     try {
       if (typeof window === "undefined") return ""
@@ -3338,9 +3358,10 @@ export default function Cart() {
                           description: 'Pay when order arrives',
                           icon: <Banknote className="w-5 h-5" />,
                           color: 'bg-orange-50 text-#55254b dark:bg-orange-900/40 dark:text-orange-400',
-                          selectedColor: 'bg-primary text-white'
+                          selectedColor: 'bg-primary text-white',
+                          hidden: onlinePaymentOnly
                         }
-                      ].map((option) => (
+                      ].filter(opt => !opt.hidden).map((option) => (
                         <button
                           key={option.id}
                           onClick={() => {

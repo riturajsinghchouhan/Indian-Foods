@@ -153,6 +153,12 @@ export const notificationAPI = {
 export const adminAPI = {
   getSidebarBadges: () =>
     adminClient.get("/food/admin/sidebar-badges"),
+  getBusinessSettings: () => adminClient.get("/food/admin/business-settings"),
+  updateBusinessSettings: (data) => {
+    // If data is a FormData object (e.g. has files), pass it directly, else pass as JSON
+    const config = data instanceof FormData ? { headers: { "Content-Type": "multipart/form-data" } } : {};
+    return adminClient.put("/food/admin/business-settings", data, config);
+  },
   login: (email, password) => authService.adminLogin(email, password),
   /** POST /auth/admin/forgot-password/request-otp – only accepts registered admin email */
   requestForgotPasswordOtp: (email) =>
@@ -1944,4 +1950,5 @@ export const heroBannerAPI = createStubAPI();
 export const publicAPI = {
   getPrivacy: (key = "privacy") => userClient.get(`/food/pages/${key}`),
   getTerms: (key = "terms") => userClient.get(`/food/pages/${key}`),
+  getBusinessSettings: () => apiClient.get("/food/admin/business-settings/public"),
 };

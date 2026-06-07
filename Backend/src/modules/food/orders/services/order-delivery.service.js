@@ -165,7 +165,7 @@ function emitOrderUpdate(order, deliveryPartnerId, options = {}) {
     let riderTitle = '';
     let riderBody = '';
 
-    const orderId = order._id.toString();
+    const orderId = order.order_id || order.orderId || order._id.toString();
 
     if (status === 'picked_up') {
       userTitle = 'Order on the way!';
@@ -572,7 +572,7 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
         { ownerType: 'USER', ownerId: order.userId },
         {
           title: `Delivery partner assigned`,
-          body: `A delivery partner has accepted Order #${order._id.toString()}.`,
+          body: `A delivery partner has accepted Order #${order.order_id || order.orderId || order._id.toString()}.`,
           data: {
             type: 'delivery_accepted',
             orderId: order._id.toString(),
@@ -587,7 +587,7 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
         { ownerType: 'RESTAURANT', ownerId: order.restaurantId },
         {
           title: `Rider assigned`,
-          body: `Order #${order._id.toString()} is now assigned to a delivery partner.`,
+          body: `Order #${order.order_id || order.orderId || order._id.toString()} is now assigned to a delivery partner.`,
           data: {
             type: 'delivery_accepted',
             orderId: order._id.toString(),
@@ -740,7 +740,7 @@ export async function confirmReachedPickupDelivery(orderId, deliveryPartnerId) {
         title: 'Rider arrived!',
         body: `${partner?.name || 'The delivery partner'} has arrived at ${
           restaurant?.restaurantName || 'your restaurant'
-        } to pick up Order #${order._id.toString()}.`,
+        } to pick up Order #${order.order_id || order.orderId || order._id.toString()}.`,
         data: {
           type: 'rider_arrived',
           orderId: String(order._id.toString()),

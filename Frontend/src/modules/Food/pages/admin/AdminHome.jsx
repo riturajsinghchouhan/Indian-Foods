@@ -8,6 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@food/components/ui/select"
+import { Switch } from "@food/components/ui/switch"
+import { Label } from "@food/components/ui/label"
 import {
   Area,
   AreaChart,
@@ -44,6 +46,8 @@ export default function AdminHome() {
   const [isLoading, setIsLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState(null)
   const [zones, setZones] = useState([])
+  const [onlinePaymentOnly, setOnlinePaymentOnly] = useState(false)
+  const [updatingPaymentMode, setUpdatingPaymentMode] = useState(false)
 
   // Fetch zone list for filter
   useEffect(() => {
@@ -60,6 +64,36 @@ export default function AdminHome() {
 
     fetchZones()
   }, [])
+
+  // Fetch business settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await adminAPI.getBusinessSettings()
+        if (response.data?.success && response.data?.data) {
+          setOnlinePaymentOnly(!!response.data.data.onlinePaymentOnly)
+        }
+      } catch (error) {
+        debugError("Error fetching business settings:", error)
+      }
+    }
+    fetchSettings()
+  }, [])
+
+  // Handle payment mode toggle
+  const handlePaymentModeToggle = async (checked) => {
+    try {
+      setUpdatingPaymentMode(true)
+      const response = await adminAPI.updateBusinessSettings({ onlinePaymentOnly: checked })
+      if (response.data?.success) {
+        setOnlinePaymentOnly(checked)
+      }
+    } catch (error) {
+      debugError("Error updating payment mode:", error)
+    } finally {
+      setUpdatingPaymentMode(false)
+    }
+  }
 
   // Fetch dashboard stats from backend when filters change
   useEffect(() => {
@@ -189,7 +223,18 @@ export default function AdminHome() {
             </div>
 
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 bg-white px-4 py-2 border border-neutral-300 rounded-md">
+              <Switch 
+                id="online-payment-mode" 
+                checked={onlinePaymentOnly} 
+                onCheckedChange={handlePaymentModeToggle}
+                disabled={updatingPaymentMode}
+              />
+              <Label htmlFor="online-payment-mode" className="text-sm font-medium text-neutral-700 cursor-pointer">
+                Online Payment Only
+              </Label>
+            </div>
             <Select value={selectedZone} onValueChange={setSelectedZone}>
               <SelectTrigger className="min-w-[160px] border-neutral-300 bg-white text-neutral-900">
                 <SelectValue placeholder="All zones" />

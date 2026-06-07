@@ -34,7 +34,7 @@ export async function updateBusinessSettings(req, res, next) {
 
         const { 
             companyName, email, phoneCountryCode, phoneNumber, address, state, pincode, region,
-            supportEmail, supportPhone, supportHours 
+            supportEmail, supportPhone, supportHours, onlinePaymentOnly
         } = data;
 
         // Ensure string inputs for validation to prevent crashes from non-string values
@@ -48,14 +48,14 @@ export async function updateBusinessSettings(req, res, next) {
         const s_supportPhone = String(supportPhone || "").trim();
         const s_supportHours = String(supportHours || "").trim();
 
-        // Validation
-        if (!s_companyName || s_companyName.length < 2 || s_companyName.length > 50) {
+        // Validation (only if field is provided for partial updates)
+        if (companyName !== undefined && (!s_companyName || s_companyName.length < 2 || s_companyName.length > 50)) {
             return res.status(400).json({ success: false, message: 'Company name must be between 2 and 50 characters' });
         }
-        if (!s_email || s_email.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s_email)) {
+        if (email !== undefined && (!s_email || s_email.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s_email))) {
             return res.status(400).json({ success: false, message: 'Invalid email address (max 100 characters)' });
         }
-        if (!s_phoneNumber || !/^\d{7,15}$/.test(s_phoneNumber)) {
+        if (phoneNumber !== undefined && (!s_phoneNumber || !/^\d{7,15}$/.test(s_phoneNumber))) {
             return res.status(400).json({ success: false, message: 'Invalid phone number (7-15 digits required)' });
         }
         if (s_address && s_address.length > 250) {
@@ -92,6 +92,10 @@ export async function updateBusinessSettings(req, res, next) {
         if (supportEmail !== undefined) settings.supportEmail = s_supportEmail;
         if (supportPhone !== undefined) settings.supportPhone = s_supportPhone;
         if (supportHours !== undefined) settings.supportHours = s_supportHours;
+        
+        if (onlinePaymentOnly !== undefined) {
+            settings.onlinePaymentOnly = Boolean(onlinePaymentOnly === 'true' || onlinePaymentOnly === true);
+        }
 
         // Handle file uploads
         if (req.files) {

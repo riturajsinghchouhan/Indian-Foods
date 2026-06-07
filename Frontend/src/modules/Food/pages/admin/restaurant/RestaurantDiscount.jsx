@@ -36,7 +36,7 @@ export default function RestaurantDiscount() {
           setZones(Array.isArray(list) ? list : []);
         }
       } catch (error) {
-        toast.error("Failed to load zones");
+        console.error("DEBUG Failed to load zones:", error);
       } finally {
         if (mounted) setLoadingZones(false);
       }
@@ -117,7 +117,11 @@ export default function RestaurantDiscount() {
   
   const updateRule = (index, field, value) => {
     const newRules = [...discountRules];
-    newRules[index][field] = value;
+    let parsedValue = value;
+    if (field === 'discountValue' && value !== '') {
+      parsedValue = Number(value);
+    }
+    newRules[index] = { ...newRules[index], [field]: parsedValue };
     setDiscountRules(newRules);
   };
   
@@ -422,7 +426,7 @@ export default function RestaurantDiscount() {
                   ) : (
                     <div className="space-y-3 mt-4">
                       {discountRules.map((rule, index) => (
-                        <div key={index} className="flex flex-col sm:flex-row gap-3 items-center bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div key={index} className="flex flex-wrap gap-3 items-center bg-slate-50 border border-slate-200 rounded-xl p-3">
                           <span className="text-sm font-medium text-slate-500 w-12">If</span>
                           
                           <select 
@@ -434,24 +438,24 @@ export default function RestaurantDiscount() {
                             <option value="PRICE_BELOW">Item Price is Below</option>
                           </select>
                           
-                          <div className="relative flex-1">
+                          <div className="relative flex-1 min-w-[100px]">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">₹</span>
                             <input
                               type="number"
-                              value={rule.conditionValue}
+                              value={rule.conditionValue || ''}
                               onChange={(e) => updateRule(index, 'conditionValue', e.target.value)}
-                              className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-md text-sm outline-none"
+                              className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-md text-sm outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                             />
                           </div>
                           
                           <span className="text-sm font-medium text-slate-500">Apply</span>
                           
-                          <div className="relative w-24">
+                          <div className="relative w-24 shrink-0">
                             <input
                               type="number"
-                              value={rule.discountValue}
+                              value={rule.discountValue || ''}
                               onChange={(e) => updateRule(index, 'discountValue', e.target.value)}
-                              className="w-full pl-3 pr-7 py-2 border border-slate-300 rounded-md text-sm outline-none"
+                              className="w-full pl-3 pr-7 py-2 border border-slate-300 rounded-md text-sm outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                             />
                             <Percent className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                           </div>
