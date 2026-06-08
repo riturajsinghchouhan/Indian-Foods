@@ -2570,17 +2570,14 @@ function RestaurantDetailsContent() {
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
+              <div
                 className="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300 min-w-0"
-                onClick={() => setShowLocationSheet(true)}
               >
                 <MapPin className="h-4 w-4" />
                 <span className="truncate">
                   {restaurant?.distance || "1.2 km"} | {restaurant?.location || "Location"}
                 </span>
-                <ChevronDown className="h-4 w-4 text-gray-500" />
-              </button>
+              </div>
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold text-white ${
                   isRestaurantOffline ? "bg-rose-600" : "bg-emerald-600"

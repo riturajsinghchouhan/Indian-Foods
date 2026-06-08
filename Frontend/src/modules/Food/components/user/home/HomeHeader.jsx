@@ -179,18 +179,8 @@ export default function HomeHeader({
             </div>
           </div>
 
-          {/* Right Actions: Veg Toggle & Bell */}
+          {/* Right Actions: Bell */}
           <div className="flex items-center gap-2.5">
-            {/* Pure Veg Toggle */}
-            <div 
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full shadow-lg backdrop-blur-md transition-all duration-300 cursor-pointer active:scale-95 border ${vegMode ? 'bg-white border-green-500 shadow-green-500/30' : 'bg-white/90 border-white/50 hover:bg-white'}`}
-              onClick={() => handleVegModeChange?.(!vegMode)}
-            >
-              <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-all ${vegMode ? 'border-green-500 bg-green-500' : 'border-gray-400 bg-gray-100'}`}>
-                {vegMode && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-              </div>
-              <span className={`text-[10px] font-black uppercase tracking-wider ${vegMode ? 'text-green-600' : 'text-gray-700'}`}>Veg</span>
-            </div>
  
             <Popover>
               <PopoverTrigger asChild>
@@ -245,36 +235,52 @@ export default function HomeHeader({
           </div>
         </div>
 
-        <div
-          className="relative bg-white rounded-2xl flex items-center px-4 py-2 shadow-lg border border-black/5 cursor-pointer active:scale-[0.98] transition-all duration-300 max-w-[95%] mx-auto"
-          onClick={handleSearchFocus}
-        >
-          <Search className="h-4.5 w-4.5 text-primary mr-2 shrink-0" strokeWidth={3} />
-          
-          <div className="flex-1 overflow-hidden relative h-5">
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={placeholderIndex}
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: -10, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="absolute inset-0 text-sm font-bold text-gray-400 truncate flex items-center"
-              >
-                {placeholders?.[placeholderIndex] || 'Search'}
-              </motion.span>
-            </AnimatePresence>
+        <div className="flex items-center gap-3 w-[95%] mx-auto">
+          {/* Search Bar */}
+          <div
+            className="relative bg-white rounded-2xl flex items-center px-4 shadow-lg border border-black/5 cursor-pointer active:scale-[0.98] transition-all duration-300 flex-1 h-[52px]"
+            onClick={handleSearchFocus}
+          >
+            <Search className="h-5 w-5 text-primary mr-2 shrink-0" strokeWidth={2.5} />
+            
+            <div className="flex-1 overflow-hidden relative h-5">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={placeholderIndex}
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -10, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 text-[15px] font-bold text-gray-400 truncate flex items-center"
+                >
+                  {placeholders?.[placeholderIndex] || 'Search'}
+                </motion.span>
+              </AnimatePresence>
+            </div>
+
+            <div className="flex items-center gap-2 pl-2">
+              <div className="h-5 w-[1px] bg-gray-200" />
+              <Mic 
+                className="h-5 w-5 text-primary" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleVoiceSearchClick?.();
+                }}
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 pl-2">
-            <div className="h-4 w-[1px] bg-gray-200" />
-            <Mic 
-              className="h-4.5 w-4.5 text-primary" 
-              onClick={(e) => {
-                e.stopPropagation();
-                handleVoiceSearchClick?.();
-              }}
-            />
+          {/* Veg Toggle (Stacked Pill Switch) */}
+          <div 
+            className="flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform duration-300 shrink-0 px-1"
+            onClick={() => handleVegModeChange?.(!vegMode)}
+          >
+            <div className="text-[10px] font-black leading-[1.1] text-white tracking-wide text-center">
+              VEG<br/>MODE
+            </div>
+            <div className={`mt-1.5 w-[38px] h-[22px] rounded-full relative transition-colors duration-300 ${vegMode ? 'bg-green-600' : 'bg-[#bcc0c5]'}`}>
+              <div className={`absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform duration-300 ${vegMode ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+            </div>
           </div>
         </div>
       </div>
