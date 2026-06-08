@@ -511,7 +511,13 @@ export async function processDispatchTimeout(orderId, partnerId, options = {}) {
 // ----- User: list, get, cancel -----
 export async function listOrdersUser(userId, query) {
   const { page, limit, skip } = buildPaginationOptions(query);
-  const filter = { userId: new mongoose.Types.ObjectId(userId) };
+  const filter = {
+    userId: new mongoose.Types.ObjectId(userId),
+    // Exclude unpaid Razorpay orders (payment failed / user closed gateway)
+    $nor: [
+      { "payment.method": "razorpay", "payment.status": "created" }
+    ]
+  };
   const [docs, total] = await Promise.all([
     FoodOrder.find(filter)
       .populate(
@@ -654,6 +660,35 @@ export async function recoverStuckOrders() {
       { $unset: { 'dispatch.dispatchingAt': '' } }
     );
 
+    // 3. Auto-cancel stale unpaid Razorpay orders (payment never completed)
+    const FIFTEEN_MIN = 15 * 60 * 1000;
+    const staleUnpaidResult = await FoodOrder.updateMany(
+      {
+        'payment.method': 'razorpay',
+        'payment.status': 'created',
+        orderStatus: 'created',
+        createdAt: { $lt: new Date(now - FIFTEEN_MIN) }
+      },
+      {
+        $set: {
+          orderStatus: 'cancelled_by_user',
+          'payment.status': 'failed'
+        },
+        $push: {
+          statusHistory: {
+            at: now,
+            byRole: 'SYSTEM',
+            from: 'created',
+            to: 'cancelled_by_user',
+            note: 'Auto-cancelled: payment was never completed (15 min timeout)'
+          }
+        }
+      }
+    );
+    if (staleUnpaidResult.modifiedCount > 0) {
+      logger.info(`Watchdog: Auto-cancelled ${staleUnpaidResult.modifiedCount} stale unpaid Razorpay orders.`);
+    }
+
   } catch (err) {
     logger.error(`Watchdog recovery error: ${err.message}`);
   }
@@ -672,6 +707,10 @@ export async function resyncState(userId, role) {
           "cancelled_by_admin",
         ],
       },
+      // Exclude unpaid Razorpay orders (payment failed / user closed gateway)
+      $nor: [
+        { "payment.method": "razorpay", "payment.status": "created" }
+      ]
     })
       .select("+deliveryOtp")
       .sort({ createdAt: -1 })
