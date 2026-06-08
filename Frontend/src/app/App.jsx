@@ -4,16 +4,11 @@ import SplashScreen from '@/shared/components/SplashScreen.jsx'
 import PageLoader from '@/shared/components/PageLoader.jsx'
 
 function App() {
-  const [showSplash, setShowSplash] = useState(() => {
-    // Check if splash was already shown (persistent)
-    const splashShown = localStorage.getItem('indianbites_splash_shown')
-    return !splashShown
-  })
+  const [showSplash, setShowSplash] = useState(true)
 
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSplashFinish = () => {
-    localStorage.setItem('indianbites_splash_shown', 'true')
     setShowSplash(false)
   }
 

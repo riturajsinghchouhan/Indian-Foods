@@ -67,7 +67,7 @@ export default function AppIntroSplash({ onComplete }) {
         <video 
           key={currentScreen._id}
           src={currentScreen.mediaUrl} 
-          className="w-full h-full object-cover" 
+          className="w-full h-full object-contain" 
           autoPlay 
           muted 
           playsInline 
@@ -78,7 +78,7 @@ export default function AppIntroSplash({ onComplete }) {
           key={currentScreen._id}
           src={currentScreen.mediaUrl} 
           alt={currentScreen.title || "Intro"} 
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
         />
       )}
       

@@ -410,7 +410,7 @@ export default function UnifiedOTPFastLogin() {
                           }
                         }
                       }}
-                      className="w-full h-16 text-center text-3xl font-bold bg-gray-50 dark:bg-gray-900 border-2 border-transparent focus:border-primary/50 rounded-2xl outline-none transition-all text-gray-900 dark:text-white shadow-sm"
+                      className="w-full h-16 text-center text-3xl font-bold bg-gray-50 dark:bg-gray-900 border-2 border-transparent focus:border-primary/50 rounded-2xl outline-none transition-all text-red-600 dark:text-red-500 shadow-sm"
                       placeholder="•"
                     />
                   ))}
@@ -434,7 +434,7 @@ export default function UnifiedOTPFastLogin() {
                   <button
                     type="button"
                     onClick={handleEditNumber}
-                    className="text-xs text-gray-400 hover:text-primary transition-colors"
+                    className="text-xs font-bold text-red-600 hover:text-red-700 transition-colors"
                   >
                     Edit phone number
                   </button>

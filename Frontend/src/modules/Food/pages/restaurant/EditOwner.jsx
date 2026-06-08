@@ -639,15 +639,14 @@ export default function EditOwner() {
             {/* Pure Veg Toggle */}
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex items-center gap-3">
-                <div className={`w-4 h-4 border-2 rounded-sm flex items-center justify-center ${formData.pureVegRestaurant ? 'border-green-600' : 'border-gray-400'}`}>
-                  <div className={`w-2 h-2 rounded-full ${formData.pureVegRestaurant ? 'bg-green-600' : 'transparent'}`} />
+                <div className={`w-4 h-4 border-2 rounded-sm flex items-center justify-center ${formData.pureVegRestaurant ? 'border-green-600' : 'border-red-600'}`}>
+                  <div className={`w-2 h-2 rounded-full ${formData.pureVegRestaurant ? 'bg-green-600' : 'bg-red-600'}`} />
                 </div>
                 <span className="text-sm font-semibold text-gray-700">Pure Veg Restaurant</span>
               </div>
               <button
                 disabled={true}
-                disabled={loading || saving}
-                className={`w-12 h-6 rounded-full transition-colors relative ${formData.pureVegRestaurant ? 'bg-green-600' : 'bg-gray-300'}`}
+                className={`w-12 h-6 rounded-full transition-colors relative ${formData.pureVegRestaurant ? 'bg-green-600' : 'bg-red-600'}`}
               >
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.pureVegRestaurant ? 'left-7' : 'left-1'}`} />
               </button>

@@ -85,7 +85,7 @@ export default function SplashScreen({ onFinish }) {
             ))}
  
             {/* Central Brand Logic */}
-            <div className="relative">
+            <div className="relative flex flex-col items-center text-center w-full">
               <motion.h1
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -95,7 +95,7 @@ export default function SplashScreen({ onFinish }) {
                   damping: 15
                 }}
                 style={{ transform: 'translateZ(0)', willChange: "transform, opacity" }}
-                className="text-7xl md:text-9xl font-black tracking-tighter text-white relative font-['Outfit'] select-none"
+                className="text-7xl md:text-9xl font-black tracking-tighter text-white relative font-['Outfit'] select-none text-center"
               >
                 INDIAN BITES
                 
