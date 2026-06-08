@@ -382,7 +382,7 @@ export default function ProfessionalSearch() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
                   {results.restaurants.map((r) => (
                     <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 200, damping: 20 } } }} key={r._id}>
-                    <Link to={`/user/restaurants/${r._id}`} className="block group active:scale-[0.98] transition-all">
+                    <Link to={`/user/restaurants/${r.slug || r.originalRestaurantId || r._id}`} className="block group active:scale-[0.98] transition-all">
                       <div className="relative rounded-[32px] overflow-hidden aspect-[16/10] sm:aspect-[16/9] mb-4 bg-gray-200 dark:bg-zinc-800 shadow-xl shadow-gray-200/20">
                          {/* Shimmer Placeholder behind image */}
                          <div className="absolute inset-0 bg-gray-300 dark:bg-zinc-700 animate-pulse" />
@@ -524,7 +524,7 @@ export default function ProfessionalSearch() {
                       </span>
                     </div>
                     <Link 
-                      to={`/user/restaurants/${selectedDish.slug || selectedDish._id}${selectedDish.matchedDishId ? `?dish=${selectedDish.matchedDishId}` : ''}`} 
+                      to={`/user/restaurants/${selectedDish.slug || selectedDish.originalRestaurantId || selectedDish._id}${selectedDish.matchedDishId ? `?dish=${selectedDish.matchedDishId}` : ''}`} 
                       className="px-8 py-3.5 bg-primary text-white font-black uppercase tracking-wider text-sm rounded-2xl shadow-xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
                     >
                        View & Add

@@ -647,7 +647,7 @@ export default function AddressSelectorPage() {
                      variant={addressFormData.label === l ? "default" : "outline"}
                      onClick={() => setAddressFormData({...addressFormData, label: l})}
                      className="flex-1"
-                     style={addressFormData.label === l ? {backgroundColor: '#7e3866', color: 'white'} : {}}
+                     style={addressFormData.label === l ? {backgroundColor: '#dc2626', color: 'white'} : {}}
                    >
                      {l}
                    </Button>
@@ -663,7 +663,7 @@ export default function AddressSelectorPage() {
         >
           <Button 
             className="w-full h-12 text-white font-bold text-lg" 
-            style={{backgroundColor: '#7e3866'}}
+            style={{backgroundColor: '#dc2626'}}
             onClick={handleAddressFormSubmit}
             disabled={loadingAddress}
           >

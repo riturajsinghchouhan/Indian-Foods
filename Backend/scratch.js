@@ -1,20 +1,16 @@
-import axios from 'axios';
+import mongoose from 'mongoose';
 
-async function testDelete() {
-  try {
-    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTEzZWRiYThjNTU3NDRkNDU1NjIxMGIiLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3Nzk2OTA5MzgsImV4cCI6MTc3OTY5NDUzOH0.hkFmLESXwApi6Wx85pHmXy6im1Kg9HQEIHMs7bq-z5U';
-    const delResp = await axios.delete('http://localhost:5000/api/v1/food/admin/delivery/5f8d0d55b54764421b7156d9', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    console.log("DELETE response:", delResp.data);
-  } catch (err) {
-    if (err.response) {
-      console.error("HTTP ERROR", err.response.status);
-      console.log("Data:", typeof err.response.data === 'string' ? err.response.data.substring(0, 100) : err.response.data);
-    } else {
-      console.error("NETWORK ERROR", err.message);
-    }
+mongoose.connect('mongodb+srv://indianbites:indianbites@indianbites.y39vhkd.mongodb.net/IndianBites').then(async () => {
+  const cols = await mongoose.connection.db.collections();
+  const id1 = new mongoose.Types.ObjectId('6a26ac7e1184b06ea0b261ba');
+  const id2 = new mongoose.Types.ObjectId('6a26b8f23dd26fd4263a4a51');
+  
+  for (let c of cols) {
+    const doc1 = await c.findOne({ _id: id1 });
+    if (doc1) console.log('id1 found in', c.collectionName, doc1.name || doc1.restaurantName || doc1.title);
+    
+    const doc2 = await c.findOne({ _id: id2 });
+    if (doc2) console.log('id2 found in', c.collectionName, doc2.name || doc2.restaurantName || doc2.title);
   }
-}
-
-testDelete();
+  process.exit(0);
+});
