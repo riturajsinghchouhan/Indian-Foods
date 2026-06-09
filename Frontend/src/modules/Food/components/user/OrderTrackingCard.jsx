@@ -80,6 +80,7 @@ const TERMINAL_STATUSES = new Set([
   "canceled_by_restaurant",
   "cancelled_by_admin",
   "canceled_by_admin",
+  "dead",
 ]);
 
 const isActiveOrder = (order) => {
