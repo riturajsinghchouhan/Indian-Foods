@@ -90,6 +90,7 @@ export default function Orders() {
     if (status === 'out_for_delivery' || status === 'outForDelivery') return 'outForDelivery'
     if (status === 'ready' || status === 'preparing') return 'preparing'
     if (String(status).toLowerCase().includes('cancel')) return 'cancelled'
+    if (status === 'dead') return 'dead'
     return status || 'confirmed'
   }
 
@@ -261,7 +262,8 @@ export default function Orders() {
               backendStatus === 'cancelled' ||
               backendStatus === 'cancelled_by_user' ||
               backendStatus === 'cancelled_by_restaurant' ||
-              backendStatus === 'cancelled_by_admin'
+              backendStatus === 'cancelled_by_admin' ||
+              backendStatus === 'dead'
             const cancellationReason = order.cancellationReason || ''
             // Check cancelledBy field first, then fallback to cancellation reason pattern
             const isRestaurantCancelled = isCancelled && (
@@ -269,6 +271,7 @@ export default function Orders() {
               /rejected by restaurant|restaurant rejected|restaurant cancelled|restaurant is too busy|item not available|outside delivery area|kitchen closing|technical issue|order not accepted within time limit|restaurant did not respond/i.test(cancellationReason)
             )
             const isUserCancelled = isCancelled && order.cancelledBy === 'user'
+            const isDead = backendStatus === 'dead'
 
             // Get original status from backend before transformation
             const originalStatus = backendStatus
@@ -316,6 +319,7 @@ export default function Orders() {
               cancellationReason: cancellationReason,
               isRestaurantCancelled: isRestaurantCancelled,
               isUserCancelled: isUserCancelled,
+              isDead: isDead,
               cancelledBy: order.cancelledBy,
               eta: order.eta || { min: order.estimatedDeliveryTime || 30, max: order.estimatedDeliveryTime || 30 },
               estimatedDeliveryTime: order.estimatedDeliveryTime || 30,
@@ -735,7 +739,7 @@ Order again from this restaurant in the ${companyName} app.`
 
             // Payment failed only for online payments (razorpay) that actually failed
             // Don't show payment failed for COD/wallet or cancelled orders
-            const isCancelled = order.status === 'cancelled' || order.status === 'restaurant_cancelled'
+            const isCancelled = order.status === 'cancelled' || order.status === 'restaurant_cancelled' || order.status === 'dead' || order.isDead
             const paymentFailed = !isCodOrWallet &&
               !isCancelled &&
               (order.payment?.status === 'failed')
@@ -743,6 +747,7 @@ Order again from this restaurant in the ${companyName} app.`
             const isDelivered = order.status === 'delivered'
             const isRestaurantCancelled = order.isRestaurantCancelled || order.status === 'restaurant_cancelled'
             const isUserCancelled = order.isUserCancelled || (isCancelled && order.cancelledBy === 'user')
+            const isDead = order.isDead || order.status === 'dead'
             // Prefer food image from first item; fallback to restaurant image, then generic food photo
             const firstItemImage = order.items?.[0]?.image
             const restaurantImage = firstItemImage
@@ -963,7 +968,10 @@ Order again from this restaurant in the ${companyName} app.`
                     {isUserCancelled && (
                       <p className="text-xs font-medium text-gray-500 mt-1">Cancelled by you</p>
                     )}
-                    {isCancelled && !isRestaurantCancelled && !isUserCancelled && (
+                    {isDead && (
+                      <p className="text-xs font-medium text-red-500 mt-1">Delivery Failed</p>
+                    )}
+                    {isCancelled && !isRestaurantCancelled && !isUserCancelled && !isDead && (
                       <p className="text-xs font-medium text-gray-500 mt-1">Cancelled</p>
                     )}
                   </div>
@@ -995,6 +1003,25 @@ Order again from this restaurant in the ${companyName} app.`
                         <p className="text-xs text-red-600 dark:text-red-400 font-medium ml-7 mb-1">Reason: {order.cancellationReason}</p>
                       )}
                       <p className="text-xs text-gray-600 dark:text-gray-400 ml-7">Refund will be processed in 24-48 hours</p>
+                    </div>
+                  ) : isDead ? (
+                    <div className="flex flex-col gap-2 w-full pr-4">
+                      <div className="flex items-center gap-2">
+                        <div className="bg-red-100 dark:bg-red-900/30 p-1 rounded-full">
+                          <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
+                        </div>
+                        <span className="text-xs font-semibold text-red-500 dark:text-red-400">Order Delivery Failed</span>
+                      </div>
+                      <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 ml-7 leading-tight">
+                        We apologize, but your order could not be completed.
+                      </p>
+                      <a 
+                        href="tel:+919755633147" 
+                        className="ml-7 inline-flex items-center gap-1.5 w-fit bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-[10px] sm:text-xs font-medium py-1.5 px-3 rounded-md border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                      >
+                        <Phone className="w-3 h-3" />
+                        Support / Refund
+                      </a>
                     </div>
                   ) : paymentFailed ? (
                     <div className="flex items-center gap-2">

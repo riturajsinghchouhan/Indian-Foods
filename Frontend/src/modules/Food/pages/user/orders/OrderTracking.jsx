@@ -440,6 +440,7 @@ function mapBackendOrderStatusToUi(raw) {
   if (s === "reached_drop" || s === "at_drop" || s === "at_delivery") return "at_drop"
   if (s === "delivered" || s === "completed") return "delivered"
   if (s.includes("cancelled") || s === "cancelled") return "cancelled"
+  if (s === "dead") return "dead"
   return "placed"
 }
 
@@ -467,7 +468,7 @@ function mapOrderToTrackingUiStatus(orderLike) {
 /** Prefer live delivery phase when present (socket / polling include deliveryState). */
 function isFoodOrderCancelledStatus(statusRaw) {
   const s = String(statusRaw || "").toLowerCase()
-  return s === "cancelled" || s.includes("cancelled")
+  return s === "cancelled" || s.includes("cancelled") || s === "dead"
 }
 
 function normalizeLookupId(value) {
@@ -1472,6 +1473,12 @@ export default function OrderTracking() {
       subtitle: order?.cancellationReason || "This order has been cancelled",
       color: "bg-red-600",
       iconType: 'cancelled'
+    },
+    dead: {
+      title: "Order Delivery Failed",
+      subtitle: "We're extremely sorry for the inconvenience. Your order could not be completed.",
+      color: "bg-red-600",
+      iconType: 'cancelled'
     }
   }
 
@@ -1653,7 +1660,7 @@ export default function OrderTracking() {
       </motion.div>
 
       {/* Map Section */}
-      {!isDeliveredOrder && orderStatus !== 'cancelled' && !(isScheduledOrder && ['placed', 'confirmed'].includes(orderStatus)) && (
+      {!isDeliveredOrder && orderStatus !== 'cancelled' && orderStatus !== 'dead' && !(isScheduledOrder && ['placed', 'confirmed'].includes(orderStatus)) && (
         <MapErrorBoundary>
           <DeliveryMap
             orderId={orderId}
@@ -1671,7 +1678,7 @@ export default function OrderTracking() {
       <div className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-4 md:py-6 space-y-4 md:space-y-6 pb-24 md:pb-32">
         {/* Cancellation window removed as per user request to hide immediately after acceptance */}
 
-        {customerDeliveryOtp && orderStatus !== 'delivered' && orderStatus !== 'cancelled' && (
+        {customerDeliveryOtp && orderStatus !== 'delivered' && orderStatus !== 'cancelled' && orderStatus !== 'dead' && (
           <motion.div
             className="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-4 shadow-sm border border-blue-100 dark:border-blue-900/30"
             initial={{ opacity: 0, y: 20 }}
@@ -1736,6 +1743,20 @@ export default function OrderTracking() {
               <div className="flex-1">
                 <p className="font-semibold text-gray-900 dark:text-gray-100 leading-tight">{currentStatus.title}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-snug">{currentStatus.subtitle}</p>
+                {orderStatus === 'dead' && (
+                  <div className="mt-3 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-900/30">
+                    <p className="text-sm text-red-700 dark:text-red-300 font-medium mb-2">
+                      If your money was deducted, it will be automatically refunded. Please reach out to support for instant help.
+                    </p>
+                    <a 
+                      href="tel:+919755633147" 
+                      className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded-full transition-colors shadow-sm"
+                    >
+                      <Phone className="w-3 h-3" />
+                      Contact Admin Support
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           )}

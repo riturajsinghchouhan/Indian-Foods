@@ -310,6 +310,32 @@ export const PickupActionModal = ({
               ))}
             </div>
           )}
+
+          {/* Cancel Delivery Option */}
+          <div className="mt-6 border-t border-gray-100 pt-4">
+            <button
+              onClick={() => {
+                if (window.confirm("Are you sure you want to cancel this delivery? You will need to provide a reason.")) {
+                   const reason = window.prompt("Reason for cancellation / Issue:");
+                   if (reason !== null && reason.trim() !== "") {
+                      import('@food/api').then(({ deliveryAPI }) => {
+                         deliveryAPI.rejectOrder(order.orderId || order._id, { reason })
+                           .then(() => {
+                              toast.success("Delivery cancelled successfully.");
+                              if (onMinimize) onMinimize();
+                           })
+                           .catch(() => toast.error("Failed to cancel delivery."));
+                      });
+                   } else if (reason !== null) {
+                      toast.error("Reason is required to cancel delivery.");
+                   }
+                }
+              }}
+              className="w-full py-3 text-red-500 font-bold text-xs uppercase tracking-widest hover:bg-red-50 rounded-xl transition-colors flex justify-center items-center gap-2"
+            >
+              Report Issue / Cancel Delivery
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>

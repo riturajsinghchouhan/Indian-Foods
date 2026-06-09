@@ -70,7 +70,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   const { isOnline, toggleOnline, riderLocation, activeOrder, tripStatus, setRiderLocation, setActiveOrder, updateTripStatus, clearActiveOrder } = useDeliveryStore();
   const { isWithinRange, distanceToTarget } = useProximityCheck();
   const { acceptOrder, reachPickup, pickUpOrder, reachDrop, completeDelivery, resetTrip } = useOrderManager();
-  const { newOrder, clearNewOrder, orderStatusUpdate, clearOrderStatusUpdate, claimedOrderId, clearClaimedOrderId, adminNotification, clearAdminNotification, isConnected: isSocketConnected, emitLocation } = useDeliveryNotificationContext();
+  const { newOrder, clearNewOrder, orderStatusUpdate, clearOrderStatusUpdate, claimedOrderId, clearClaimedOrderId, autoKilledOrder, clearAutoKilledOrder, adminNotification, clearAdminNotification, isConnected: isSocketConnected, emitLocation } = useDeliveryNotificationContext();
   const companyName = useCompanyName();
   const { items: broadcastItems, unreadCount: notificationUnreadCount, markAsRead: markBroadcastAsRead, dismissAll: dismissAllBroadcast } = useNotificationInbox("delivery", { limit: 20 });
 
@@ -696,6 +696,23 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     }
   }, [orderStatusUpdate, resetTrip, clearOrderStatusUpdate]);
 
+  // Handle auto-killed order reasoning
+  useEffect(() => {
+    if (autoKilledOrder) {
+      setTimeout(() => {
+        const reason = window.prompt("Your order exceeded the 1 hour limit and was cancelled by the system. Please provide a reason for the failure/delay:");
+        if (reason && reason.trim() !== "") {
+          deliveryAPI.rejectOrder(autoKilledOrder.orderId || autoKilledOrder.orderMongoId || autoKilledOrder._id, { reason })
+            .then(() => toast.success("Reason saved successfully."))
+            .catch(() => toast.error("Failed to save reason."));
+        } else {
+          toast.error("You must provide a reason for the delayed delivery.");
+        }
+        clearAutoKilledOrder();
+      }, 500); // small delay to ensure UI doesn't block the unmount of previous modals
+    }
+  }, [autoKilledOrder, clearAutoKilledOrder]);
+
   // Handle Real-time Admin Notifications
   useEffect(() => {
     if (adminNotification) {
@@ -1209,6 +1226,29 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                         <CheckCircle2 className="w-6 h-6" /> VERIFY & COMPLETE
                       </button>
                     )}
+
+                    <button
+                      onClick={() => {
+                         if (window.confirm("Are you sure you want to cancel this delivery? You will need to provide a reason.")) {
+                             const reason = window.prompt("Reason for cancellation / Issue:");
+                             if (reason !== null && reason.trim() !== "") {
+                                import('@food/api').then(({ deliveryAPI }) => {
+                                   deliveryAPI.rejectOrder(activeOrder.orderId || activeOrder._id, { reason })
+                                     .then(() => {
+                                        toast.success("Delivery cancelled successfully.");
+                                        setIsModalMinimized(true);
+                                     })
+                                     .catch(() => toast.error("Failed to cancel delivery."));
+                                });
+                             } else if (reason !== null) {
+                                toast.error("Reason is required to cancel delivery.");
+                             }
+                         }
+                      }}
+                      className="w-full mt-4 py-3 text-red-500 font-bold text-[10px] sm:text-xs uppercase tracking-widest bg-white/80 backdrop-blur-sm border border-red-100 hover:bg-red-50 rounded-2xl transition-colors flex justify-center items-center gap-2"
+                    >
+                      Report Issue / Cancel Delivery
+                    </button>
                   </div>
                 )}
                 {showVerification && tripStatus !== 'COMPLETED' && (

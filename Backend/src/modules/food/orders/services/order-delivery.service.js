@@ -619,7 +619,7 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
   return responseOrder;
 }
 
-export async function rejectOrderDelivery(orderId, deliveryPartnerId) {
+export async function rejectOrderDelivery(orderId, deliveryPartnerId, reason = '') {
   const identity = buildOrderIdentityFilter(orderId);
   if (!identity) throw new ValidationError('Order id required');
 
@@ -636,6 +636,21 @@ export async function rejectOrderDelivery(orderId, deliveryPartnerId) {
   );
   if (offer) offer.action = 'rejected';
 
+  // If the order is dead, we don't need to put it back in the unassigned pool. 
+  // We just want to record the rider's reason.
+  if (order.orderStatus === 'dead') {
+    pushStatusHistory(order, {
+      byRole: 'DELIVERY_PARTNER',
+      byId: deliveryPartnerId,
+      from: 'assigned',
+      to: 'dead_reason',
+      note: `Delivery Failure Reason: ${reason || 'Not provided'}`,
+    });
+    order.cancellationReason = reason || order.cancellationReason;
+    await order.save();
+    return order.toObject();
+  }
+
   order.dispatch.status = 'unassigned';
   order.dispatch.deliveryPartnerId = undefined;
   order.dispatch.assignedAt = undefined;
@@ -645,7 +660,7 @@ export async function rejectOrderDelivery(orderId, deliveryPartnerId) {
     byId: deliveryPartnerId,
     from: 'assigned',
     to: 'unassigned',
-    note: 'Rejected',
+    note: `Rejected. Reason: ${reason || 'Not provided'}`,
   });
   await order.save();
 

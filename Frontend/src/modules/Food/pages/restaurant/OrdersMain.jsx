@@ -48,6 +48,7 @@ const filterTabs = [
   { id: "table-booking", label: "Table Booking" },
   { id: "completed", label: "Completed" },
   { id: "cancelled", label: "Cancelled" },
+  { id: "dead", label: "Dead Orders" },
 ];
 
 const allOrdersStatusPriority = {
@@ -60,6 +61,7 @@ const allOrdersStatusPriority = {
   delivered: 6,
   completed: 6,
   cancelled: 7,
+  dead: 8,
 };
 
 const getAllOrdersTimestamp = (order) =>
@@ -498,6 +500,212 @@ function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
                             }`}
                           />
                           {cancelledByText}
+                        </span>
+                        <span className="text-[9px] text-gray-400 font-medium">
+                          {cancelledDate}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-600 line-clamp-1">
+                        {order.itemsSummary}
+                      </p>
+                      {order.cancellationReason && (
+                        <p className="text-[10px] text-red-600 mt-1 line-clamp-1">
+                          Reason: {order.cancellationReason}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-2 flex items-end justify-between gap-2">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-[11px] text-gray-500">
+                          {order.type}
+                        </p>
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[11px] text-gray-500">
+                          Amount
+                        </span>
+                        <span className="text-xs font-medium text-black">
+                          ₹{order.amount.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Dead Orders List Component
+function DeadOrders({ onSelectOrder, refreshToken = 0 }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchOrders = async () => {
+      try {
+        const response = await restaurantAPI.getOrders();
+
+        if (!isMounted) return;
+
+        if (response.data?.success && response.data.data?.orders) {
+          // Filter dead orders
+          const deadOrders = response.data.data.orders.filter(
+            (order) => order.status === "dead" || order.orderStatus === "dead",
+          );
+
+          const transformedOrders = deadOrders.map((order) => ({
+            orderId: order.orderId || order._id,
+            mongoId: order._id,
+            status: "dead",
+            customerName: order.userId?.name || order.customerName || "Customer",
+            type: "Home Delivery",
+            tableOrToken: null,
+            timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            cancelledAt: order.cancelledAt || order.updatedAt || order.createdAt,
+            cancellationReason: order.cancellationReason || "Auto-killed: Order was not delivered within 1 hour",
+            itemsSummary: order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") || "No items",
+            photoUrl: order.items?.[0]?.image || null,
+            photoAlt: order.items?.[0]?.name || "Order",
+            amount: order.pricing?.total || order.total || 0,
+            paymentMethod: order.paymentMethod || order.payment?.method || null,
+          }));
+
+          transformedOrders.sort((a, b) => {
+            const dateA = new Date(a.cancelledAt);
+            const dateB = new Date(b.cancelledAt);
+            return dateB - dateA;
+          });
+
+          if (isMounted) {
+            setOrders(transformedOrders);
+            setLoading(false);
+          }
+        } else {
+          if (isMounted) {
+            setOrders([]);
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        if (error.code !== "ERR_NETWORK" && error.response?.status !== 404) {
+          debugError("Error fetching dead orders:", error);
+        }
+        if (isMounted) {
+          setOrders([]);
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchOrders();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshToken]);
+
+  if (loading) {
+    return (
+      <div className="pt-1 pb-6">
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-base font-semibold text-black">
+            Dead orders
+          </h2>
+          <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+        </div>
+        <div className="text-center py-8 text-gray-500 text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-1 pb-6">
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-base font-semibold text-black">Dead orders</h2>
+        <span className="text-xs text-gray-500">{orders.length} total</span>
+      </div>
+      {orders.length === 0 ? (
+        <div className="text-center py-8 text-gray-500 text-sm">
+          No dead orders found
+        </div>
+      ) : (
+        <div>
+          {orders.map((order) => {
+            const cancelledDate = order.cancelledAt
+              ? new Date(order.cancelledAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "N/A";
+
+            return (
+              <div
+                key={order.orderId || order.mongoId}
+                className="w-full bg-white rounded-xl p-3 mb-2.5 border border-gray-100 shadow-sm transition-all">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectOrder?.({
+                      orderId: order.orderId,
+                      status: "Dead",
+                      customerName: order.customerName,
+                      type: order.type,
+                      tableOrToken: order.tableOrToken,
+                      timePlaced: cancelledDate,
+                      itemsSummary: order.itemsSummary,
+                      paymentMethod: order.paymentMethod,
+                    })
+                  }
+                  className="w-full text-left flex gap-3 items-stretch">
+                  <div className="h-16 w-16 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center flex-shrink-0 my-auto border border-gray-100">
+                    {order.photoUrl ? (
+                      <img
+                        src={order.photoUrl}
+                        alt={order.photoAlt}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-1">
+                        <span className="text-[9px] font-medium text-gray-400 text-center leading-tight">
+                          {order.photoAlt}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 flex flex-col justify-between min-h-[80px]">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-[13px] font-bold text-slate-900 leading-none">
+                          Order #{order.orderId}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-1 font-medium capitalize">
+                          {order.customerName}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border border-zinc-200 bg-zinc-100 text-zinc-600">
+                          <span className="h-1 w-1 rounded-full bg-zinc-500" />
+                          Dead Order
                         </span>
                         <span className="text-[9px] text-gray-400 font-medium">
                           {cancelledDate}
@@ -2356,6 +2564,13 @@ export default function OrdersMain() {
       case "cancelled":
         return (
           <CancelledOrders
+            onSelectOrder={handleSelectOrder}
+            refreshToken={ordersRefreshToken}
+          />
+        );
+      case "dead":
+        return (
+          <DeadOrders
             onSelectOrder={handleSelectOrder}
             refreshToken={ordersRefreshToken}
           />

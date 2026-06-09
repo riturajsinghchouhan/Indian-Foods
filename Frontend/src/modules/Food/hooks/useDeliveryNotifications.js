@@ -203,6 +203,7 @@ export const useDeliveryNotifications = () => {
   const [orderStatusUpdate, setOrderStatusUpdate] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [deliveryPartnerId, setDeliveryPartnerId] = useState(null);
+  const [autoKilledOrder, setAutoKilledOrder] = useState(null);
   const [claimedOrderId, setClaimedOrderId] = useState(null); // set when another partner claims an order
   const [adminNotification, setAdminNotification] = useState(null);
   const joinedDeliveryRoomRef = useRef(null);
@@ -946,6 +947,22 @@ export const useDeliveryNotifications = () => {
       });
     });
 
+    socketRef.current.on('order_auto_killed', (data) => {
+      debugLog('?? Delivery order auto-killed event received via socket:', data);
+      stopAlertLoop();
+      activeOrderRef.current = null;
+      setNewOrder(null);
+      
+      const cancelledId = data?.orderId || data?.orderMongoId || data?._id;
+      if (cancelledId) setClaimedOrderId({ orderId: cancelledId, claimedBy: 'cancelled' });
+      
+      setOrderStatusUpdate({
+        ...(data || {}),
+        status: 'cancelled'
+      });
+      setAutoKilledOrder(data);
+    });
+
     socketRef.current.on('order_reassigned_elsewhere', (data) => {
       debugLog('?? Order reassigned to another partner:', data);
       stopAlertLoop();
@@ -1104,6 +1121,8 @@ export const useDeliveryNotifications = () => {
     clearAdminNotification,
     claimedOrderId,
     clearClaimedOrderId,
+    autoKilledOrder,
+    clearAutoKilledOrder: () => setAutoKilledOrder(null),
     isConnected,
     playNotificationSound,
     emitLocation
