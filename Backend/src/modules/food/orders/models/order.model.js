@@ -43,6 +43,7 @@ const pricingSchema = new mongoose.Schema(
         deliveryFee: { type: Number, default: 0, min: 0 },
         platformFee: { type: Number, default: 0, min: 0 },
         restaurantCommission: { type: Number, default: 0, min: 0 },
+        gstOnItem: { type: Number, default: 0, min: 0 },
         gstOnCommission: { type: Number, default: 0, min: 0 },
         paymentGatewayFee: { type: Number, default: 0, min: 0 },
         tcs: { type: Number, default: 0, min: 0 },
@@ -269,7 +270,8 @@ const orderSchema = new mongoose.Schema(
                 'delivered',
                 'cancelled_by_user',
                 'cancelled_by_restaurant',
-                'cancelled_by_admin'
+                'cancelled_by_admin',
+                'dead'
             ],
             default: 'created'
         },

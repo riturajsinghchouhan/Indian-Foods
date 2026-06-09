@@ -326,6 +326,7 @@ export async function listOrdersAvailableDelivery(deliveryPartnerId, query) {
         'cancelled_by_user',
         'cancelled_by_restaurant',
         'cancelled_by_admin',
+        'dead',
       ],
     },
   };
@@ -409,6 +410,7 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
     'cancelled_by_user',
     'cancelled_by_restaurant',
     'cancelled_by_admin',
+    'dead',
   ];
 
   const statusHistoryEntry = {

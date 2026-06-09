@@ -242,6 +242,7 @@ export async function createOrder(userId, dto) {
   });
 
   normalizedPricing.restaurantCommission = commissionSnapshot.commissionAmount || 0;
+  normalizedPricing.gstOnItem = commissionSnapshot.gstOnItem || 0;
   normalizedPricing.gstOnCommission = commissionSnapshot.gstOnCommission || 0;
   normalizedPricing.paymentGatewayFee = commissionSnapshot.paymentGatewayFee || 0;
   normalizedPricing.tcs = commissionSnapshot.tcs || 0;
@@ -251,6 +252,7 @@ export async function createOrder(userId, dto) {
     (Number.isFinite(normalizedPricing.deliveryFee) ? normalizedPricing.deliveryFee : 0) +
       (Number.isFinite(normalizedPricing.platformFee) ? normalizedPricing.platformFee : 0) +
       normalizedPricing.restaurantCommission + 
+      normalizedPricing.gstOnItem +
       normalizedPricing.paymentGatewayFee + 
       normalizedPricing.tcs -
       riderEarning,
@@ -689,6 +691,33 @@ export async function recoverStuckOrders() {
       logger.info(`Watchdog: Auto-cancelled ${staleUnpaidResult.modifiedCount} stale unpaid Razorpay orders.`);
     }
 
+    // 4. Mark orders dead if not delivered within 1 hour
+    const ONE_HOUR = 60 * 60 * 1000;
+    const deadOrdersResult = await FoodOrder.updateMany(
+      {
+        createdAt: { $lt: new Date(now - ONE_HOUR) },
+        orderStatus: { $nin: ['delivered', 'cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin', 'dead'] }
+      },
+      {
+        $set: {
+          orderStatus: 'dead',
+          'dispatch.status': 'cancelled'
+        },
+        $push: {
+          statusHistory: {
+            at: now,
+            byRole: 'SYSTEM',
+            from: 'system_auto',
+            to: 'dead',
+            note: 'Auto-killed: order was not delivered within 1 hour'
+          }
+        }
+      }
+    );
+    if (deadOrdersResult.modifiedCount > 0) {
+      logger.info(`Watchdog: Auto-killed ${deadOrdersResult.modifiedCount} orders that exceeded 1 hour limit.`);
+    }
+
   } catch (err) {
     logger.error(`Watchdog recovery error: ${err.message}`);
   }
@@ -705,6 +734,7 @@ export async function resyncState(userId, role) {
           "cancelled_by_user",
           "cancelled_by_restaurant",
           "cancelled_by_admin",
+          "dead"
         ],
       },
       // Exclude unpaid Razorpay orders (payment failed / user closed gateway)
@@ -1530,6 +1560,7 @@ export async function listOrdersAdmin(query) {
             "cancelled_by_user",
             "cancelled_by_restaurant",
             "cancelled_by_admin",
+            "dead"
           ],
         };
         break;
@@ -1612,7 +1643,7 @@ export async function assignDeliveryPartnerAdmin(
     throw new ValidationError("Order already assigned to another partner");
   }
 
-  const cancellableStatuses = ['cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin', 'delivered'];
+  const cancellableStatuses = ['cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin', 'dead', 'delivered'];
   if (cancellableStatuses.includes(order.orderStatus)) {
     throw new ValidationError("Order is cancelled or delivered, cannot assign delivery partner");
   }

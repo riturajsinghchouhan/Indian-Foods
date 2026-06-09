@@ -18,6 +18,8 @@ import {
   Loader2,
   Volume2,
   FileText,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import ResendNotificationButton from "@food/components/restaurant/ResendNotificationButton"
 const debugLog = (...args) => {}
@@ -63,6 +65,7 @@ export default function OrderDetails() {
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState("")
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [showPayoutBreakdown, setShowPayoutBreakdown] = useState(false)
 
   // Fetch order data from API
   useEffect(() => {
@@ -144,11 +147,12 @@ export default function OrderDetails() {
           const deliveryCostToAdmin = firstNumber(order.riderEarning, 30);
           const deliveryGstToAdmin = deliveryCostToAdmin * 0.18;
           const restaurantCommission = Number(pricing.restaurantCommission) || 0;
+          const gstOnItem = Number(pricing.gstOnItem) || 0;
           const gstOnCommission = Number(pricing.gstOnCommission) || 0;
           const paymentGatewayFee = Number(pricing.paymentGatewayFee) || 0;
           const tcs = Number(pricing.tcs) || 0;
-          const totalAdminReceivable = deliveryCostToAdmin + deliveryGstToAdmin + platformFee + taxes + packagingFee + restaurantCommission + gstOnCommission + paymentGatewayFee + tcs;
-          const restaurantGets = Math.max(0, itemSubtotal + packagingFee - restaurantCommission - gstOnCommission - paymentGatewayFee - tcs);
+          const totalAdminReceivable = deliveryCostToAdmin + deliveryGstToAdmin + platformFee + taxes + packagingFee + restaurantCommission + gstOnItem + gstOnCommission + paymentGatewayFee + tcs;
+          const restaurantGets = Math.max(0, itemSubtotal + packagingFee - restaurantCommission - gstOnItem - gstOnCommission - paymentGatewayFee - tcs);
           const deliveryDistance = firstNumber(order.deliveryDistance, order.customer?.distance, 0);
 
           const addressParts = [
@@ -255,6 +259,7 @@ export default function OrderDetails() {
               deliveryGstToAdmin,
               totalAdminReceivable,
               restaurantCommission,
+              gstOnItem,
               gstOnCommission,
               paymentGatewayFee,
               tcs,
@@ -378,7 +383,7 @@ export default function OrderDetails() {
       // Order Receipt Title
       doc.setFontSize(16)
       doc.setFont("helvetica", "bold")
-      doc.text("ORDER RECEIPT", pageWidth / 2, yPosition, { align: "center" })
+      doc.text("RESTAURANT RECEIPT", pageWidth / 2, yPosition, { align: "center" })
       yPosition += 10
 
       // Details block
@@ -469,31 +474,43 @@ export default function OrderDetails() {
 
       doc.setFontSize(12)
       doc.setFont("helvetica", "bold")
-      doc.text("BILL DETAILS", 15, yPosition)
+      doc.text("RESTAURANT PAYOUT", 15, yPosition)
       yPosition += 8
 
       doc.setFontSize(10)
       doc.setFont("helvetica", "normal")
       
       const billRows = [
-        ["Item Subtotal:", formatPdfMoney(orderData.billing.itemSubtotal)],
-        ["Delivery Fee:", formatPdfMoney(orderData.billing.deliveryFee)],
-        ["Platform Fee:", formatPdfMoney(orderData.billing.platformFee)],
-        ["Taxes (GST):", formatPdfMoney(orderData.billing.taxes)],
-        ["Packaging Fee:", formatPdfMoney(orderData.billing.packagingFee)]
+        ["Item Subtotal:", formatPdfMoney(orderData.billing.itemSubtotal)]
       ]
 
-      if (Number(orderData.billing.discount) > 0) {
-        billRows.push(["Discount:", formatPdfDiscount(orderData.billing.discount)])
+      if (Number(orderData.billing.packagingFee) > 0) {
+        billRows.push(["Packaging Fee:", formatPdfMoney(orderData.billing.packagingFee)])
       }
-      if (Number(orderData.billing.couponDiscount) > 0) {
-        billRows.push(["Coupon Discount:", formatPdfDiscount(orderData.billing.couponDiscount)])
+      if (Number(orderData.billing.restaurantCommission) > 0) {
+        billRows.push(["Restaurant Commission:", formatPdfDiscount(orderData.billing.restaurantCommission)])
+      }
+      if (Number(orderData.billing.gstOnItem) > 0) {
+        billRows.push(["GST on Item:", formatPdfDiscount(orderData.billing.gstOnItem)])
+      }
+      if (Number(orderData.billing.gstOnCommission) > 0) {
+        billRows.push(["GST on Commission:", formatPdfDiscount(orderData.billing.gstOnCommission)])
+      }
+      if (Number(orderData.billing.paymentGatewayFee) > 0) {
+        billRows.push(["Payment Gateway Fee:", formatPdfDiscount(orderData.billing.paymentGatewayFee)])
+      }
+      if (Number(orderData.billing.tcs) > 0) {
+        billRows.push(["TCS:", formatPdfDiscount(orderData.billing.tcs)])
       }
 
       billRows.forEach(([label, value]) => {
         ensureSpace(10)
         doc.text(label, 15, yPosition)
+        if (value.startsWith("-")) {
+          doc.setTextColor(220, 38, 38) // Red color for deductions
+        }
         doc.text(value, pageWidth - rightMargin, yPosition, { align: "right" })
+        doc.setTextColor(0, 0, 0)
         yPosition += 6
       })
 
@@ -505,17 +522,11 @@ export default function OrderDetails() {
 
       doc.setFont("helvetica", "bold")
       doc.setFontSize(11)
-      doc.text("Total Bill:", leftMargin, yPosition)
-      doc.text(formatPdfMoney(orderData.billing.total), pageWidth - rightMargin, yPosition, { align: "right" })
+      doc.setTextColor(30, 58, 138) // Blue text to match the UI accent
+      doc.text("Restaurant Gets:", leftMargin, yPosition)
+      doc.text(formatPdfMoney(orderData.billing.restaurantGets), pageWidth - rightMargin, yPosition, { align: "right" })
+      doc.setTextColor(0, 0, 0) // Reset
       yPosition += 6
-      
-      if (Number(orderData.billing.paidAmount) > 0) {
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(10)
-        doc.text("Amount Paid:", leftMargin, yPosition)
-        doc.text(formatPdfMoney(orderData.billing.paidAmount), pageWidth - rightMargin, yPosition, { align: "right" })
-        yPosition += 6
-      }
       
       doc.setFontSize(10)
       doc.setFont("helvetica", "italic")
@@ -904,89 +915,7 @@ export default function OrderDetails() {
         {/* Detailed Billing Section */}
         <div className="space-y-4">
           
-          {/* Customer Bill */}
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-900 mb-3 tracking-wide">Customer Bill</h3>
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Item subtotal</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.itemSubtotal)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Discount</span>
-                <span className="text-[13px] text-gray-900">{formatDiscount(orderData.billing.discount + orderData.billing.couponDiscount + orderData.billing.referralDiscount)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Delivery fee (user)</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.deliveryFee)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Platform fee</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.platformFee)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">GST (user bill)</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.taxes)}</span>
-              </div>
-              <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between">
-                <span className="text-sm font-bold text-gray-900">Total paid by user</span>
-                <span className="text-sm font-bold text-gray-900">{formatMoney(orderData.billing.total)}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Admin Receivable */}
-          <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-900 mb-3 tracking-wide">Admin Receivable</h3>
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Delivery cost to admin</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.deliveryCostToAdmin)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Delivery GST to admin (18%)</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.deliveryGstToAdmin)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Platform fee to admin</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.platformFee)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Restaurant commission</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.restaurantCommission)}</span>
-              </div>
-              {Number(orderData.billing.gstOnCommission) > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-gray-600 font-medium">GST on commission</span>
-                  <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.gstOnCommission)}</span>
-                </div>
-              )}
-              {Number(orderData.billing.paymentGatewayFee) > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-gray-600 font-medium">Payment gateway fee</span>
-                  <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.paymentGatewayFee)}</span>
-                </div>
-              )}
-              {Number(orderData.billing.tcs) > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-gray-600 font-medium">TCS</span>
-                  <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.tcs)}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">GST collected from user</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.taxes)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Recommended item charge</span>
-                <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.packagingFee)}</span>
-              </div>
-              <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between">
-                <span className="text-sm font-bold text-gray-900">Total going to admin</span>
-                <span className="text-sm font-bold text-gray-900">{formatMoney(orderData.billing.totalAdminReceivable)}</span>
-              </div>
-            </div>
-          </div>
 
           {/* Restaurant Payout */}
           <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 shadow-sm">
@@ -1002,28 +931,74 @@ export default function OrderDetails() {
                   <span className="text-[13px] text-gray-900">{formatMoney(orderData.billing.packagingFee)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-gray-600 font-medium">Restaurant commission</span>
-                <span className="text-[13px] text-red-600">{formatDiscount(orderData.billing.restaurantCommission)}</span>
+              
+              <div 
+                className="flex items-center justify-between cursor-pointer group"
+                onClick={() => setShowPayoutBreakdown(!showPayoutBreakdown)}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[13px] text-gray-600 font-medium group-hover:text-blue-600 transition-colors">GST & Fees</span>
+                  {showPayoutBreakdown ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500" />
+                  )}
+                </div>
+                <span className="text-[13px] text-red-600">
+                  {formatDiscount(
+                    (Number(orderData.billing.restaurantCommission) || 0) + 
+                    (Number(orderData.billing.gstOnItem) || 0) + 
+                    (Number(orderData.billing.gstOnCommission) || 0) + 
+                    (Number(orderData.billing.paymentGatewayFee) || 0) + 
+                    (Number(orderData.billing.tcs) || 0)
+                  )}
+                </span>
               </div>
-              {Number(orderData.billing.gstOnCommission) > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-gray-600 font-medium">GST on commission</span>
-                  <span className="text-[13px] text-red-600">{formatDiscount(orderData.billing.gstOnCommission)}</span>
-                </div>
-              )}
-              {Number(orderData.billing.paymentGatewayFee) > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-gray-600 font-medium">Payment gateway fee</span>
-                  <span className="text-[13px] text-red-600">{formatDiscount(orderData.billing.paymentGatewayFee)}</span>
-                </div>
-              )}
-              {Number(orderData.billing.tcs) > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-gray-600 font-medium">TCS</span>
-                  <span className="text-[13px] text-red-600">{formatDiscount(orderData.billing.tcs)}</span>
-                </div>
-              )}
+
+              {/* Collapsible Breakdown */}
+              <AnimatePresence>
+                {showPayoutBreakdown && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pl-3 border-l-2 border-blue-100 space-y-2 mt-1 mb-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] text-gray-500 font-medium">Restaurant commission</span>
+                        <span className="text-[12px] text-red-500/80">{formatDiscount(orderData.billing.restaurantCommission)}</span>
+                      </div>
+                      {Number(orderData.billing.gstOnItem) > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] text-gray-500 font-medium">GST on item</span>
+                          <span className="text-[12px] text-red-500/80">{formatDiscount(orderData.billing.gstOnItem)}</span>
+                        </div>
+                      )}
+                      {Number(orderData.billing.gstOnCommission) > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] text-gray-500 font-medium">GST on commission</span>
+                          <span className="text-[12px] text-red-500/80">{formatDiscount(orderData.billing.gstOnCommission)}</span>
+                        </div>
+                      )}
+                      {Number(orderData.billing.paymentGatewayFee) > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] text-gray-500 font-medium">Payment gateway fee</span>
+                          <span className="text-[12px] text-red-500/80">{formatDiscount(orderData.billing.paymentGatewayFee)}</span>
+                        </div>
+                      )}
+                      {Number(orderData.billing.tcs) > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] text-gray-500 font-medium">TCS</span>
+                          <span className="text-[12px] text-red-500/80">{formatDiscount(orderData.billing.tcs)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="pt-2 mt-2 border-t border-blue-200 flex items-center justify-between">
                 <span className="text-sm font-bold text-blue-900">Restaurant gets</span>
                 <span className="text-sm font-bold text-blue-900">{formatMoney(orderData.billing.restaurantGets)}</span>

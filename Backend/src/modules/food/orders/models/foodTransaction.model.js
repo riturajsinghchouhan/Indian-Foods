@@ -60,6 +60,7 @@ const foodTransactionSchema = new mongoose.Schema({
         totalCustomerPaid: { type: Number, required: true },
         restaurantShare: { type: Number, required: true },
         restaurantCommission: { type: Number, required: true },
+        gstOnItem: { type: Number, default: 0 },
         gstOnCommission: { type: Number, default: 0 },
         paymentGatewayFee: { type: Number, default: 0 },
         tcs: { type: Number, default: 0 },

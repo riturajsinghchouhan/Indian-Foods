@@ -65,6 +65,7 @@ const startServer = async () => {
         try {
             const { recoverStuckOrders } = await import('./src/modules/food/orders/services/order.service.js');
             await recoverStuckOrders();
+            setInterval(recoverStuckOrders, 5 * 60 * 1000); // Run watchdog every 5 minutes
         } catch (err) {
             logger.error(`Watchdog startup error: ${err.message}`);
         }

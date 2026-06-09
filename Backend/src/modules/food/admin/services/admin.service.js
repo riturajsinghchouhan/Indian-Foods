@@ -316,7 +316,7 @@ export async function getRestaurantMenuPdfDownloadUrl(restaurantId) {
     return { url };
 }
 
-const CANCELLED_ORDER_STATUSES = ['cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin'];
+const CANCELLED_ORDER_STATUSES = ['cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin', 'dead'];
 const PENDING_ORDER_STATUSES = ['created', 'confirmed', 'preparing', 'ready_for_pickup', 'picked_up'];
 const DASHBOARD_PENDING_ORDER_STATUSES = ['created', 'confirmed'];
 const DASHBOARD_PROCESSING_ORDER_STATUSES = ['preparing', 'ready_for_pickup'];
@@ -839,6 +839,7 @@ export async function getTransactionReport(query = {}) {
                 platformFee: platformFee,
                 packagingFee: packagingFee,
                 restaurantCommission: Number(pricing.restaurantCommission || 0),
+                gstOnItem: Number(pricing.gstOnItem || 0),
                 gstOnCommission: Number(pricing.gstOnCommission || 0),
                 paymentGatewayFee: Number(pricing.paymentGatewayFee || 0),
                 tcs: Number(pricing.tcs || 0),
@@ -890,7 +891,7 @@ export async function getTransactionReport(query = {}) {
             adminEarningBreakdown.paymentGatewayFee += Number(pricing.paymentGatewayFee || 0);
             adminEarningBreakdown.tcs += Number(pricing.tcs || 0);
         }
-        if (tx.status === 'refunded' || (tx.orderId && tx.orderId.orderStatus === 'cancelled_by_admin')) {
+        if (tx.status === 'refunded' || (tx.orderId && (tx.orderId.orderStatus === 'cancelled_by_admin' || tx.orderId.orderStatus === 'dead'))) {
             // Count number of refunded transactions according to old logic or sum them
             refundedTransaction += tx.amounts?.totalCustomerPaid || 0;
         }
@@ -1651,6 +1652,7 @@ export async function getRestaurantCommissionBootstrap() {
         restaurants,
         globalSettings: {
             globalRestaurantCommission: feeSettings.globalRestaurantCommission || 0,
+            globalGstOnItem: feeSettings.globalGstOnItem || 0,
             globalGstOnCommission: feeSettings.globalGstOnCommission || 0,
             globalPaymentGatewayFee: feeSettings.globalPaymentGatewayFee || 0,
             globalTcs: feeSettings.globalTcs || 0,
@@ -1707,13 +1709,14 @@ export async function deleteRestaurantCommission(id) {
 }
 
 export async function updateGlobalRestaurantCommissionSettings(body) {
-    const { globalRestaurantCommission, globalGstOnCommission, globalPaymentGatewayFee, globalTcs, applyGlobalTaxes } = body;
+    const { globalRestaurantCommission, globalGstOnItem, globalGstOnCommission, globalPaymentGatewayFee, globalTcs, applyGlobalTaxes } = body;
     let settings = await FoodFeeSettings.findOne({ isActive: true }).sort({ createdAt: -1 });
     if (!settings) {
         settings = new FoodFeeSettings();
     }
     
     if (globalRestaurantCommission !== undefined) settings.globalRestaurantCommission = Number(globalRestaurantCommission);
+    if (globalGstOnItem !== undefined) settings.globalGstOnItem = Number(globalGstOnItem);
     if (globalGstOnCommission !== undefined) settings.globalGstOnCommission = Number(globalGstOnCommission);
     if (globalPaymentGatewayFee !== undefined) settings.globalPaymentGatewayFee = Number(globalPaymentGatewayFee);
     if (globalTcs !== undefined) settings.globalTcs = Number(globalTcs);
@@ -1722,6 +1725,7 @@ export async function updateGlobalRestaurantCommissionSettings(body) {
     await settings.save();
     return {
         globalRestaurantCommission: settings.globalRestaurantCommission,
+        globalGstOnItem: settings.globalGstOnItem,
         globalGstOnCommission: settings.globalGstOnCommission,
         globalPaymentGatewayFee: settings.globalPaymentGatewayFee,
         globalTcs: settings.globalTcs,
@@ -2278,7 +2282,7 @@ export async function getRestaurantAnalytics(restaurantId) {
     const currentYear = now.getFullYear();
 
     const completedOrders = orders.filter(o => o.orderStatus === 'delivered');
-    const cancelledOrders = orders.filter(o => ['cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin'].includes(o.orderStatus));
+    const cancelledOrders = orders.filter(o => ['cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin', 'dead'].includes(o.orderStatus));
 
     // Money metrics should come from the ledger (FoodTransaction), not FoodOrder.
     const completedTx = (txRows || []).filter((tx) => {

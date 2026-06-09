@@ -25,6 +25,7 @@ export default function RestaurantCommission() {
   const [savingGlobal, setSavingGlobal] = useState(false)
   const [globalSettings, setGlobalSettings] = useState({
     globalRestaurantCommission: 0,
+    globalGstOnItem: 0,
     globalGstOnCommission: 18,
     globalPaymentGatewayFee: 2,
     globalTcs: 1,
@@ -94,6 +95,7 @@ export default function RestaurantCommission() {
       if (data?.globalSettings) {
         setGlobalSettings({
           globalRestaurantCommission: data.globalSettings.globalRestaurantCommission || 0,
+          globalGstOnItem: data.globalSettings.globalGstOnItem || 0,
           globalGstOnCommission: data.globalSettings.globalGstOnCommission || 0,
           globalPaymentGatewayFee: data.globalSettings.globalPaymentGatewayFee || 0,
           globalTcs: data.globalSettings.globalTcs || 0,
@@ -196,6 +198,7 @@ export default function RestaurantCommission() {
       setSavingGlobal(true)
       await adminAPI.updateGlobalRestaurantCommissionSettings({
         globalRestaurantCommission: Number(globalSettings.globalRestaurantCommission),
+        globalGstOnItem: Number(globalSettings.globalGstOnItem),
         globalGstOnCommission: Number(globalSettings.globalGstOnCommission),
         globalPaymentGatewayFee: Number(globalSettings.globalPaymentGatewayFee),
         globalTcs: Number(globalSettings.globalTcs),
@@ -424,7 +427,7 @@ export default function RestaurantCommission() {
               </div>
             </div>
             
-            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 transition-opacity ${!globalSettings.applyGlobalTaxes ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 transition-opacity ${!globalSettings.applyGlobalTaxes ? 'opacity-50 pointer-events-none' : ''}`}>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Global Default Commission (%)</label>
                 <div className="relative">
@@ -434,6 +437,20 @@ export default function RestaurantCommission() {
                     step="0.1"
                     value={globalSettings.globalRestaurantCommission}
                     onChange={(e) => setGlobalSettings({ ...globalSettings, globalRestaurantCommission: e.target.value })}
+                    className="w-full pl-3 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">GST on Item (%)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={globalSettings.globalGstOnItem}
+                    onChange={(e) => setGlobalSettings({ ...globalSettings, globalGstOnItem: e.target.value })}
                     className="w-full pl-3 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                   <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />

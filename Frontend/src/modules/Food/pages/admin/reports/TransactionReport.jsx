@@ -181,7 +181,7 @@ export default function TransactionReport() {
     if (['pending', 'created', 'authorized', 'cod_pending'].includes(normalized)) {
       return 'bg-yellow-100 text-yellow-700'
     }
-    if (['failed', 'refunded', 'cancelled', 'cancelled_by_admin', 'cancelled_by_user', 'cancelled_by_restaurant'].includes(normalized)) {
+    if (['failed', 'refunded', 'cancelled', 'cancelled_by_admin', 'cancelled_by_user', 'cancelled_by_restaurant', 'dead'].includes(normalized)) {
       return 'bg-red-100 text-red-700'
     }
 

@@ -109,6 +109,9 @@ export const PickupActionModal = ({
             </div>
             <div>
               <h3 className="text-gray-950 text-lg sm:text-xl font-bold">{restaurantName}</h3>
+              <p className="text-orange-600 text-[11px] font-black uppercase tracking-widest mt-0.5">
+                ORDER #{order.orderId || order._id}
+              </p>
               <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 mt-1.5">
                 {isAtPickup ? (
                   <span className="text-green-600">Reached Location √</span>
@@ -208,7 +211,7 @@ export const PickupActionModal = ({
                 </p>
 
                 {/* Step 1: Request OTP button — sends OTP to restaurant via socket */}
-                {billImageUploaded && !otpRequested && (
+                {billImageUploaded && (
                   <button
                     onClick={async () => {
                       const orderId = order._id || order.orderId || order.orderMongoId;
@@ -226,12 +229,12 @@ export const PickupActionModal = ({
                       }
                     }}
                     disabled={isRequestingOtp}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-orange-500 text-white font-black text-sm uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-60 mb-3"
+                    className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-white font-black text-sm uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-60 mb-3 ${otpRequested ? 'bg-orange-400' : 'bg-orange-500'}`}
                   >
                     {isRequestingOtp ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /><span>Sending...</span></>
                     ) : (
-                      <span>🔔 Request OTP from Restaurant</span>
+                      <span>{otpRequested ? '🔔 Resend OTP' : '🔔 Request OTP'} (Order #{order.orderId || order._id})</span>
                     )}
                   </button>
                 )}

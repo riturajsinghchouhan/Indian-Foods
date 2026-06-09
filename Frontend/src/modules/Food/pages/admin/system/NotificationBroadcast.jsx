@@ -194,180 +194,194 @@ export default function NotificationBroadcast() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-        <div className="flex items-start gap-4 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <BellRing className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Broadcast Notification</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Send one notification to all, role-based, or selected recipients without touching other admin flows.
-            </p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Title</span>
-              <input
-                value={form.title}
-                onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-                placeholder="Enter notification title"
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Target Type</span>
-              <select
-                value={form.targetType}
-                onChange={(event) => setForm((prev) => ({ ...prev, targetType: event.target.value }))}
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              >
-                {TARGET_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <label className="block">
-            <span className="text-sm font-semibold text-slate-700">Message</span>
-            <textarea
-              value={form.message}
-              onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
-              placeholder="Enter notification message"
-              rows={5}
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-y"
-            />
-          </label>
-
-          {form.targetType === "CUSTOM" && (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4 space-y-4">
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                <Search className="w-4 h-4 text-slate-400" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search users, restaurants, or delivery partners"
-                  className="w-full text-sm bg-transparent outline-none"
-                />
-              </div>
-
-              <div className="text-xs font-medium text-slate-500">
-                Selected recipients: {selectedRecipients.length}
-              </div>
-
-              <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100">
-                {recipientLoading ? (
-                  <div className="p-6 text-sm text-slate-500 flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Loading recipients...
-                  </div>
-                ) : filteredRecipients.length === 0 ? (
-                  <div className="p-6 text-sm text-slate-500">No recipients found.</div>
-                ) : (
-                  filteredRecipients.map((recipient) => {
-                    const key = `${recipient.ownerType}:${recipient.ownerId}`;
-                    const checked = selectedKeys.has(key);
-                    return (
-                      <label
-                        key={key}
-                        className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleRecipient(recipient)}
-                          className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-900">
-                            {recipient.label}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {recipient.ownerType.replaceAll("_", " ")}
-                            {recipient.subLabel ? ` • ${recipient.subLabel}` : ""}
-                          </div>
-                        </div>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
+    <div className="p-2 lg:p-3 bg-slate-50 min-h-screen">
+      <div className="w-full mx-auto space-y-3">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
+              <BellRing className="w-3.5 h-3.5 text-white" />
             </div>
-          )}
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Send Broadcast
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">History</h2>
-            <p className="text-sm text-slate-500">Latest sent broadcasts and their targets.</p>
+            <h1 className="text-lg font-bold text-slate-900">Broadcast Notification</h1>
           </div>
         </div>
 
-        {historyLoading ? (
-          <div className="py-10 text-sm text-slate-500 flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Loading history...
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+          {/* Form Section */}
+          <div className="lg:col-span-4 bg-white rounded-lg shadow-sm border border-slate-200 p-3">
+            <h2 className="text-sm font-bold text-slate-900 mb-3">Send Broadcast</h2>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-700">Title</span>
+                  <input
+                    value={form.title}
+                    onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+                    placeholder="Enter notification title"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-700">Target Type</span>
+                  <select
+                    value={form.targetType}
+                    onChange={(event) => setForm((prev) => ({ ...prev, targetType: event.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  >
+                    {TARGET_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-700">Message</span>
+                <textarea
+                  value={form.message}
+                  onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
+                  placeholder="Enter notification message"
+                  rows={4}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y"
+                />
+              </label>
+
+              {form.targetType === "CUSTOM" && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 space-y-2">
+                  <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-2 py-1.5">
+                    <Search className="w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Search users, restaurants..."
+                      className="w-full text-xs bg-transparent outline-none flex-1 min-w-[150px]"
+                    />
+                  </div>
+
+                  <div className="text-[10px] font-medium text-slate-500 px-1">
+                    Selected recipients: {selectedRecipients.length}
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
+                    {recipientLoading ? (
+                      <div className="p-3 text-xs text-slate-500 flex items-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Loading...
+                      </div>
+                    ) : filteredRecipients.length === 0 ? (
+                      <div className="p-3 text-xs text-slate-500">No recipients found.</div>
+                    ) : (
+                      filteredRecipients.map((recipient) => {
+                        const key = `${recipient.ownerType}:${recipient.ownerId}`;
+                        const checked = selectedKeys.has(key);
+                        return (
+                          <label
+                            key={key}
+                            className="flex items-start gap-2 px-2 py-2 cursor-pointer hover:bg-slate-50"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleRecipient(recipient)}
+                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-semibold text-slate-900 leading-tight">
+                                {recipient.label}
+                              </div>
+                              <div className="text-[10px] text-slate-500 mt-0.5">
+                                {recipient.ownerType.replaceAll("_", " ")}
+                                {recipient.subLabel ? ` • ${recipient.subLabel}` : ""}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60 transition-all w-full"
+                >
+                  {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  Send Broadcast
+                </button>
+              </div>
+            </form>
           </div>
-        ) : history.length === 0 ? (
-          <div className="py-10 text-sm text-slate-500">No broadcast notifications found.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-500 border-b border-slate-200">
-                  <th className="py-3 pr-4 font-semibold">Title</th>
-                  <th className="py-3 pr-4 font-semibold">Message</th>
-                  <th className="py-3 pr-4 font-semibold">Target</th>
-                  <th className="py-3 pr-4 font-semibold">Recipients</th>
-                  <th className="py-3 pr-4 font-semibold">Date</th>
-                  <th className="py-3 text-right font-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((item) => (
-                  <tr key={item?._id} className="border-b border-slate-100 align-top">
-                    <td className="py-4 pr-4 font-semibold text-slate-900">{item?.title || "Notification"}</td>
-                    <td className="py-4 pr-4 text-slate-600 max-w-sm">{item?.message || "-"}</td>
-                    <td className="py-4 pr-4 text-slate-700">{item?.targetLabel || item?.targetType}</td>
-                    <td className="py-4 pr-4 text-slate-700">{item?.targetCount || item?.targets?.length || 0}</td>
-                    <td className="py-4 pr-4 text-slate-500 whitespace-nowrap">{toDateLabel(item?.createdAt)}</td>
-                    <td className="py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(item?._id)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          {/* History Section */}
+          <div className="lg:col-span-8 bg-white rounded-lg shadow-sm border border-slate-200 p-3">
+            <div className="flex items-center justify-between gap-4 mb-3">
+              <h2 className="text-sm font-bold text-slate-900">Broadcast History</h2>
+            </div>
+
+            {historyLoading ? (
+              <div className="py-10 text-xs text-slate-500 flex flex-col items-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                Loading history...
+              </div>
+            ) : history.length === 0 ? (
+              <div className="py-10 text-xs text-slate-500 text-center flex flex-col items-center">
+                <p>No broadcast notifications found.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto scrollbar-hide border border-slate-200 rounded-lg">
+                <table className="w-full text-left" style={{ tableLayout: 'auto' }}>
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-700 uppercase tracking-wider">Title</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-700 uppercase tracking-wider">Message</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-700 uppercase tracking-wider">Target</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-700 uppercase tracking-wider">Recipients</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-700 uppercase tracking-wider">Date</th>
+                      <th className="px-3 py-2 text-[10px] font-bold text-slate-700 uppercase tracking-wider text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slate-100">
+                    {history.map((item) => (
+                      <tr key={item?._id} className="hover:bg-slate-50 transition-colors align-top">
+                        <td className="px-3 py-2">
+                          <span className="text-[11px] font-semibold text-slate-900">{item?.title || "Notification"}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="text-[11px] text-slate-600 line-clamp-2 max-w-[200px]">{item?.message || "-"}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="text-[11px] text-slate-700 whitespace-nowrap">{item?.targetLabel || item?.targetType}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="text-[11px] font-medium text-slate-700">{item?.targetCount || item?.targets?.length || 0}</span>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <span className="text-[11px] text-slate-500">{toDateLabel(item?.createdAt)}</span>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(item?._id)}
+                            className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -290,6 +290,7 @@ export const STATUS_PRIORITY = {
   cancelled_by_user: 100,
   cancelled_by_restaurant: 100,
   cancelled_by_admin: 100,
+  dead: 100,
 };
 
 /**
