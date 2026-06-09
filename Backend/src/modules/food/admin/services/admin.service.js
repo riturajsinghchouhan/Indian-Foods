@@ -1908,6 +1908,9 @@ export async function upsertFeeSettings(body) {
         if (body.deliveryBonusAmount === null) $unset.deliveryBonusAmount = 1;
         else if (body.deliveryBonusAmount !== undefined) $set.deliveryBonusAmount = body.deliveryBonusAmount;
 
+        if (body.dispatchRadiusTiers === null) $unset.dispatchRadiusTiers = 1;
+        else if (body.dispatchRadiusTiers !== undefined) $set.dispatchRadiusTiers = body.dispatchRadiusTiers;
+
         if (body.isActive !== undefined) $set.isActive = body.isActive;
 
         const update = {};
@@ -1933,6 +1936,7 @@ export async function upsertFeeSettings(body) {
     if (body.gstOnPlatformFee !== undefined && body.gstOnPlatformFee !== null) payload.gstOnPlatformFee = body.gstOnPlatformFee;
     if (body.gstOnPackagingFee !== undefined && body.gstOnPackagingFee !== null) payload.gstOnPackagingFee = body.gstOnPackagingFee;
     if (body.deliveryBonusAmount !== undefined && body.deliveryBonusAmount !== null) payload.deliveryBonusAmount = body.deliveryBonusAmount;
+    if (body.dispatchRadiusTiers !== undefined && body.dispatchRadiusTiers !== null) payload.dispatchRadiusTiers = body.dispatchRadiusTiers;
 
     const created = await FoodFeeSettings.create(payload);
     return created.toObject();

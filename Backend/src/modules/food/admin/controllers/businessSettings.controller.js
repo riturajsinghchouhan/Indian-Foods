@@ -34,7 +34,8 @@ export async function updateBusinessSettings(req, res, next) {
 
         const { 
             companyName, email, phoneCountryCode, phoneNumber, address, state, pincode, region,
-            supportEmail, supportPhone, supportHours, onlinePaymentOnly
+            supportEmail, supportPhone, supportHours, onlinePaymentOnly, maxCodAmount,
+            maintenanceMode, customerRegistration, restaurantRegistration, deliveryRegistration
         } = data;
 
         // Ensure string inputs for validation to prevent crashes from non-string values
@@ -95,6 +96,23 @@ export async function updateBusinessSettings(req, res, next) {
         
         if (onlinePaymentOnly !== undefined) {
             settings.onlinePaymentOnly = Boolean(onlinePaymentOnly === 'true' || onlinePaymentOnly === true);
+        }
+        
+        if (maxCodAmount !== undefined) {
+            settings.maxCodAmount = Number(maxCodAmount) || 0;
+        }
+
+        if (maintenanceMode !== undefined) {
+            settings.maintenanceMode = Boolean(maintenanceMode === 'true' || maintenanceMode === true);
+        }
+        if (customerRegistration !== undefined) {
+            settings.customerRegistration = Boolean(customerRegistration === 'true' || customerRegistration === true);
+        }
+        if (restaurantRegistration !== undefined) {
+            settings.restaurantRegistration = Boolean(restaurantRegistration === 'true' || restaurantRegistration === true);
+        }
+        if (deliveryRegistration !== undefined) {
+            settings.deliveryRegistration = Boolean(deliveryRegistration === 'true' || deliveryRegistration === true);
         }
 
         // Handle file uploads

@@ -31,8 +31,10 @@ export const normalizeImageUrl = (imageUrl, backendOrigin = "") => {
       }
       if (appProtocol === "https:" && parsed.protocol === "http:") parsed.protocol = "https:";
       const finalUrl = parsed.toString();
-      const hasSigned = /[?&](X-Amz-|Signature=|Expires=|AWSAccessKeyId=|GoogleAccessId=|token=|sig=|se=|sp=|sv=)/i.test(finalUrl);
-      return hasSigned ? finalUrl : encodeURI(finalUrl);
+      // Prevent double encoding of Firebase URLs which already contain %2F
+      if (finalUrl.includes('firebasestorage.googleapis.com')) return finalUrl;
+      const hasSigned = /[?&](X-Amz-|Signature=|Expires=|AWSAccessKeyId=|GoogleAccessId=|token=|sig=|se=|sp=|sv=|alt=)/i.test(finalUrl);
+      return hasSigned ? finalUrl : finalUrl.replace(/ /g, '%20');
     } catch {
       return normalized;
     }

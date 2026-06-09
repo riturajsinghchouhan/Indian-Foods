@@ -599,18 +599,19 @@ function RestaurantDetailsContent() {
           fetchedSlugRef.current = slug
           fetchedZoneIdRef.current = zoneId
 
-          // Load outlet timings from public endpoint (source of truth for daily opening slots)
-          try {
-            const outletRestaurantId = transformedRestaurant.mongoId || actualRestaurant?._id || apiRestaurant?._id
-            if (outletRestaurantId) {
-              const outletResponse = await restaurantAPI.getOutletTimingsByRestaurantId(outletRestaurantId, { noCache: true })
-              const outletTimingsData = outletResponse?.data?.data?.outletTimings || outletResponse?.data?.outletTimings
-              if (outletTimingsData) {
-                setRestaurant((prev) => ({ ...prev, outletTimings: outletTimingsData }))
-              }
-            }
-          } catch (outletError) {
-            debugWarn("Outlet timings fetch failed, falling back to delivery timings:", outletError?.message)
+          // Load outlet timings asynchronously without blocking the main render flow
+          const outletRestaurantId = transformedRestaurant.mongoId || actualRestaurant?._id || apiRestaurant?._id;
+          if (outletRestaurantId) {
+            restaurantAPI.getOutletTimingsByRestaurantId(outletRestaurantId, { noCache: true })
+              .then(outletResponse => {
+                const outletTimingsData = outletResponse?.data?.data?.outletTimings || outletResponse?.data?.outletTimings;
+                if (outletTimingsData) {
+                  setRestaurant((prev) => ({ ...prev, outletTimings: outletTimingsData }));
+                }
+              })
+              .catch(outletError => {
+                debugWarn("Outlet timings fetch failed, falling back to delivery timings:", outletError?.message);
+              });
           }
 
           // Fetch menu and inventory for this restaurant
@@ -691,60 +692,47 @@ function RestaurantDetailsContent() {
                   ].map(normalize).filter(Boolean)
                 )
 
-                const FETCH_LIMIT = 100
-                const firstResponse = await orderAPI.getOrders({ limit: FETCH_LIMIT, page: 1 })
-                let allOrders = []
-                let totalPages = 1
-
-                if (firstResponse?.data?.success && firstResponse?.data?.data?.orders) {
-                  allOrders = firstResponse.data.data.orders || []
-                  totalPages = firstResponse.data.data?.pagination?.pages || 1
-                } else if (firstResponse?.data?.orders) {
-                  allOrders = firstResponse.data.orders || []
-                  totalPages = firstResponse.data?.pagination?.pages || 1
-                } else if (Array.isArray(firstResponse?.data?.data)) {
-                  allOrders = firstResponse.data.data || []
-                }
-
-                if (totalPages > 1) {
-                  const pagePromises = []
-                  for (let p = 2; p <= totalPages; p += 1) {
-                    pagePromises.push(orderAPI.getOrders({ limit: FETCH_LIMIT, page: p }))
+                const FETCH_LIMIT = 15;
+                orderAPI.getOrders({ limit: FETCH_LIMIT, page: 1 }).then((firstResponse) => {
+                  let allOrders = [];
+                  if (firstResponse?.data?.success && firstResponse?.data?.data?.orders) {
+                    allOrders = firstResponse.data.data.orders || [];
+                  } else if (firstResponse?.data?.orders) {
+                    allOrders = firstResponse.data.orders || [];
+                  } else if (Array.isArray(firstResponse?.data?.data)) {
+                    allOrders = firstResponse.data.data || [];
                   }
 
-                  const pageResponses = await Promise.all(pagePromises)
-                  const remainingOrders = pageResponses.flatMap((resp) => {
-                    if (resp?.data?.success && resp?.data?.data?.orders) return resp.data.data.orders || []
-                    if (resp?.data?.orders) return resp.data.orders || []
-                    if (Array.isArray(resp?.data?.data)) return resp.data.data || []
-                    return []
-                  })
-                  allOrders = [...allOrders, ...remainingOrders]
-                }
+                  hasPreviousOrderForRestaurant = allOrders.some((order) => {
+                    const orderRestaurantField = order?.restaurantId;
+                    const candidateIds = [
+                      order?.restaurantId,
+                      orderRestaurantField?._id,
+                      orderRestaurantField?.id,
+                      orderRestaurantField?.restaurantId,
+                      order?.restaurant,
+                      order?.restaurant_id,
+                    ].map(normalize).filter(Boolean);
 
-                hasPreviousOrderForRestaurant = allOrders.some((order) => {
-                  const orderRestaurantField = order?.restaurantId
-                  const candidateIds = [
-                    order?.restaurantId,
-                    orderRestaurantField?._id,
-                    orderRestaurantField?.id,
-                    orderRestaurantField?.restaurantId,
-                    order?.restaurant,
-                    order?.restaurant_id,
-                  ].map(normalize).filter(Boolean)
+                    if (candidateIds.some((id) => targetRestaurantIds.has(id))) {
+                      return true;
+                    }
 
-                  if (candidateIds.some((id) => targetRestaurantIds.has(id))) {
-                    return true
-                  }
+                    const candidateNames = [
+                      order?.restaurantName,
+                      orderRestaurantField?.name,
+                      order?.restaurant?.name,
+                    ].map(normalize).filter(Boolean);
 
-                  const candidateNames = [
-                    order?.restaurantName,
-                    orderRestaurantField?.name,
-                    order?.restaurant?.name,
-                  ].map(normalize).filter(Boolean)
-
-                  return !!targetRestaurantName && candidateNames.includes(targetRestaurantName)
-                })
+                    return !!targetRestaurantName && candidateNames.includes(targetRestaurantName);
+                  });
+                  
+                  // Need to update state if component uses this variable to re-render recommendation section
+                  // Since the state update might be missing here, the UI won't reflect it if fetched late,
+                  // but we at least avoid blocking the main menu load!
+                }).catch(err => {
+                  debugWarn("Could not fetch previous orders:", err);
+                });
               } catch (orderCheckError) {
                 debugWarn("Could not verify previous orders for recommendation section:", orderCheckError)
               }

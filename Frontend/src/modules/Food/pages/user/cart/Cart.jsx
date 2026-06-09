@@ -128,6 +128,7 @@ export default function Cart() {
   const [walletBalance, setWalletBalance] = useState(0)
   const [isLoadingWallet, setIsLoadingWallet] = useState(false)
   const [onlinePaymentOnly, setOnlinePaymentOnly] = useState(false)
+  const [maxCodAmount, setMaxCodAmount] = useState(0)
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -135,10 +136,9 @@ export default function Cart() {
         const response = await publicAPI.getBusinessSettings()
         if (response.data?.success && response.data?.data) {
           const isOnlineOnly = !!response.data.data.onlinePaymentOnly;
+          const codLimit = Number(response.data.data.maxCodAmount) || 0;
           setOnlinePaymentOnly(isOnlineOnly)
-          if (isOnlineOnly) {
-            setSelectedPaymentMethod(prev => prev === "cash" ? "razorpay" : prev)
-          }
+          setMaxCodAmount(codLimit)
         }
       } catch (error) {
         debugError("Error fetching business settings:", error)
@@ -1107,7 +1107,17 @@ export default function Cart() {
   const totalBeforeDiscount = subtotal + deliveryFee + platformFee + packagingFee + gstCharges;
   const total = pricing?.total || Math.max(0, totalBeforeDiscount - discount);
   const savings = pricing?.savings ?? Math.max(0, totalBeforeDiscount - total)
-  
+
+  // Determine if COD should be hidden
+  const isCodHidden = onlinePaymentOnly || (maxCodAmount > 0 && total > maxCodAmount)
+
+  // Ensure valid payment method is selected
+  useEffect(() => {
+    if (isCodHidden && selectedPaymentMethod === "cash") {
+      setSelectedPaymentMethod("razorpay")
+    }
+  }, [isCodHidden, selectedPaymentMethod, total])
+
   // Calculate platform pricing comparison savings
   const platformPricingSavings = useMemo(() => {
     let totalPlatformPrice = 0
@@ -2938,7 +2948,7 @@ export default function Cart() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-[#7e386610] dark:bg-[#7e386620] flex items-center justify-center flex-shrink-0">
-                   {selectedPaymentMethod === "wallet" ? (
+                  {selectedPaymentMethod === "wallet" ? (
                     <Wallet className="h-5 w-5 text-primary" />
                   ) : selectedPaymentMethod === "razorpay" ? (
                     <Zap className="h-5 w-5 text-primary" />
@@ -3359,7 +3369,7 @@ export default function Cart() {
                           icon: <Banknote className="w-5 h-5" />,
                           color: 'bg-orange-50 text-#55254b dark:bg-orange-900/40 dark:text-orange-400',
                           selectedColor: 'bg-primary text-white',
-                          hidden: onlinePaymentOnly
+                          hidden: isCodHidden
                         }
                       ].filter(opt => !opt.hidden).map((option) => (
                         <button
