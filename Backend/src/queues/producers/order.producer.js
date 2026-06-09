@@ -10,8 +10,20 @@ import { logger } from '../../utils/logger.js';
 export const addOrderJob = async (data, options = {}) => {
     const queue = getOrderQueue();
     if (!queue) {
-        logger.warn('BullMQ order queue not available. Job not added.');
-        return null;
+        logger.warn('BullMQ order queue not available. Using setTimeout fallback for job.');
+        
+        // Asynchronous fallback when BullMQ is disabled
+        setTimeout(async () => {
+            try {
+                // Dynamically import to avoid circular dependencies
+                const { processOrderJob } = await import('../processors/order.processor.js');
+                await processOrderJob({ id: `fallback-${Date.now()}`, data });
+            } catch (err) {
+                logger.error(`Fallback order job failed: ${err.message}`);
+            }
+        }, options.delay || 0);
+        
+        return { id: `fallback-${Date.now()}` };
     }
     try {
         const job = await queue.add('process-order', data, options);
