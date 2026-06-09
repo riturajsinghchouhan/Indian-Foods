@@ -33,20 +33,32 @@ export default function LocationPrompt() {
     const promptDismissed = localStorage.getItem("locationPromptDismissed")
 
     if (!storedLocation && !promptDismissed && !isLegalPage) {
+      const attemptAutoLocation = async () => {
+        try {
+          const loc = await requestLocation(true, true)
+          if (loc?.latitude) {
+            localStorage.setItem("locationPromptDismissed", "true")
+          } else {
+            if (!permissionGranted) setShowPrompt(true)
+          }
+        } catch (e) {
+          if (!permissionGranted) setShowPrompt(true)
+        }
+      }
+
       const timer = setTimeout(() => {
         const currentLocation = localStorage.getItem("userLocation")
         if (!currentLocation && !permissionGranted) {
-          setShowPrompt(true)
-          document.body.style.overflow = "hidden"
+          attemptAutoLocation()
         }
-      }, 2000)
+      }, 500)
 
       return () => {
         clearTimeout(timer)
         document.body.style.overflow = ""
       }
     }
-  }, [permissionGranted, isLegalPage])
+  }, [permissionGranted, isLegalPage, requestLocation])
 
   // Search logic for manual entry
   useEffect(() => {
