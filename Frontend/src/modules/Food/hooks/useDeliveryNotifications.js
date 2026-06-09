@@ -970,6 +970,27 @@ export const useDeliveryNotifications = () => {
       dispatchNotificationInboxRefresh();
     });
 
+    socketRef.current.on('admin_force_status', async (payload) => {
+      debugLog('Admin force status received via socket', payload);
+      try {
+        const { useDeliveryStore } = await import('@/modules/DeliveryV2/store/useDeliveryStore');
+        const isOnline = payload?.status === 'online';
+        useDeliveryStore.getState().setOnline(isOnline);
+        const { toast } = await import('sonner');
+        
+        if (isOnline) {
+            toast.success(payload?.message || 'You have been marked online by the Admin.', { duration: 5000 });
+        } else {
+            toast.error(payload?.message || 'You have been marked offline by the Admin.', { duration: 8000 });
+            stopAlertLoop();
+            activeOrderRef.current = null;
+            setNewOrder(null);
+        }
+      } catch (err) {
+        debugError('Error handling admin_force_status:', err);
+      }
+    });
+
     // Auth change/refresh listeners
     const handleAuthChange = () => {
       const newToken = localStorage.getItem('delivery_accessToken') || localStorage.getItem('accessToken');

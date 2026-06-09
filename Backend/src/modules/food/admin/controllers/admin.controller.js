@@ -1440,6 +1440,21 @@ export async function updateDeliveryPartnerAvailabilityAdmin(req, res, next) {
             partner.shiftStartTime = undefined;
             partner.shiftStartAddress = undefined;
         }
+        
+        // Force the partner status in real-time
+        try {
+            const { getIO } = await import('../../../../config/socket.js');
+            const io = getIO();
+            if (io) {
+                io.to(`delivery:${id}`).emit('admin_force_status', {
+                    status: status,
+                    message: `You have been marked ${status} by the Admin.`
+                });
+            }
+        } catch (err) {
+            console.error('Failed to emit admin_force_status socket event:', err);
+        }
+
         await partner.save();
         res.status(200).json({ success: true, message: 'Delivery partner availability updated', data: partner });
     } catch (error) {
