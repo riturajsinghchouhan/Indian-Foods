@@ -1270,7 +1270,7 @@ export async function getCustomers(query = {}) {
             .sort(sort)
             .skip(skip)
             .limit(limit)
-            .select('name email phone countryCode isVerified isActive createdAt profileImage')
+            .select('name email phone countryCode isVerified isActive createdAt profileImage addresses')
             .lean(),
         FoodUser.countDocuments(filter)
     ]);
@@ -1321,7 +1321,8 @@ export async function getCustomers(query = {}) {
         totalOrder: stats.totalOrder,
         totalOrderAmount: stats.totalOrderAmount,
         joiningDate: u.createdAt,
-        createdAt: u.createdAt
+        createdAt: u.createdAt,
+        addresses: u.addresses || []
         });
     });
 
@@ -1370,7 +1371,10 @@ export async function getCustomerById(id) {
         totalOrderAmount: Number(stats.totalOrderAmount || 0),
         joiningDate: u.createdAt,
         createdAt: u.createdAt,
-        updatedAt: u.updatedAt
+        updatedAt: u.updatedAt,
+        addresses: u.addresses || [],
+        gender: u.gender || '',
+        dateOfBirth: u.dateOfBirth || null
     };
 }
 

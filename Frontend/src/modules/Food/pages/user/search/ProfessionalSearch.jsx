@@ -20,7 +20,7 @@ import { calculateDistance } from "@food/utils/common"
 
 // Simple in-memory session cache to provide instant loads on re-visits
 const sessionSearchCache = new Map();
-let sessionCategories = null;
+const sessionCategoriesCache = new Map();
 
 // Helper to resolve media URLs consistently
 const getMediaUrl = (url) => {
@@ -72,18 +72,19 @@ export default function ProfessionalSearch() {
     const savedHistory = localStorage.getItem(SEARCH_HISTORY_KEY)
     if (savedHistory) setHistory(JSON.parse(savedHistory))
     fetchCategories()
-  }, [])
+  }, [zoneId])
 
   const fetchCategories = async () => {
-    if (sessionCategories) {
-      setCategories(sessionCategories);
+    const cacheKey = String(zoneId || 'global');
+    if (sessionCategoriesCache.has(cacheKey)) {
+      setCategories(sessionCategoriesCache.get(cacheKey));
       return;
     }
     try {
       const res = await searchAPI.getAdminCategories({ zoneId })
       if (res.data?.success) {
-        sessionCategories = res.data.data.categories;
-        setCategories(sessionCategories)
+        sessionCategoriesCache.set(cacheKey, res.data.data.categories);
+        setCategories(res.data.data.categories)
       }
     } catch (err) {
       console.error("Failed to fetch categories", err)
@@ -362,7 +363,7 @@ export default function ProfessionalSearch() {
                                 </div>
                              </div>
                              {(r.matchedDishPrice || r.price) && (
-                                <span className="text-sm font-black text-gray-900 dark:text-white bg-gray-50 dark:bg-zinc-800 px-2 py-1 rounded-lg">₹{r.matchedDishPrice || r.price}</span>
+                                <span className="text-sm font-black text-gray-900 dark:text-white bg-gray-50 dark:bg-zinc-800 px-2 py-1 rounded-lg">₹{Number(r.matchedDishPrice || r.price).toFixed(2)}</span>
                              )}
                           </div>
                        </div>
@@ -520,7 +521,7 @@ export default function ProfessionalSearch() {
                     <div className="flex flex-col">
                       <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">Price</span>
                       <span className="text-2xl font-black text-gray-900 dark:text-white">
-                         {selectedDish.matchedDishPrice ? `₹${selectedDish.matchedDishPrice}` : (selectedDish.price ? `₹${selectedDish.price}` : '₹-')}
+                         {selectedDish.matchedDishPrice ? `₹${Number(selectedDish.matchedDishPrice).toFixed(2)}` : (selectedDish.price ? `₹${Number(selectedDish.price).toFixed(2)}` : '₹-')}
                       </span>
                     </div>
                     <Link 

@@ -35,6 +35,13 @@ export default function Customers() {
     chooseFirst: "",
   })
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 50
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, filters])
+
   const filteredCustomers = useMemo(() => {
     let result = [...customers]
 
@@ -43,7 +50,7 @@ export default function Customers() {
       const query = searchQuery.toLowerCase().trim()
       result = result.filter(customer =>
         customer.name?.toLowerCase().includes(query) ||
-        (customer.email || "NA").toLowerCase().includes(query) ||
+        (customer.email || "email not given by client").toLowerCase().includes(query) ||
         customer.phone?.includes(query)
       )
     }
@@ -89,6 +96,13 @@ export default function Customers() {
 
     return result
   }, [customers, searchQuery, filters])
+
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage)
+  
+  const paginatedCustomers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredCustomers.slice(startIndex, startIndex + itemsPerPage)
+  }, [filteredCustomers, currentPage])
 
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({ ...prev, [field]: value }))
@@ -459,6 +473,7 @@ export default function Customers() {
                   <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">Sl</th>
                   <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">Contact Information</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">Address</th>
                   <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">Total Order</th>
                   <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">Total Order Amount</th>
                   <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-700 uppercase tracking-wider">Joining Date</th>
@@ -469,21 +484,21 @@ export default function Customers() {
               <tbody className="bg-white divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center">
+                    <td colSpan={9} className="px-6 py-8 text-center">
                       <div className="text-sm text-slate-500">Loading customers...</div>
                     </td>
                   </tr>
-                ) : filteredCustomers.length === 0 ? (
+                ) : paginatedCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center">
+                    <td colSpan={9} className="px-6 py-8 text-center">
                       <div className="text-sm text-slate-500">No customers found</div>
                     </td>
                   </tr>
                 ) : (
-                  filteredCustomers.map((customer, index) => (
+                  paginatedCustomers.map((customer, index) => (
                     <tr key={customer.id || customer.sl} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-medium text-slate-700">{index + 1}</span>
+                        <span className="text-sm font-medium text-slate-700">{(currentPage - 1) * itemsPerPage + index + 1}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -514,8 +529,20 @@ export default function Customers() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="text-sm text-slate-700">{customer.email || "NA"}</span>
+                          <span className="text-sm text-slate-700">{customer.email || "email not given by client"}</span>
                           <span className="text-xs text-slate-500">{customer.phone}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col max-w-[200px]">
+                          {customer.addresses && customer.addresses.length > 0 ? (
+                            <span className="text-sm text-slate-700 truncate" title={`${customer.addresses[0].street}${customer.addresses[0].city ? `, ${customer.addresses[0].city}` : ''}`}>
+                              {customer.addresses[0].street}
+                              {customer.addresses[0].city && `, ${customer.addresses[0].city}`}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-500">Address not provided</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -566,6 +593,34 @@ export default function Customers() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4 mt-4">
+              <div className="text-sm text-slate-500">
+                Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredCustomers.length)}</span> of <span className="font-medium">{filteredCustomers.length}</span> results
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Previous
+                </button>
+                <div className="text-sm font-medium text-slate-700 px-2">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -610,7 +665,7 @@ export default function Customers() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                       <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
                         <Mail className="w-4 h-4" />
-                        <span className="truncate">{userDetails.email || "NA"}</span>
+                        <span className="truncate">{userDetails.email || "email not given by client"}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
                         <Phone className="w-4 h-4" />
