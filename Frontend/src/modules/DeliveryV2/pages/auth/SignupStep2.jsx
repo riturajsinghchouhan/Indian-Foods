@@ -147,20 +147,8 @@ const compressImageToWebP = (file, maxWidth = 1024, quality = 0.8) => {
         canvas.height = height
         const ctx = canvas.getContext("2d")
         ctx.drawImage(img, 0, 0, width, height)
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error("Canvas to Blob failed"))
-              return
-            }
-            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp"
-            const newFile = new File([blob], newFileName, { type: "image/webp" })
-            resolve(newFile)
-          },
-          "image/webp",
-          quality
-        )
+        const dataUrl = canvas.toDataURL("image/webp", quality)
+        resolve(dataUrl)
       }
       img.onerror = (error) => reject(error)
     }
@@ -278,9 +266,19 @@ export default function SignupStep2() {
     if (uploaded?.url) return uploaded.url
 
     const localFile = documents[docType]
-    if (localFile instanceof File || localFile instanceof Blob) {
+    if (typeof localFile === "string" && localFile.startsWith("data:")) {
+      return localFile
+    }
+    if (localFile) {
       if (!localFile._previewUrl) {
-        localFile._previewUrl = URL.createObjectURL(localFile)
+        try {
+          const blob = (localFile instanceof Blob || localFile instanceof File) 
+            ? localFile 
+            : new Blob([localFile], { type: localFile.type || "image/webp" })
+          localFile._previewUrl = URL.createObjectURL(blob)
+        } catch (e) {
+          return null
+        }
       }
       return localFile._previewUrl
     }
@@ -301,11 +299,11 @@ export default function SignupStep2() {
 
     try {
       // Compress to WebP (max width 1024px, 80% quality)
-      const compressedFile = await compressImageToWebP(file, 1024, 0.8)
+      const compressedDataUrl = await compressImageToWebP(file, 1024, 0.8)
 
-      setDocuments((prev) => ({ ...prev, [docType]: compressedFile }))
+      setDocuments((prev) => ({ ...prev, [docType]: compressedDataUrl }))
       setUploadedDocs((prev) => ({ ...prev, [docType]: { file: true } }))
-      await saveFileToDB(docType, compressedFile)
+      await saveFileToDB(docType, compressedDataUrl)
       toast.success(`${docType.replace(/([A-Z])/g, " $1").trim()} selected`)
     } catch (error) {
       debugError("Image compression failed:", error)
@@ -373,10 +371,28 @@ export default function SignupStep2() {
     }
     if (details.panNumber) formData.append("panNumber", details.panNumber)
     if (details.aadharNumber) formData.append("aadharNumber", details.aadharNumber)
-    formData.append("profilePhoto", documents.profilePhoto)
-    formData.append("aadharPhoto", documents.aadharPhoto)
-    formData.append("panPhoto", documents.panPhoto)
-    formData.append("drivingLicensePhoto", documents.drivingLicensePhoto)
+
+    const appendFileToForm = (formData, key, fileData, filename) => {
+      if (!fileData) return;
+      if (typeof fileData === 'string' && fileData.startsWith('data:')) {
+        const arr = fileData.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        formData.append(key, new File([u8arr], filename, { type: mime }));
+      } else {
+        formData.append(key, fileData);
+      }
+    };
+
+    appendFileToForm(formData, "profilePhoto", documents.profilePhoto, "profile.webp");
+    appendFileToForm(formData, "aadharPhoto", documents.aadharPhoto, "aadhar.webp");
+    appendFileToForm(formData, "panPhoto", documents.panPhoto, "pan.webp");
+    appendFileToForm(formData, "drivingLicensePhoto", documents.drivingLicensePhoto, "dl.webp");
 
     // Try to get FCM token before registering
     let fcmToken = null;
@@ -438,6 +454,7 @@ export default function SignupStep2() {
   const DocumentUpload = ({ docType, label, required = true }) => {
     const uploaded = uploadedDocs[docType]
     const isUploading = uploading[docType]
+    const src = getPreviewSrc(docType)
 
     return (
       <div className="bg-white rounded-lg p-4 border border-gray-200">
@@ -447,11 +464,17 @@ export default function SignupStep2() {
 
         {uploaded ? (
           <div className="relative">
-            <img
-              src={getPreviewSrc(docType)}
-              alt={label}
-              className="w-full h-48 object-cover rounded-lg"
-            />
+            {src ? (
+              <img
+                src={src}
+                alt={label}
+                className="w-full h-48 object-cover rounded-lg"
+              />
+            ) : (
+              <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => handleRemove(docType)}
