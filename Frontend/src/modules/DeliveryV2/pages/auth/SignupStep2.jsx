@@ -126,6 +126,48 @@ const sanitizeUploadedDocs = (docs) => ({
   drivingLicensePhoto: sanitizeUploadedDocValue(docs?.drivingLicensePhoto)
 })
 
+const compressImageToWebP = (file, maxWidth = 1024, quality = 0.8) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target.result
+      img.onload = () => {
+        const canvas = document.createElement("canvas")
+        let width = img.width
+        let height = img.height
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width)
+          width = maxWidth
+        }
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        ctx.drawImage(img, 0, 0, width, height)
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Canvas to Blob failed"))
+              return
+            }
+            const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".webp"
+            const newFile = new File([blob], newFileName, { type: "image/webp" })
+            resolve(newFile)
+          },
+          "image/webp",
+          quality
+        )
+      }
+      img.onerror = (error) => reject(error)
+    }
+    reader.onerror = (error) => reject(error)
+  })
+}
+
 const getFriendlyRegistrationError = (error) => {
   const rawMessage =
     error?.response?.data?.message ||
@@ -211,6 +253,14 @@ export default function SignupStep2() {
         ...(pan && { panPhoto: pan }),
         ...(dl && { drivingLicensePhoto: dl })
       }))
+
+      setUploadedDocs(prev => ({
+        ...prev,
+        ...(prof && { profilePhoto: { file: true } }),
+        ...(aadhar && { aadharPhoto: { file: true } }),
+        ...(pan && { panPhoto: { file: true } }),
+        ...(dl && { drivingLicensePhoto: { file: true } })
+      }))
     }
     loadFiles()
   }, [])
@@ -248,15 +298,19 @@ export default function SignupStep2() {
       toast.error("Please select an image file")
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size should be less than 5MB")
-      return
-    }
 
-    setDocuments((prev) => ({ ...prev, [docType]: file }))
-    setUploadedDocs((prev) => ({ ...prev, [docType]: { file: true } }))
-    await saveFileToDB(docType, file)
-    toast.success(`${docType.replace(/([A-Z])/g, " $1").trim()} selected`)
+    try {
+      // Compress to WebP (max width 1024px, 80% quality)
+      const compressedFile = await compressImageToWebP(file, 1024, 0.8)
+
+      setDocuments((prev) => ({ ...prev, [docType]: compressedFile }))
+      setUploadedDocs((prev) => ({ ...prev, [docType]: { file: true } }))
+      await saveFileToDB(docType, compressedFile)
+      toast.success(`${docType.replace(/([A-Z])/g, " $1").trim()} selected`)
+    } catch (error) {
+      debugError("Image compression failed:", error)
+      toast.error("Failed to process image. Please try another one.")
+    }
   }
 
   const handleTakeCameraPhoto = (docType, label) => {
@@ -284,11 +338,6 @@ export default function SignupStep2() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-
-    if (!documents.profilePhoto || !documents.aadharPhoto || !documents.panPhoto || !documents.drivingLicensePhoto) {
-      toast.error("Please upload all required documents")
-      return
-    }
 
     const raw = sessionStorage.getItem("deliverySignupDetails")
     if (!raw) {
@@ -521,16 +570,16 @@ export default function SignupStep2() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <DocumentUpload docType="profilePhoto" label="Profile Photo" required={true} />
-          <DocumentUpload docType="aadharPhoto" label="Aadhar Card Photo" required={true} />
-          <DocumentUpload docType="panPhoto" label="PAN Card Photo" required={true} />
-          <DocumentUpload docType="drivingLicensePhoto" label="Driving License Photo" required={true} />
+          <DocumentUpload docType="profilePhoto" label="Profile Photo" required={false} />
+          <DocumentUpload docType="aadharPhoto" label="Aadhar Card Photo" required={false} />
+          <DocumentUpload docType="panPhoto" label="PAN Card Photo" required={false} />
+          <DocumentUpload docType="drivingLicensePhoto" label="Driving License Photo" required={false} />
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isSubmitting || !uploadedDocs.profilePhoto || !uploadedDocs.aadharPhoto || !uploadedDocs.panPhoto || !uploadedDocs.drivingLicensePhoto}
-            className={`w-full py-4 rounded-lg font-bold text-white text-base transition-colors mt-6 ${isSubmitting || !uploadedDocs.profilePhoto || !uploadedDocs.aadharPhoto || !uploadedDocs.panPhoto || !uploadedDocs.drivingLicensePhoto
+            disabled={isSubmitting}
+            className={`w-full py-4 rounded-lg font-bold text-white text-base transition-colors mt-6 ${isSubmitting
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-[#00B761] hover:bg-[#00A055]"
               }`}

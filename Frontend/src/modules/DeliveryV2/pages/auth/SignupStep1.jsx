@@ -159,9 +159,7 @@ export default function SignupStep1() {
       newErrors.vehicleNumber = "Invalid Indian vehicle number format (e.g., MH12AB1234)"
     }
 
-    if (!formData.drivingLicenseNumber.trim()) {
-      newErrors.drivingLicenseNumber = "Driving license number is required"
-    } else if (!/^[A-Z]{2}[0-9]{2}[0-9]{4}[0-9]{7}$/.test(formData.drivingLicenseNumber)) {
+    if (formData.drivingLicenseNumber.trim() && !/^[A-Z]{2}[0-9]{2}[0-9]{4}[0-9]{7}$/.test(formData.drivingLicenseNumber)) {
       newErrors.drivingLicenseNumber = "Invalid DL format (e.g., MH1220110012345)"
     }
 
@@ -384,7 +382,7 @@ export default function SignupStep1() {
           {/* Driving License Number */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Driving License Number <span className="text-red-500">*</span>
+              Driving License Number (Optional)
             </label>
             <input
               type="text"
