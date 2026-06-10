@@ -83,3 +83,55 @@ export const config = {
     emailPass: process.env.EMAIL_PASS ? String(process.env.EMAIL_PASS).replace(/\s/g, '') : '',
     emailFrom: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@example.com'
 };
+
+export const updateConfig = () => {
+    config.port = process.env.PORT || config.port;
+    config.host = process.env.HOST || config.host;
+    config.nodeEnv = process.env.NODE_ENV || config.nodeEnv;
+    config.mongodbUri = process.env.MONGO_URI || process.env.MONGODB_URI || config.mongodbUri;
+    config.jwtAccessSecret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || config.jwtAccessSecret;
+    config.jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || config.jwtRefreshSecret;
+    config.jwtAccessExpiresIn = process.env.JWT_ACCESS_EXPIRES || config.jwtAccessExpiresIn;
+    config.jwtRefreshExpiresIn = process.env.JWT_REFRESH_EXPIRES || config.jwtRefreshExpiresIn;
+    config.otpExpiry = process.env.OTP_EXPIRY || config.otpExpiry;
+    config.otpMaxAttempts = Number(process.env.OTP_MAX_ATTEMPTS || config.otpMaxAttempts);
+    config.otpExpiryMinutes = Number(process.env.OTP_EXPIRY_MINUTES || config.otpExpiryMinutes);
+    config.otpExpirySeconds = Number(process.env.OTP_EXPIRY_SECONDS || config.otpExpirySeconds);
+    config.otpRateLimit = Number(process.env.OTP_RATE_LIMIT || config.otpRateLimit);
+    config.otpRateWindow = Number(process.env.OTP_RATE_WINDOW || config.otpRateWindow);
+    config.useDefaultOtp = process.env.USE_DEFAULT_OTP === 'true';
+    config.msg91AuthKey = process.env.MSG91_AUTH_KEY || config.msg91AuthKey;
+    config.msg91TemplateId = process.env.MSG91_TEMPLATE_ID || config.msg91TemplateId;
+    config.rateLimitWindowMinutes = Number(process.env.RATE_LIMIT_WINDOW || config.rateLimitWindowMinutes);
+    config.rateLimitMaxRequests = Number(process.env.RATE_LIMIT_MAX || config.rateLimitMaxRequests);
+    config.authRateLimitWindowMinutes = Number(process.env.AUTH_RATE_LIMIT_WINDOW || config.authRateLimitWindowMinutes);
+    config.authRateLimitMax = Number(process.env.AUTH_RATE_LIMIT_MAX || config.authRateLimitMax);
+    config.bcryptSaltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || config.bcryptSaltRounds);
+    config.uploadPath = process.env.UPLOAD_PATH || config.uploadPath;
+    config.redisEnabled = process.env.REDIS_ENABLED === 'true';
+    config.redisUrl = process.env.REDIS_URL || config.redisUrl;
+    config.bullmqEnabled = process.env.BULLMQ_ENABLED === 'true';
+    config.cloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME || config.cloudinaryCloudName;
+    config.cloudinaryApiKey = process.env.CLOUDINARY_API_KEY || config.cloudinaryApiKey;
+    config.cloudinaryApiSecret = process.env.CLOUDINARY_API_SECRET || config.cloudinaryApiSecret;
+    config.firebaseProjectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || config.firebaseProjectId;
+    config.firebaseDatabaseUrl = process.env.VITE_FIREBASE_DATABASE_URL || config.firebaseDatabaseUrl;
+    config.firebaseServiceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || config.firebaseServiceAccountPath;
+    config.firebaseServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT || config.firebaseServiceAccount;
+    config.firebaseWebApiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || config.firebaseWebApiKey;
+    config.firebaseWebAuthDomain = process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN || config.firebaseWebAuthDomain;
+    config.firebaseWebStorageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || config.firebaseWebStorageBucket;
+    config.firebaseWebMessagingSenderId = process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID || config.firebaseWebMessagingSenderId;
+    config.firebaseWebAppId = process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID || config.firebaseWebAppId;
+    config.firebaseWebMeasurementId = process.env.VITE_FIREBASE_MEASUREMENT_ID || process.env.FIREBASE_MEASUREMENT_ID || config.firebaseWebMeasurementId;
+    config.firebaseWebVapidKey = process.env.VITE_FIREBASE_VAPID_KEY || process.env.FIREBASE_VAPID_KEY || config.firebaseWebVapidKey;
+    config.socketCorsOrigin = process.env.SOCKET_CORS_ORIGIN || config.socketCorsOrigin;
+    config.razorpayKeyId = process.env.RAZORPAY_KEY_ID || config.razorpayKeyId;
+    config.razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || config.razorpayKeySecret;
+    config.razorpayWebhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || config.razorpayWebhookSecret;
+    config.emailHost = process.env.EMAIL_HOST || config.emailHost;
+    config.emailPort = Number(process.env.EMAIL_PORT) || config.emailPort;
+    config.emailUser = process.env.EMAIL_USER || config.emailUser;
+    config.emailPass = process.env.EMAIL_PASS ? String(process.env.EMAIL_PASS).replace(/\s/g, '') : config.emailPass;
+    config.emailFrom = process.env.EMAIL_FROM || process.env.EMAIL_USER || config.emailFrom;
+};

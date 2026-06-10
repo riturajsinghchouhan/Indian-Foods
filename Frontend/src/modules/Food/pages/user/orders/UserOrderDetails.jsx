@@ -318,13 +318,56 @@ export default function UserOrderDetails() {
       })
 
       // Get final Y position after table (autoTable adds lastAutoTable property)
-      const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : yPos + (tableData.length * 8) + 20
+      let summaryY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : yPos + (tableData.length * 8) + 20
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+
+      // Subtotal
+      summaryY += 10
+      doc.text('Item Total:', 145, summaryY, { align: 'right' })
+      doc.text(`Rs. ${Number(pricing.subtotal || pricing.total || 0).toFixed(2)}`, 195, summaryY, { align: 'right' })
+
+      // GST
+      if (Number(pricing.tax) > 0) {
+        summaryY += 7
+        doc.text('GST (govt. taxes):', 145, summaryY, { align: 'right' })
+        doc.text(`Rs. ${Number(pricing.tax).toFixed(2)}`, 195, summaryY, { align: 'right' })
+      }
+
+      // Delivery Fee
+      summaryY += 7
+      doc.text('Delivery Fee:', 145, summaryY, { align: 'right' })
+      doc.text(pricing.deliveryFee ? `Rs. ${Number(pricing.deliveryFee).toFixed(2)}` : 'Free', 195, summaryY, { align: 'right' })
+
+      // Platform Fee
+      if (Number(pricing.platformFee) > 0) {
+        summaryY += 7
+        doc.text('Platform Fee:', 145, summaryY, { align: 'right' })
+        doc.text(`Rs. ${Number(pricing.platformFee).toFixed(2)}`, 195, summaryY, { align: 'right' })
+      }
+
+      // Subscription/Other fees
+      if (Number(pricing.subscriptionFee) > 0) {
+        summaryY += 7
+        doc.text('Other Fees:', 145, summaryY, { align: 'right' })
+        doc.text(`Rs. ${Number(pricing.subscriptionFee).toFixed(2)}`, 195, summaryY, { align: 'right' })
+      }
+
+      // Discount
+      const savings = (Number(pricing.discount) || 0) + (Number(pricing.originalItemTotal) || 0) - (Number(pricing.subtotal) || 0)
+      if (savings > 0) {
+        summaryY += 7
+        doc.text('Discount:', 145, summaryY, { align: 'right' })
+        doc.text(`- Rs. ${Number(savings).toFixed(2)}`, 195, summaryY, { align: 'right' })
+      }
 
       // Total
+      summaryY += 10
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
-      doc.text('Total:', 145, finalY + 10, { align: 'right' })
-      doc.text(`Rs. ${Number(pricing.total || 0).toFixed(2)}`, 195, finalY + 10, { align: 'right' })
+      doc.text('Total:', 145, summaryY, { align: 'right' })
+      doc.text(`Rs. ${Number(pricing.total || 0).toFixed(2)}`, 195, summaryY, { align: 'right' })
 
       // Use robust download utility
       const pdfBlob = doc.output('blob');

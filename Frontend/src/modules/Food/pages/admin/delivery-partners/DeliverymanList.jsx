@@ -16,6 +16,8 @@ const formatCurrency = (amount) => {
 
 export default function DeliverymanList() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 50
   const [deliverymen, setDeliverymen] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -207,6 +209,17 @@ export default function DeliverymanList() {
     // Backend already handles search, but we can do client-side filtering if needed
     return deliverymen
   }, [deliverymen])
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
+
+  const totalPages = Math.ceil(filteredDeliverymen.length / itemsPerPage)
+  const paginatedDeliverymen = filteredDeliverymen.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   const handleView = async (deliveryman) => {
     try {
@@ -591,11 +604,13 @@ availableCashLimit: deliveryman.availableCashLimit || 0,
                       </td>
                     </tr>
                   ) : (
-                    filteredDeliverymen.map((dm) => (
+                    paginatedDeliverymen.map((dm, index) => {
+                      const absoluteIndex = (currentPage - 1) * itemsPerPage + index + 1
+                      return (
                       <tr key={dm._id} className="hover:bg-slate-50 transition-colors">
                         {visibleColumns.si && (
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm font-medium text-slate-700">{dm.sl}</span>
+                            <span className="text-sm font-medium text-slate-700">{dm.sl ?? absoluteIndex}</span>
                           </td>
                         )}
                         {visibleColumns.name && (
@@ -752,12 +767,60 @@ availableCashLimit: deliveryman.availableCashLimit || 0,
                           </td>
                         )}
                       </tr>
-                    ))
+                    )})
                   )}
                 </tbody>
               </table>
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
+              <div className="text-sm text-slate-500">
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredDeliverymen.length)} of {filteredDeliverymen.length} delivery partners
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {[...Array(Math.min(5, totalPages))].map((_, idx) => {
+                    let pageNum = currentPage;
+                    if (totalPages <= 5) pageNum = idx + 1;
+                    else if (currentPage <= 3) pageNum = idx + 1;
+                    else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + idx;
+                    else pageNum = currentPage - 2 + idx;
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === pageNum 
+                            ? "bg-blue-600 text-white" 
+                            : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

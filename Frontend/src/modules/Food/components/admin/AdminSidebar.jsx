@@ -52,6 +52,7 @@ import { Input } from "@food/components/ui/input"
 import { adminSidebarMenu } from "@food/utils/adminSidebarMenu"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
 import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png"
+import { adminAPI } from "@food/api"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -137,6 +138,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     if (p.includes("restaurants/complaints")) return badges.restaurantComplaints || 0
 
     // ORDER MANAGEMENT
+    if (l === "orders") return (badges.orders || 0) + (badges.offlinePayments || 0)
     if (p.includes("orders/pending")) return badges.orders || 0
     if (p.includes("orders/offline-payments")) return badges.offlinePayments || 0
 
@@ -145,7 +147,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
     if (p === "/admin/food/support-tickets") return badges.userSupportTickets || 0
 
     // DELIVERYMAN MANAGEMENT
-    if (l === "deliveryman") return badges.deliveryPartners || 0
+    if (l === "deliveryman") return (badges.deliveryPartners || 0) + (badges.earningAddons || 0)
     if (p.includes("delivery-partners/join-request")) return badges.deliveryPartners || 0
     if (p.includes("delivery-withdrawal")) return badges.deliveryWithdrawals || 0
     if (p.includes("delivery-emergency-help")) return badges.emergencyHelp || 0
@@ -468,14 +470,14 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                 {item.label}
               </span>
               {getBadgeCount(item.label, item.path) > 0 && (
-                <span className="shrink-0 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 min-w-[18px] text-center">
+                <span className="shrink-0 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 min-w-[18px] text-center">
                   {getBadgeCount(item.label, item.path) > 99 ? "99+" : getBadgeCount(item.label, item.path)}
                 </span>
               )}
             </div>
           )}
           {isCollapsed && getBadgeCount(item.label, item.path) > 0 && (
-            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-neutral-950 animate-pulse" />
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-neutral-950 animate-pulse" />
           )}
         </Link>
       )
@@ -500,7 +502,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
               <div className="relative">
                 <Icon className="w-4 h-4 shrink-0 text-neutral-300 transition-transform duration-300" />
                 {getBadgeCount(item.label, item.path) > 0 && (
-                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-neutral-950 animate-pulse" />
+                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-neutral-950 animate-pulse" />
                 )}
               </div>
             </button>
@@ -521,7 +523,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
               <Icon className="w-4 h-4 shrink-0 text-neutral-100 transition-transform duration-300" />
               <span className="font-bold text-left truncate">{item.label}</span>
               {getBadgeCount(item.label, item.path) > 0 && (
-                <span className="shrink-0 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 min-w-[18px] text-center">
+                <span className="shrink-0 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 min-w-[18px] text-center">
                   {getBadgeCount(item.label, item.path) > 99 ? "99+" : getBadgeCount(item.label, item.path)}
                 </span>
               )}
@@ -557,7 +559,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                     )}></span>
                     <span className="text-left flex-1 truncate">{subItem.label}</span>
                     {getBadgeCount(subItem.label, subItem.path) > 0 && (
-                      <span className="shrink-0 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 min-w-[18px] text-center">
+                      <span className="shrink-0 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 min-w-[18px] text-center">
                         {getBadgeCount(subItem.label, subItem.path) > 99 ? "99+" : getBadgeCount(subItem.label, subItem.path)}
                       </span>
                     )}
@@ -798,7 +800,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                           }
                           return false;
                         }) && (
-                          <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
+                          <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
                         )}
                       </div>
                     <div className="space-y-1">

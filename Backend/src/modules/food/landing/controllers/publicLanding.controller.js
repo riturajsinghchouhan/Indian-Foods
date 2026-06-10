@@ -84,12 +84,19 @@ export const getPublicExploreIconsController = async (req, res, next) => {
 
 export const getPublicGourmetController = async (req, res, next) => {
     try {
+        const { zoneId } = req.query;
         const docs = await getPublicGourmetRestaurants();
-        const restaurants = (docs || []).map((d) => ({
+        let restaurants = (docs || []).map((d) => ({
             ...(d.restaurant || {}),
             _id: d.restaurant?._id || d.restaurantId,
+            zoneId: d.restaurant?.zoneId,
             priority: d.priority
         })).filter((r) => r && r._id);
+        
+        if (zoneId && mongoose.Types.ObjectId.isValid(zoneId)) {
+            restaurants = restaurants.filter(r => String(r.zoneId || '') === String(zoneId));
+        }
+        
         return sendResponse(res, 200, 'Gourmet restaurants fetched', { restaurants });
     } catch (error) {
         next(error);

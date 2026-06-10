@@ -136,9 +136,9 @@ export default function SignIn() {
       </motion.div>
 
       {/* Support Icon */}
-      <Link to="/user/auth/support" className="absolute top-6 right-6 z-20 text-gray-400 hover:text-primary transition-colors flex items-center gap-1.5 font-medium text-sm">
-        <Info className="w-5 h-5" />
-        <span className="hidden sm:inline">Help</span>
+      <Link to="/user/auth/support" className="absolute top-4 right-4 z-20 bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-sm text-gray-700 dark:text-gray-300 hover:text-[#E53935] border border-gray-200/60 dark:border-gray-700/60 transition-all flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider">
+        <Info className="w-4 h-4 text-[#E53935]" />
+        <span>Support</span>
       </Link>
 
       <div className="w-full max-w-md px-6 py-8 relative z-10 flex flex-col items-center">
@@ -225,6 +225,8 @@ export default function SignIn() {
             )}
           </button>
         </motion.form>
+
+
 
         {/* Footer */}
         <motion.div 

@@ -75,6 +75,7 @@ export default function LandingPageManagement() {
   const [gourmetLoading, setGourmetLoading] = useState(true)
   const [gourmetDeleting, setGourmetDeleting] = useState(null)
   const [selectedRestaurantGourmet, setSelectedRestaurantGourmet] = useState("")
+  const [selectedZoneGourmet, setSelectedZoneGourmet] = useState("")
 
   // Common
   const [error, setError] = useState(null)
@@ -1975,6 +1976,24 @@ export default function LandingPageManagement() {
                   <h2 className="text-lg font-bold text-slate-900 mb-4">Add Restaurant to Gourmet</h2>
                   <div className="space-y-4">
                     <div>
+                      <Label htmlFor="zone-gourmet">Select Zone</Label>
+                      <select
+                        id="zone-gourmet"
+                        value={selectedZoneGourmet}
+                        onChange={(e) => {
+                          setSelectedZoneGourmet(e.target.value)
+                          setSelectedRestaurantGourmet("") // Reset restaurant selection when zone changes
+                        }}
+                        className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={restaurantsLoading}
+                      >
+                        <option value="">All Zones</option>
+                        {zones.map((zone) => (
+                          <option key={zone._id || zone.id} value={zone._id || zone.id}>{zone.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
                       <Label htmlFor="restaurant-gourmet">Select Restaurant</Label>
                       <select
                         id="restaurant-gourmet"
@@ -1986,6 +2005,11 @@ export default function LandingPageManagement() {
                         <option value="">Select a restaurant...</option>
                         {allRestaurants
                           .filter(r => !gourmetRestaurants.some(gr => gr.restaurant?._id === r._id))
+                          .filter(r => {
+                            if (!selectedZoneGourmet) return true;
+                            const rZoneId = r.zoneId?._id || r.zoneId;
+                            return String(rZoneId) === selectedZoneGourmet;
+                          })
                           .map((restaurant) => (
                             <option key={restaurant._id} value={restaurant._id}>
                               {restaurant.name}

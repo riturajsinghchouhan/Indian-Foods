@@ -11,6 +11,7 @@ import OptimizedImage from "@food/components/OptimizedImage"
 import { RestaurantGridSkeleton } from "@food/components/ui/loading-skeletons"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
 import { useLocation } from "@food/hooks/useLocation"
+import { useZone } from "@food/hooks/useZone"
 
 // Import banner
 import gourmetBanner from "@food/assets/gourmet_new_banner.png"
@@ -27,6 +28,8 @@ export default function Gourmet() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const { location } = useLocation()
+  const { activeZone } = useZone()
+  const zoneId = activeZone?.id || activeZone?._id
   const showGourmetSkeleton = useDelayedLoading(loading)
 
   const backendOrigin = (API_BASE_URL || "").replace(/\/api\/v1\/?$/, "")
@@ -46,7 +49,9 @@ export default function Gourmet() {
       try {
         setLoading(true)
         setError(null)
-        const response = await api.get('/food/hero-banners/gourmet/public')
+        const response = await api.get('/food/hero-banners/gourmet/public', {
+          params: zoneId ? { zoneId } : {}
+        })
         const data = response?.data?.data
         const list = data?.restaurants ?? (Array.isArray(data) ? data : [])
         setGourmetRestaurants(list)
@@ -62,7 +67,7 @@ export default function Gourmet() {
     }
 
     fetchGourmetRestaurants()
-  }, [])
+  }, [zoneId])
 
   const toggleFavorite = (id) => {
     setFavorites(prev => {

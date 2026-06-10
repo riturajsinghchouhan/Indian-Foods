@@ -177,6 +177,17 @@ export default function DeliverySignIn() {
             </button>
           </form>
 
+          {/* Support Link */}
+          <div className="mt-6">
+            <Link 
+              to="/food/delivery/support"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-sm font-bold text-gray-700 dark:text-gray-300 shadow-sm transition-all"
+            >
+              <ShieldQuestion className="w-4 h-4 text-orange-500" />
+              Need Help? Support
+            </Link>
+          </div>
+
           {/* Footer Terms */}
           <div className="mt-8 text-center">
             <p className="text-xs text-gray-500 font-medium">

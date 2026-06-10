@@ -33,7 +33,7 @@ export default function SearchResults() {
   const query = searchParams.get("q") || ""
   const navigate = useNavigate()
   const { location } = useLocation()
-  const { zoneId, isOutOfService } = useZone(location)
+  const { zoneId, isOutOfService, zoneStatus } = useZone(location)
   const [searchQuery, setSearchQuery] = useState(query)
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [activeFilters, setActiveFilters] = useState(new Set())
@@ -62,10 +62,15 @@ export default function SearchResults() {
 
   // Fetch categories from admin API
   useEffect(() => {
+    if (zoneStatus === 'loading') return;
+    let isSubscribed = true;
+
     const fetchCategories = async () => {
       try {
         setLoadingCategories(true)
         const response = await adminAPI.getPublicCategories(zoneId ? { zoneId } : {})
+
+        if (!isSubscribed) return;
 
         if (response.data && response.data.success && response.data.data && response.data.data.categories) {
           const categoriesArray = response.data.data.categories
@@ -101,12 +106,18 @@ export default function SearchResults() {
         debugError('Error fetching categories:', error)
         // Keep default "All" category on error
       } finally {
-        setLoadingCategories(false)
+        if (isSubscribed) {
+          setLoadingCategories(false)
+        }
       }
     }
 
     fetchCategories()
-  }, [zoneId])
+
+    return () => {
+      isSubscribed = false;
+    }
+  }, [zoneId, zoneStatus])
 
   // Helper function to check if menu has dishes matching category keywords
   const checkCategoryInMenu = (menu, categoryId) => {
@@ -180,6 +191,9 @@ export default function SearchResults() {
 
   // Fetch restaurants from API
   useEffect(() => {
+    if (zoneStatus === 'loading') return;
+    let isSubscribed = true;
+
     const fetchRestaurants = async () => {
       try {
         setLoadingRestaurants(true)
@@ -190,6 +204,8 @@ export default function SearchResults() {
           params.zoneId = zoneId
         }
         const response = await restaurantAPI.getRestaurants(params)
+
+        if (!isSubscribed) return;
 
         debugLog('?? Full API Response:', response)
         debugLog('?? Response Data:', response?.data)
@@ -480,12 +496,18 @@ export default function SearchResults() {
         debugError('? Error response:', error.response?.data)
         setRestaurantsData([])
       } finally {
-        setLoadingRestaurants(false)
+        if (isSubscribed) {
+          setLoadingRestaurants(false)
+        }
       }
     }
 
     fetchRestaurants()
-  }, [zoneId, isOutOfService])
+
+    return () => {
+      isSubscribed = false;
+    }
+  }, [zoneId, isOutOfService, zoneStatus])
 
   // Update search query when URL changes
   useEffect(() => {

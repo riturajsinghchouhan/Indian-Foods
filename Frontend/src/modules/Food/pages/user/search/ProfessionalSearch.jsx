@@ -10,7 +10,7 @@ import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
 import { useLocation as useGeoLocation } from "@food/hooks/useLocation"
 import { useZone } from "@food/hooks/useZone"
-import { searchAPI } from "@/services/api"
+import { searchAPI, adminAPI } from "@/services/api"
 import { motion, AnimatePresence } from "framer-motion"
 import { createPortal } from "react-dom"
 import OptimizedImage from "@food/components/OptimizedImage"
@@ -81,7 +81,7 @@ export default function ProfessionalSearch() {
       return;
     }
     try {
-      const res = await searchAPI.getAdminCategories({ zoneId })
+      const res = await adminAPI.getPublicCategories({ zoneId })
       if (res.data?.success) {
         sessionCategoriesCache.set(cacheKey, res.data.data.categories);
         setCategories(res.data.data.categories)

@@ -153,6 +153,8 @@ export const notificationAPI = {
 export const adminAPI = {
   getSidebarBadges: () =>
     adminClient.get("/food/admin/sidebar-badges"),
+  getEnvSettings: () => adminClient.get("/food/admin/env"),
+  updateEnvSettings: (data) => adminClient.put("/food/admin/env", data),
   getBusinessSettings: () => adminClient.get("/food/admin/business-settings"),
   updateBusinessSettings: (data) => {
     // If data is a FormData object (e.g. has files), pass it directly, else pass as JSON

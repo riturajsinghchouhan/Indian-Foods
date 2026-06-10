@@ -11,6 +11,7 @@ import { syncExpiredFssaiNotifications } from './src/modules/food/restaurant/ser
 
 import { logger } from './src/utils/logger.js';
 import { initializeFirebaseRealtime } from './src/config/firebase.js';
+import { loadEnvFromDb } from './src/config/envLoader.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10000;
 let server = null;
@@ -50,6 +51,9 @@ const startServer = async () => {
 
         // 1. Connect to Database (MongoDB)
         await connectDB();
+
+        // 1.5 Load Environment Variables from Database overrides
+        await loadEnvFromDb();
 
         // 2. Create HTTP server from Express app
         const httpServer = http.createServer(app);
