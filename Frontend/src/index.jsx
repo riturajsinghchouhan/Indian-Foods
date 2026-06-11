@@ -137,6 +137,22 @@ window.addEventListener('unhandledrejection', (event) => {
   const error = event.reason || event
   const errorMsg = error?.message || String(error) || ''
   const errorName = error?.name || ''
+  
+  if (
+    errorMsg.includes('Failed to fetch dynamically imported module') ||
+    errorMsg.includes('Importing a module script failed')
+  ) {
+    event.preventDefault()
+    const reloadKey = 'vite_preload_error_reload_count'
+    const reloadCount = parseInt(sessionStorage.getItem(reloadKey) || '0', 10)
+    
+    if (reloadCount < 2) {
+      sessionStorage.setItem(reloadKey, String(reloadCount + 1))
+      window.location.reload()
+    }
+    return
+  }
+
   if (
     errorMsg.includes('Timeout expired') ||
     errorMsg.includes('User denied Geolocation') ||
@@ -147,6 +163,18 @@ window.addEventListener('unhandledrejection', (event) => {
     return
   }
 })
+
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  const reloadKey = 'vite_preload_error_reload_count'
+  const reloadCount = parseInt(sessionStorage.getItem(reloadKey) || '0', 10)
+  
+  if (reloadCount < 2) {
+    sessionStorage.setItem(reloadKey, String(reloadCount + 1))
+    window.location.reload()
+  }
+})
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 
