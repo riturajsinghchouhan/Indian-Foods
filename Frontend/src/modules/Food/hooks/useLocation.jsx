@@ -1532,11 +1532,36 @@ export function useLocation() {
           debugLog("?? Permissions API not available - Skipping auto-start");
         }
 
-        // If permission NOT granted, and we don't have a specific user request (this is page load),
+        const isLoggedIn = !!(localStorage.getItem('user_accessToken') || localStorage.getItem('accessToken'));
+
+        let intentionallySaved = false;
+        try {
+          // Check if user explicitly selected a saved location
+          const mode = localStorage.getItem("deliveryAddressMode");
+          if (mode === "saved") {
+            intentionallySaved = true;
+          } else if (mode === null) {
+            // If mode is not set, fallback to checking if there's a valid non-current location in localStorage
+            const stored = localStorage.getItem("userLocation");
+            if (stored) {
+              const loc = JSON.parse(stored);
+              if (loc && loc.formattedAddress && loc.formattedAddress !== "Select location" && loc.city !== "Current Location") {
+                intentionallySaved = true;
+              }
+            }
+          }
+        } catch (e) {}
+
+        let shouldAutoFetch = false;
+        if (!isLoggedIn) {
+          shouldAutoFetch = true; // Not logged in -> Auto fetch
+        } else if (!intentionallySaved) {
+          shouldAutoFetch = true; // Logged in but no saved location -> Auto fetch
+        }
+
+        // If permission NOT granted, and we shouldn't auto-fetch,
         // we should SKIP automatic fetching/watching to allow the user to choose when to enable it.
-        // UNLESS we already have a valid initial location from localStorage/DB, in which case we might want to refresh?
-        // Actually, even then, we shouldn't prompt.
-        if (!permissionGranted) {
+        if (!permissionGranted && !shouldAutoFetch) {
           // If we have an initial location, we are fine (it's displayed).
           // If we don't, we show "Select Location".
           // In either case, we avoid the PROMPT.
@@ -1545,15 +1570,15 @@ export function useLocation() {
           return;
         }
 
-        debugLog("?? Permission granted! Fetching/Watching location...", shouldForceRefresh ? "(FORCE REFRESH)" : "");
+        debugLog("?? Permission granted or auto-fetch required! Fetching/Watching location...", shouldForceRefresh ? "(FORCE REFRESH)" : "");
 
-        // Only fetch once on initial app open if we have no stored coordinates yet.
-        // Do not keep re-geocoding just because the address text is placeholder.
-        const shouldFetch = shouldForceRefresh || !hasInitialLocation
+        // Only fetch once on initial app open if we have no stored coordinates yet, or if auto fetch is required.
+        const shouldFetch = shouldForceRefresh || !hasInitialLocation || shouldAutoFetch;
 
         if (shouldFetch) {
-          debugLog("?? Fetching location - shouldForceRefresh:", shouldForceRefresh, "hasInitialLocation:", hasInitialLocation)
-          getLocation(true, shouldForceRefresh) // forceFresh = true if cached location is incomplete
+          const isForceFresh = shouldForceRefresh || shouldAutoFetch;
+          debugLog("?? Fetching location - shouldForceRefresh:", shouldForceRefresh, "hasInitialLocation:", hasInitialLocation, "shouldAutoFetch:", shouldAutoFetch)
+          getLocation(true, isForceFresh) // forceFresh = true if cached location is incomplete or if auto-fetch is required
             .then((location) => {
               if (location &&
                 location.formattedAddress !== "Select location" &&

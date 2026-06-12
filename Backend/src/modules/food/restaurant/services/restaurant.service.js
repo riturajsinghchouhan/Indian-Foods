@@ -419,7 +419,8 @@ export const registerRestaurant = async (payload, files) => {
             const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
             
             for (const day of DAY_NAMES) {
-                const isOpen = daysArr.includes(day);
+                const abbr = day.substring(0, 3);
+                const isOpen = daysArr.includes(day) || daysArr.includes(abbr);
                 outletTimingsToSave[day] = {
                     isOpen,
                     openingTime: isOpen ? (normalizedOpeningTime || '09:00') : '',

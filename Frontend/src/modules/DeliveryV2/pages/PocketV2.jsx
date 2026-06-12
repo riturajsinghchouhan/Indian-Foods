@@ -91,19 +91,16 @@ export const PocketV2 = () => {
           activeAddonsRes?.data?.activeOffer ||
           null;
         
-        const bankDetails = profile?.documents?.bankDetails;
-        const isFilled = !!(bankDetails?.accountNumber);
-
         setWalletState({
-          totalBalance: Number(wallet.pocketBalance) || 0,
-          cashInHand: Number(wallet.cashInHand) || 0,
-          availableCashLimit: Number(wallet.availableCashLimit) || 0,
-          totalCashLimit: Number(wallet.totalCashLimit) || 0,
-          weeklyEarnings: Number(summary.totalEarnings) || 0,
-          weeklyOrders: Number(summary.totalOrders) || 0,
-          payoutAmount: Number(wallet.lastPayout?.amount || wallet.totalWithdrawn || 0),
-          payoutPeriod: wallet.lastPayout ? new Date(wallet.lastPayout.date).toLocaleDateString() : 'No recent payout',
-          bankDetailsFilled: isFilled
+          totalBalance: Number(wallet?.pocketBalance ?? wallet?.totalBalance ?? 0) || 0,
+          cashInHand: Number(wallet?.cashInHand ?? 0) || 0,
+          availableCashLimit: Number(wallet?.availableCashLimit ?? 0) || 0,
+          totalCashLimit: Number(wallet?.totalCashLimit ?? 0) || 0,
+          weeklyEarnings: Number(summary?.totalEarnings ?? 0) || 0,
+          weeklyOrders: Number(summary?.totalOrders ?? 0) || 0,
+          payoutAmount: Number(wallet?.lastPayout?.amount ?? wallet?.totalWithdrawn ?? 0) || 0,
+          payoutPeriod: 'Current Week',
+          bankDetailsFilled: Boolean(profile?.documents?.bankDetails?.accountNumber)
         });
 
         setActiveOffer({
@@ -260,7 +257,7 @@ export const PocketV2 = () => {
           >
              <p className="text-gray-500 text-[11px] font-bold uppercase tracking-widest mb-2">Earnings: {getCurrentWeekRange()}</p>
              <h2 className="text-4xl font-black text-black tracking-tighter">
-                ₹{walletState.weeklyEarnings.toFixed(0)}
+                ₹{Number(walletState.weeklyEarnings || 0).toFixed(0)}
              </h2>
           </div>
 
@@ -342,7 +339,7 @@ export const PocketV2 = () => {
                    </div>
                 </div>
                 <div className="flex items-center gap-2">
-                   <span className="text-base font-black text-black">₹{walletState.totalBalance.toFixed(2)}</span>
+                   <span className="text-base font-black text-black">₹{Number(walletState.totalBalance || 0).toFixed(2)}</span>
                    <ChevronRight className="w-4 h-4 text-gray-300" />
                 </div>
              </button>
@@ -361,7 +358,7 @@ export const PocketV2 = () => {
                    </div>
                 </div>
                 <div className="flex items-center gap-2">
-                   <span className="text-base font-black text-black">₹{walletState.availableCashLimit.toFixed(2)}</span>
+                   <span className="text-base font-black text-black">₹{Number(walletState.availableCashLimit || 0).toFixed(2)}</span>
                    <ChevronRight className="w-4 h-4 text-gray-300" />
                 </div>
              </button>
@@ -384,7 +381,7 @@ export const PocketV2 = () => {
                       <IndianRupee className="w-5 h-5" />
                    </div>
                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Last Payout</p>
-                   <p className="text-xl font-black text-black leading-none mb-1">₹{walletState.payoutAmount}</p>
+                   <p className="text-xl font-black text-black leading-none mb-1">₹{Number(walletState.payoutAmount || 0).toFixed(2)}</p>
                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">Prev Week Info</p>
                 </div>
 
@@ -433,7 +430,7 @@ export const PocketV2 = () => {
                    <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100">
                       <div className="flex justify-between items-center mb-4">
                          <span className="text-xs font-bold text-gray-400 uppercase">Cash in your hand</span>
-                         <span className="text-base font-black text-black">₹{walletState.cashInHand}</span>
+                         <span className="text-base font-black text-black">₹{Number(walletState.cashInHand || 0).toFixed(2)}</span>
                       </div>
                       <div className="relative">
                          <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />

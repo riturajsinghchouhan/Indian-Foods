@@ -64,7 +64,8 @@ export async function getOutletTimingsForRestaurant(restaurantId) {
             const hasOpenDays = Array.isArray(openDays) && openDays.length > 0;
             
             const timings = DAY_NAMES.map((day) => {
-                const isOpen = hasOpenDays ? openDays.includes(day) : true;
+                const abbr = day.substring(0, 3);
+                const isOpen = hasOpenDays ? (openDays.includes(day) || openDays.includes(abbr)) : true;
                 return {
                     day,
                     isOpen,

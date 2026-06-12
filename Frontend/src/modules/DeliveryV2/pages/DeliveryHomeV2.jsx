@@ -524,7 +524,9 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     return () => clearInterval(pingInterval);
   }, [isOnline]);
 
-  useEffect(() => { if (newOrder) setIncomingOrder(newOrder); }, [newOrder]);
+  useEffect(() => { 
+    if (newOrder !== undefined) setIncomingOrder(newOrder); 
+  }, [newOrder]);
 
   useEffect(() => {
     if (activeOrder && incomingOrder) {

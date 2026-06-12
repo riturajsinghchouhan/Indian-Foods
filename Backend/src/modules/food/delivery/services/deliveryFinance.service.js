@@ -103,9 +103,9 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
     const totalCashLimit = Number(cashLimitSettings.deliveryCashLimit) || 0;
     const deliveryWithdrawalLimit = Number(cashLimitSettings.deliveryWithdrawalLimit) || 100;
 
-    // Pocket Balance = (Earnings + Bonus) - Total Withdrawn (approved) - Pending Withdrawals - Cash in hand
-    // Cash in hand must be deducted because if the rider has COD cash, they owe the platform, reducing their withdrawable amount.
-    const pocketBalance = Math.max(0, (totalEarned + totalBonus) - (totalWithdrawn + pendingWithdrawals) - cashInHand);
+    // Pocket Balance = (Earnings + Bonus) - Total Withdrawn (approved)
+    // As requested: Pending withdrawals are NOT deducted from the displayed balance until admin approves them.
+    const pocketBalance = Math.max(0, (totalEarned + totalBonus) - totalWithdrawn);
 
     // Fetch transactions for UI (Orders, Bonuses, Withdrawals)
     const [ordersTx] = await Promise.all([
@@ -157,9 +157,8 @@ export const getDeliveryPartnerWalletEnhanced = async (deliveryPartnerId) => {
         totalEarned,
         totalBonus,
         totalCashLimit,
-        // Gross balance is (totalEarned + totalBonus) - (totalWithdrawn + pendingWithdrawals)
-        // Available cash limit increases by the gross balance you are owed.
-        availableCashLimit: Math.max(0, totalCashLimit - cashInHand + Math.max(0, (totalEarned + totalBonus) - (totalWithdrawn + pendingWithdrawals))),
+        // Available cash limit is simply the total cash limit minus the cash currently in hand.
+        availableCashLimit: Math.max(0, totalCashLimit - cashInHand),
         deliveryWithdrawalLimit,
         transactions: transactions.slice(0, 50)
     };
@@ -174,11 +173,15 @@ export const requestDeliveryWithdrawal = async (deliveryPartnerId, payload) => {
     if (!amount || amount < 1) throw new ValidationError('Invalid amount');
 
     const wallet = await getDeliveryPartnerWalletEnhanced(deliveryPartnerId);
+    
+    // Prevent double-spending by checking balance against already pending withdrawals
+    const availableToWithdraw = Math.max(0, wallet.pocketBalance - wallet.pendingWithdrawals);
+
     if (amount < wallet.deliveryWithdrawalLimit) {
         throw new ValidationError(`Minimum withdrawal amount is ₹${wallet.deliveryWithdrawalLimit}`);
     }
-    if (amount > wallet.pocketBalance) {
-        throw new ValidationError('Insufficient balance for this withdrawal');
+    if (amount > availableToWithdraw) {
+        throw new ValidationError(`Insufficient balance. You already have ₹${wallet.pendingWithdrawals} in pending requests.`);
     }
 
     const partner = await FoodDeliveryPartner.findById(deliveryPartnerId).lean();

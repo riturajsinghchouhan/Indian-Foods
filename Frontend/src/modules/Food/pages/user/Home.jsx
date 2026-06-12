@@ -2628,7 +2628,7 @@ export default function Home() {
     if (showBannerSkeleton) {
       return (
         <div className="px-4 py-2">
-          <HeroBannerSkeleton className="h-36 sm:h-44 lg:h-56 rounded-2xl" />
+          <HeroBannerSkeleton className="w-full h-[120px] sm:h-[150px] lg:h-[200px] rounded-2xl" />
         </div>
       );
     }
@@ -2640,7 +2640,7 @@ export default function Home() {
         <div
           ref={heroShellRef}
           data-home-hero-shell="true"
-          className="relative w-full overflow-hidden aspect-[1.7/1] sm:aspect-[1.9/1] lg:aspect-[2.1/1] min-h-[180px] sm:min-h-[220px] lg:min-h-[260px] rounded-2xl shadow-sm group cursor-pointer bg-white"
+          className="relative w-full overflow-hidden h-[120px] sm:h-[150px] lg:h-[200px] rounded-2xl shadow-sm group cursor-pointer bg-white"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}

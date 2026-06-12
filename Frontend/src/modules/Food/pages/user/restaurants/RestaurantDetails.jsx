@@ -147,7 +147,7 @@ function RestaurantDetailsContent() {
   const [loadingMenuItems, setLoadingMenuItems] = useState(true)
   const [menuUnavailable, setMenuUnavailable] = useState(false)
   const [selectedMenuCategory, setSelectedMenuCategory] = useState("all")
-  const [visibleItemCount, setVisibleItemCount] = useState(50)
+  const [visibleItemCount, setVisibleItemCount] = useState(20)
   const dishCardRefs = useRef({})
   const [showScanAnimation, setShowScanAnimation] = useState(true)
 
@@ -1986,7 +1986,7 @@ function RestaurantDetailsContent() {
 
   // Reset pagination when filters change
   useEffect(() => {
-    setVisibleItemCount(50) // Start with 50 items
+    setVisibleItemCount(20) // Start with 20 items
   }, [filteredSections]) // Re-run when sections/filters change
 
   // Implement infinite scrolling on window scroll
@@ -1999,7 +1999,7 @@ function RestaurantDetailsContent() {
           if (window.innerHeight + window.scrollY >= document.documentElement.offsetHeight - 800) {
             setVisibleItemCount((prevCount) => {
               if (prevCount >= totalFilteredItems) return prevCount
-              return prevCount + 50
+              return prevCount + 20
             })
           }
           ticking = false;
@@ -2010,7 +2010,7 @@ function RestaurantDetailsContent() {
 
     window.addEventListener("scroll", handleScroll, { passive: true })
     
-    // Check initially in case screen is very large and 50 items don't trigger scroll
+    // Check initially in case screen is very large and 20 items don't trigger scroll
     handleScroll()
 
     return () => window.removeEventListener("scroll", handleScroll)
@@ -2172,7 +2172,6 @@ function RestaurantDetailsContent() {
               const isStartingFrom = priceStr.includes('Starting from');
               const priceNum = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
               if (isNaN(priceNum)) return <p className="font-semibold text-gray-900 dark:text-white">{priceStr}</p>;
-              console.log("[DEBUG]", item.name, "item.id=", item.id, "item._id=", item._id, "itemDiscounts=", restaurant?.itemDiscounts);
               
               const { discountValue, isFlatDiscount, discountAmount } = calculateBestDiscount(item, priceNum);
               

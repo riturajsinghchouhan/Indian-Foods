@@ -92,33 +92,35 @@ const OptimizedImage = React.memo(({
     return /^https?:\/\//.test(imageSrc)
   }
 
-  const appendImageParams = (imageSrc, params) => {
-    try {
-      const url = new URL(imageSrc)
-      Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.set(key, String(value))
-      })
-      return url.toString()
-    } catch {
-      return imageSrc
-    }
+  const getOptimizedUrl = (imageSrc, params) => {
+    if (!imageSrc) return imageSrc;
+    const { w, format, q = 80 } = params;
+    
+    // Use wsrv.nl as a free, high-performance global image CDN proxy
+    // It automatically downloads from Firebase, caches via Cloudflare, and serves compressed formats
+    let proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageSrc)}&q=${q}&we=1`;
+    
+    if (w) proxyUrl += `&w=${w}`;
+    if (format) proxyUrl += `&output=${format}`;
+    
+    return proxyUrl;
   }
 
   // Generate responsive srcset
   const srcSet = useMemo(() => {
     if (!supportsOptimization(src)) return undefined
-    const sizesArr = [400, 600, 800, 1200, 1600]
+    const sizesArr = [200, 400, 600, 800, 1200]
     return sizesArr
-      .map(size => `${appendImageParams(src, { w: size, q: 80 })} ${size}w`)
+      .map(size => `${getOptimizedUrl(src, { w: size, q: 80 })} ${size}w`)
       .join(', ')
   }, [src])
 
   // Generate WebP srcset
   const webPSrcSet = useMemo(() => {
     if (!supportsOptimization(src)) return undefined
-    const sizesArr = [400, 600, 800, 1200, 1600]
+    const sizesArr = [200, 400, 600, 800, 1200]
     return sizesArr
-      .map(size => `${appendImageParams(src, { w: size, q: 80, format: 'webp' })} ${size}w`)
+      .map(size => `${getOptimizedUrl(src, { w: size, q: 80, format: 'webp' })} ${size}w`)
       .join(', ')
   }, [src])
 
@@ -180,6 +182,11 @@ const OptimizedImage = React.memo(({
 
   const imageSrc = hasError ? 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23e5e7eb" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle"%3EImage not found%3C/text%3E%3C/svg%3E' : src
 
+  // Use optimized version for default src as well
+  const optimizedSrc = supportsOptimization(src) && !hasError 
+    ? getOptimizedUrl(src, { w: 800, q: 80, format: 'webp' }) 
+    : imageSrc;
+
   return (
     <div className={`relative overflow-hidden ${className}`} ref={imgRef}>
       {/* Blur Placeholder */}
@@ -220,9 +227,9 @@ const OptimizedImage = React.memo(({
 
           {/* Fallback to original format */}
           <motion.img
-            src={imageSrc}
+            src={optimizedSrc}
             srcSet={srcSet}
-            sizes={supportsOptimization(imageSrc) ? sizes : undefined}
+            sizes={supportsOptimization(src) ? sizes : undefined}
             alt={alt}
             className={`w-full h-full ${objectFit === 'cover' ? 'object-cover' : objectFit === 'contain' ? 'object-contain' : ''} ${priority || isLoaded ? 'opacity-100' : 'opacity-0'} ${!priority && 'transition-opacity duration-300'}`}
             loading={priority ? 'eager' : 'lazy'}

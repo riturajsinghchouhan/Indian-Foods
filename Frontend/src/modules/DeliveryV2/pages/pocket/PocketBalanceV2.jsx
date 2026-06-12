@@ -59,6 +59,7 @@ export const PocketBalanceV2 = () => {
 
         setWalletState({
            pocketBalance: pocketBalance,
+           lifetimeEarnings: Number(wallet.totalEarned) || 0,
            weeklyEarnings: Number(summary.totalEarnings) || 0,
            totalBonus: Number(wallet.totalBonus) || 0,
            totalWithdrawn: Number(wallet.totalWithdrawn) || 0,
@@ -193,12 +194,13 @@ export const PocketBalanceV2 = () => {
              </div>
 
              <div className="bg-white px-4">
-                <DetailRow label="Earnings" value={formatCurrency(walletState.weeklyEarnings)} />
+                <DetailRow label="Lifetime Earnings" value={formatCurrency(walletState.lifetimeEarnings)} />
+                <DetailRow label="This Week's Earnings" value={formatCurrency(walletState.weeklyEarnings)} />
                 <DetailRow label="Bonus" value={formatCurrency(walletState.totalBonus)} />
-                <DetailRow label="Amount withdrawn" value={formatCurrency(walletState.totalWithdrawn)} />
-                <DetailRow label="Cash collected" value={formatCurrency(walletState.cashCollected)} />
+                <DetailRow label="Total Withdrawn (Lifetime)" value={formatCurrency(walletState.totalWithdrawn)} />
+                <DetailRow label="Cash collected (To Deposit)" value={formatCurrency(walletState.cashCollected)} />
                 <DetailRow label="Deductions" value={formatCurrency(walletState.deductions)} />
-                <DetailRow label="Pocket balance" value={formatCurrency(walletState.pocketBalance)} />
+                <DetailRow label="Withdrawable balance" value={formatCurrency(walletState.pocketBalance)} />
                 <DetailRow
                    label="Withdrawal status"
                    value={withdrawalStatus.status}
