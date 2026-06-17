@@ -191,7 +191,25 @@ const RestaurantImageCarousel = React.memo(
         .map((img) => img.trim())
         .filter(Boolean);
 
-      return validImages.map((img) => withCacheBuster(img));
+      const seen = new Set();
+      const uniqueImages = [];
+      
+      validImages.forEach((img) => {
+        let sig = img;
+        try {
+          let pathParts = new URL(img).pathname.split('/');
+          sig = pathParts[pathParts.length - 1]; // Use just the filename
+        } catch (e) {
+          sig = img;
+        }
+        
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          uniqueImages.push(img);
+        }
+      });
+
+      return uniqueImages.map((img) => withCacheBuster(img));
     }, [restaurant.images, restaurant.image, withCacheBuster]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [currentItemIndex, setCurrentItemIndex] = useState(0);
@@ -315,6 +333,15 @@ const RestaurantImageCarousel = React.memo(
       }, 2000);
       return () => clearInterval(interval);
     }, [bannerItems.length]);
+
+    // Auto-slide for restaurant images
+    useEffect(() => {
+      if (images.length <= 1) return;
+      const interval = setInterval(() => {
+        setCurrentIndex((prev) => (prev + 1) % images.length);
+      }, 3500);
+      return () => clearInterval(interval);
+    }, [images.length]);
 
     const [loadedBySrc, setLoadedBySrc] = useState({});
     const [, setAttemptedSrcs] = useState({});
@@ -462,6 +489,17 @@ const RestaurantImageCarousel = React.memo(
               }}
             />
           )}
+          
+          {/* Secretly preload the next image to prevent white flash on swipe */}
+          {images.length > 1 && (
+            <img 
+              src={images[(currentIndex + 1) % images.length]} 
+              className="hidden" 
+              alt="preload next" 
+              aria-hidden="true"
+              decoding="async"
+            />
+          )}
         </div>
 
         {isImageUnavailable && (
@@ -583,7 +621,7 @@ const homePageCache = {
   recommendedRestaurantIds: null,
   under250PriceLimit: null,
   recommendedRestaurantsFromSettings: null,
-  festBannerVideoUrl: null,
+  festBannerImages: [],
   heroBannerImages: null,
   heroBannersData: null,
 };
@@ -658,7 +696,8 @@ export default function Home() {
   const [landingCategories, setLandingCategories] = useState([]);
   const [landingExploreMore, setLandingExploreMore] = useState(() => homePageCache.landingExploreMore || []);
   const [exploreMoreHeading, setExploreMoreHeading] = useState(() => homePageCache.exploreMoreHeading || "Explore More");
-  const [festBannerVideoUrl, setFestBannerVideoUrl] = useState(() => homePageCache.festBannerVideoUrl || "");
+  const [festBannerImages, setFestBannerImages] = useState(() => homePageCache.festBannerImages || []);
+  const [bgIndex, setBgIndex] = useState(0);
   const [recommendedRestaurantIds, setRecommendedRestaurantIds] = useState(() => homePageCache.recommendedRestaurantIds || []);
   const [under250PriceLimit, setUnder250PriceLimit] = useState(() => homePageCache.under250PriceLimit || 250);
   const [
@@ -694,7 +733,15 @@ export default function Home() {
     [],
   );
   const festVideoActive =
-    typeof festBannerVideoUrl === "string" && festBannerVideoUrl.trim().length > 0;
+    Array.isArray(festBannerImages) && festBannerImages.length > 0;
+
+  useEffect(() => {
+    if (!festVideoActive || festBannerImages.length <= 1) return;
+    const timer = setInterval(() => {
+      setBgIndex(prev => (prev + 1) % festBannerImages.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [festVideoActive, festBannerImages.length]);
 
   // Stable list of restaurant ids for menu-category union so we don't refetch menus
   // when `restaurantsData` changes for reasons like distance recalculation or outletTimings enrichment.
@@ -1520,8 +1567,8 @@ export default function Home() {
         const recRest = settings.recommendedRestaurants || [];
         setRecommendedRestaurantsFromSettings(recRest);
 
-        const video = typeof settings.festBannerVideoUrl === "string" ? settings.festBannerVideoUrl : "";
-        setFestBannerVideoUrl(video);
+        const images = Array.isArray(settings.festBannerImages) ? settings.festBannerImages : [];
+        setFestBannerImages(images);
 
         // Update cache
         homePageCache.landingExploreMore = exploreMoreData;
@@ -1529,7 +1576,7 @@ export default function Home() {
         homePageCache.recommendedRestaurantIds = settings.recommendedRestaurantIds || [];
         homePageCache.under250PriceLimit = Number(settings.under250PriceLimit) || 250;
         homePageCache.recommendedRestaurantsFromSettings = recRest;
-        homePageCache.festBannerVideoUrl = video;
+        homePageCache.festBannerImages = images;
         homePageCache.effectiveZoneId = effectiveZoneId;
       })
       .catch(() => {
@@ -1537,7 +1584,7 @@ export default function Home() {
           setLandingExploreMore([]);
           setExploreMoreHeading("Explore More");
           setRecommendedRestaurantsFromSettings([]);
-          setFestBannerVideoUrl("");
+          setFestBannerImages([]);
         }
       })
       .finally(() => {
@@ -2990,19 +3037,33 @@ export default function Home() {
           {/* Decoupled Dark Background - Dynamic height based on actual components to prevent clipping sticky elements while covering properly */}
           <div 
              className="absolute top-0 left-0 right-0 overflow-hidden bg-gradient-to-b from-[#3a142c] to-[#1a0a14] rounded-b-[2rem] shadow-lg pointer-events-none z-0 transition-all duration-300 [transform:translateZ(0)] [mask-image:-webkit-radial-gradient(white,black)]"
-             style={{ height: headerBgHeight > 0 ? `${headerBgHeight}px` : (activeTab === 'food' ? '300px' : '140px') }}
+             style={{ height: festVideoActive ? '360px' : (headerBgHeight > 0 ? `${headerBgHeight}px` : (activeTab === 'food' ? '300px' : '140px')) }}
           >
             {festVideoActive && (
-              <div className="absolute inset-0 z-0 overflow-hidden rounded-b-[2rem]">
-                <video
-                  src={festBannerVideoUrl}
-                  className="w-full h-full object-cover rounded-b-[2rem]"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                />
-                <div className="absolute inset-0 bg-black/40 rounded-b-[2rem]" />
+              <div className="absolute inset-0 z-0 overflow-hidden rounded-b-[2rem] bg-slate-900 pointer-events-auto">
+                <AnimatePresence initial={false}>
+                  <motion.img
+                    key={`hero-bg-${bgIndex}`}
+                    src={festBannerImages[bgIndex]}
+                    initial={{ x: "100%" }}
+                    animate={{ x: 0 }}
+                    exit={{ x: "-100%" }}
+                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                </AnimatePresence>
+                <div className="absolute inset-0 bg-black/20" />
+                
+                {festBannerImages.length > 1 && (
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-20">
+                    {festBannerImages.map((_, i) => (
+                      <div
+                        key={i}
+                        className={`h-1.5 rounded-full transition-all duration-300 shadow-sm ${bgIndex === i ? 'w-5 bg-white' : 'w-1.5 bg-white/60'}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -3023,12 +3084,18 @@ export default function Home() {
             />
 
             {activeTab === "food" && (
-              <div id="fest-banner-wrapper" className="pb-4 sm:pb-6">
-                <FestBanner
-                  isVegMode={vegMode}
-                  videoUrl={festVideoActive ? "" : festBannerVideoUrl}
-                  hideFoodImages={festVideoActive}
-                />
+              <div id="fest-banner-wrapper" className="w-full">
+                {festVideoActive ? (
+                  <div className="w-full h-[235px] sm:h-[245px]" />
+                ) : (
+                  <div className="pb-4 sm:pb-6">
+                    <FestBanner
+                      isVegMode={vegMode}
+                      images={[]}
+                      hideFoodImages={false}
+                    />
+                  </div>
+                )}
               </div>
             )}
             
@@ -3049,7 +3116,7 @@ export default function Home() {
                 <div ref={categoryAnchorRef} className="h-0 w-full" />
                 <div
                   id="categories-section"
-                  className={`sticky top-[60px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/75 dark:bg-[#0a0a0a]/75 backdrop-blur-xl shadow-sm pb-2 pt-2 border-b border-gray-100/50 dark:border-gray-800/50 px-4" : "bg-white dark:bg-[#0a0a0a] px-4 py-2.5"} space-y-3`}
+                  className={`sticky top-[60px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/60 dark:bg-[#0a0a0a]/60 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-2 border-b border-white/50 dark:border-white/10 px-4" : "bg-transparent px-4 py-2.5"} space-y-3`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">What's on your mind today?</h2>

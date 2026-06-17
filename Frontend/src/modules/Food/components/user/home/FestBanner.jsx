@@ -4,7 +4,7 @@ import { ArrowRightCircle, Leaf, Flame, Sparkles } from 'lucide-react';
 import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png";
 
 // Images for different modes - Extended pool for rotation
-const images = {
+const defaultImages = {
   nonVeg: [
     "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=500&h=500&fit=crop", // Taco
     "https://images.unsplash.com/photo-1544025162-d76694265947?w=500&h=500&fit=crop", // Platter
@@ -21,18 +21,28 @@ const images = {
   ]
 };
 
-export default function FestBanner({ isVegMode, videoUrl = "", hideFoodImages = false }) {
+export default function FestBanner({ isVegMode, images = [], hideFoodImages = false }) {
   const [imgIndex, setImgIndex] = useState(0);
-  const currentPool = isVegMode ? images.veg : images.nonVeg;
-  const hasVideo = typeof videoUrl === "string" && videoUrl.trim().length > 0;
+  const [bgIndex, setBgIndex] = useState(0);
+  const currentPool = isVegMode ? defaultImages.veg : defaultImages.nonVeg;
+  const hasBgImages = Array.isArray(images) && images.length > 0;
   
-  // Dynamic rotation
+  // Dynamic rotation for foreground images
   useEffect(() => {
     const timer = setInterval(() => {
       setImgIndex(prev => (prev + 1) % currentPool.length);
     }, 4000);
     return () => clearInterval(timer);
   }, [currentPool.length]);
+
+  // Dynamic rotation for background slider
+  useEffect(() => {
+    if (!hasBgImages || images.length <= 1) return;
+    const timer = setInterval(() => {
+      setBgIndex(prev => (prev + 1) % images.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [hasBgImages, images.length]);
 
   // Reset index when mode changes
   useEffect(() => {
@@ -50,19 +60,22 @@ export default function FestBanner({ isVegMode, videoUrl = "", hideFoodImages = 
       <motion.div 
       initial={false}
       id="fest-banner-root"
-      className={`relative px-4 pt-8 pb-4 overflow-hidden min-h-[140px] sm:min-h-[180px] transition-all duration-700 ${hasVideo ? 'bg-transparent' : 'bg-transparent'} rounded-b-[2rem]`}
+      className={`relative px-4 pt-8 pb-4 overflow-hidden min-h-[140px] sm:min-h-[180px] transition-all duration-700 bg-transparent rounded-b-[2rem]`}
     >
-      {hasVideo && (
-        <div className="absolute inset-0 z-0">
-          <video
-            src={videoUrl}
-            className="w-full h-full object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-          />
-          <div className="absolute inset-0 bg-black/35" />
+      {hasBgImages && (
+        <div className="absolute inset-0 z-0 bg-slate-900">
+          <AnimatePresence mode="popLayout">
+            <motion.img
+              key={`bg-img-${bgIndex}`}
+              src={images[bgIndex]}
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.2, ease: "easeInOut" }}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          </AnimatePresence>
+          <div className="absolute inset-0 bg-black/35 z-10" />
         </div>
       )}
 

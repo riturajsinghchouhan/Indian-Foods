@@ -47,7 +47,25 @@ const RestaurantImageCarousel = React.memo(({ restaurant, priority = false, back
       .map((img) => img.trim())
       .filter(Boolean);
 
-    return validImages.map((img) => withCacheBuster(img));
+    const seen = new Set();
+    const uniqueImages = [];
+    
+    validImages.forEach((img) => {
+      let sig = img;
+      try {
+        let pathParts = new URL(img).pathname.split('/');
+        sig = pathParts[pathParts.length - 1]; // Use just the filename
+      } catch (e) {
+        sig = img;
+      }
+      
+      if (!seen.has(sig)) {
+        seen.add(sig);
+        uniqueImages.push(img);
+      }
+    });
+
+    return uniqueImages.map((img) => withCacheBuster(img));
   }, [restaurant.images, restaurant.image, withCacheBuster]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -138,6 +156,15 @@ const RestaurantImageCarousel = React.memo(({ restaurant, priority = false, back
     }, 2000);
     return () => clearInterval(interval);
   }, [bannerItems.length]);
+
+  // Auto-slide for restaurant images
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [images.length]);
 
   const [loadedBySrc, setLoadedBySrc] = useState({});
   const [, setAttemptedSrcs] = useState({});

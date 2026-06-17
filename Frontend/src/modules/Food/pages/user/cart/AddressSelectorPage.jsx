@@ -238,7 +238,7 @@ export default function AddressSelectorPage() {
         // Return to previous page after a short delay to allow map to pan visually
         setTimeout(() => {
           handleBack()
-        }, 800)
+        }, 200)
       }
     } catch (e) {
       toast.error("Failed to get location", { id: "geo" })

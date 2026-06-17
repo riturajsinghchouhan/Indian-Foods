@@ -241,7 +241,7 @@ export default function HomeHeader({
       </div>
 
       {/* Sticky Search Bar and Veg Toggle */}
-      <div id="home-header-search-row" className={`relative sticky z-[60] px-1 pb-2 transition-all duration-300 pointer-events-none mt-2 sm:mt-3 ${isCategoryStuck ? 'top-0 pt-2 bg-white/75 dark:bg-[#0a0a0a]/75 backdrop-blur-xl' : 'top-2'}`}>
+      <div id="home-header-search-row" className={`relative sticky z-[60] px-1 pb-2 transition-all duration-300 pointer-events-none mt-2 sm:mt-3 ${isCategoryStuck ? 'top-0 pt-2 bg-white/60 dark:bg-[#0a0a0a]/60 backdrop-blur-2xl' : 'top-2 pt-2 bg-transparent'}`}>
         <div className="flex items-center gap-2.5 w-[96%] mx-auto pointer-events-auto">
           {/* Search Bar */}
           <div

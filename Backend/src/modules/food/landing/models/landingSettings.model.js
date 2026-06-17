@@ -41,9 +41,9 @@ const foodLandingSettingsSchema = new mongoose.Schema(
             min: 1,
             max: 10000
         },
-        festBannerVideoUrl: {
-            type: String,
-            default: ''
+        festBannerImages: {
+            type: [String],
+            default: []
         }
     },
     {

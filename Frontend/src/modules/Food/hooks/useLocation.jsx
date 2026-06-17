@@ -1126,8 +1126,8 @@ export function useLocation() {
     // Otherwise, allow cached location for faster response
     return getPositionWithRetry({
       enableHighAccuracy: true,  // Use GPS for exact location (highest accuracy)
-      timeout: 15000,            // 15 seconds timeout (gives GPS more time to get accurate fix)
-      maximumAge: forceFresh ? 0 : 60000  // If forceFresh, get fresh location. Otherwise allow 1 minute cache
+      timeout: 5000,             // 5 seconds timeout (fails fast to network-based if GPS is weak)
+      maximumAge: forceFresh ? 0 : 300000 // 5 minutes cache (huge speedup if already fetched recently)
     })
   }
 
@@ -1553,13 +1553,15 @@ export function useLocation() {
         } catch (e) {}
 
         let shouldAutoFetch = false;
-        if (!intentionallySaved) {
-          shouldAutoFetch = true; // No saved location -> Auto fetch
+        const hasFetchedThisSession = sessionStorage.getItem("appSession_locationFetched");
+        
+        if (!intentionallySaved && !hasFetchedThisSession) {
+          shouldAutoFetch = true; // No saved location and first time this session -> Auto fetch
         }
 
         // If permission NOT granted, and we shouldn't auto-fetch,
         // we should SKIP automatic fetching/watching to allow the user to choose when to enable it.
-        if (!permissionGranted && !shouldAutoFetch) {
+        if (!permissionGranted && !shouldAutoFetch && hasInitialLocation) {
           // If we have an initial location, we are fine (it's displayed).
           // If we don't, we show "Select Location".
           // In either case, we avoid the PROMPT.
@@ -1576,6 +1578,9 @@ export function useLocation() {
         if (shouldFetch) {
           const isForceFresh = shouldForceRefresh || shouldAutoFetch;
           debugLog("?? Fetching location - shouldForceRefresh:", shouldForceRefresh, "hasInitialLocation:", hasInitialLocation, "shouldAutoFetch:", shouldAutoFetch)
+          
+          sessionStorage.setItem("appSession_locationFetched", "true");
+          
           getLocation(true, isForceFresh) // forceFresh = true if cached location is incomplete or if auto-fetch is required
             .then((location) => {
               if (location &&
@@ -1621,12 +1626,24 @@ export function useLocation() {
     // Always check permission state on startup.
     // This does NOT trigger browser prompt by itself; it only auto-fetches when permission is already granted.
     checkPermissionAndStart();
+    
+    // Listen for manual location updates from other components (like AddressSelectorPage)
+    const handleLocationUpdateEvent = (e) => {
+      if (e.detail?.location) {
+        debugLog("?? Received userLocationUpdated event, updating useLocation state:", e.detail.location);
+        setLocation(e.detail.location);
+        setPermissionGranted(true);
+        setLoading(false);
+      }
+    };
+    window.addEventListener("userLocationUpdated", handleLocationUpdateEvent);
 
     // Cleanup timeout and watcher
     return () => {
       clearTimeout(loadingTimeout)
       debugLog("?? Cleaning up location watcher")
       stopWatchingLocation()
+      window.removeEventListener("userLocationUpdated", handleLocationUpdateEvent)
     }
   }, [])
 
