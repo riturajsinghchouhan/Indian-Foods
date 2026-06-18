@@ -3116,9 +3116,9 @@ export default function Home() {
                 <div ref={categoryAnchorRef} className="h-0 w-full" />
                 <div
                   id="categories-section"
-                  className={`sticky top-[60px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/60 dark:bg-[#0a0a0a]/60 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-2 border-b border-white/50 dark:border-white/10 px-4" : "bg-transparent px-4 py-2.5"} space-y-3`}
+                  className={`sticky top-[60px] z-[50] w-full transition-all duration-300 ${isCategoryStuck ? "bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] pb-2 pt-2 border-b border-white/50 dark:border-white/10 px-4" : "bg-transparent px-4 py-2.5"} space-y-3`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className={`flex items-center gap-2 min-w-0 ${isCategoryStuck ? 'hidden' : ''}`}>
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white min-w-0 flex-shrink leading-tight">What's on your mind today?</h2>
                     <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
                     <Link to="/food/user/categories" className="text-sm font-bold text-gray-800 dark:text-gray-200 flex items-center gap-0.5 whitespace-nowrap shrink-0 hover:text-gray-900 dark:hover:text-white transition-colors">
@@ -3157,7 +3157,7 @@ export default function Home() {
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                           />
                         </div>
-                        <span className="text-[9px] font-extrabold text-gray-900 dark:text-gray-100 text-center leading-tight line-clamp-1 w-full px-0.5">
+                        <span className="text-[11px] font-extrabold text-gray-900 dark:text-gray-100 text-center leading-tight line-clamp-1 w-full px-0.5">
                           {category.name}
                         </span>
                       </Link>

@@ -422,7 +422,12 @@ export default function MasterLandingPage() {
               Experience seamless online ordering only on the Indian Bites app
             </p>
             <div className="flex gap-4 justify-center md:justify-start">
-              <img src="https://b.zmtcdn.com/data/webuikit/9f0c85a5e33adb783fa0aef667075f9e1556003622.png" alt="Google Play" className="h-12 object-contain cursor-pointer" />
+              <img 
+                src="https://b.zmtcdn.com/data/webuikit/9f0c85a5e33adb783fa0aef667075f9e1556003622.png" 
+                alt="Google Play" 
+                className="h-12 object-contain cursor-pointer" 
+                onClick={() => window.open('https://play.google.com/store/apps/details?id=com.indian.bite.user', '_blank')}
+              />
               <img src="https://b.zmtcdn.com/data/webuikit/23e930757c3df49840c482a8638bf5c31556001144.png" alt="App Store" className="h-12 object-contain cursor-pointer" />
             </div>
           </div>
@@ -461,7 +466,7 @@ export default function MasterLandingPage() {
               </h1>
             </div>
 
-            <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-8">
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-8">
               <div>
                 <h4 className="font-bold text-lg mb-6 uppercase tracking-wider text-gray-200">About IB</h4>
                 <ul className="space-y-3 text-gray-400 font-medium">
@@ -470,17 +475,6 @@ export default function MasterLandingPage() {
                   <li><a href="#" className="hover:text-white transition-colors">Work With Us</a></li>
                   <li><a href="#" className="hover:text-white transition-colors">Investor Relations</a></li>
                   <li><a href="#" className="hover:text-white transition-colors">Report Fraud</a></li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-lg mb-6 uppercase tracking-wider text-gray-200">Zomaverse</h4>
-                <ul className="space-y-3 text-gray-400 font-medium">
-                  <li><a href="#" className="hover:text-white transition-colors">Indian Bites</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Blinkit</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">District</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Feeding India</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Hyperpure</a></li>
                 </ul>
               </div>
 
@@ -524,7 +518,12 @@ export default function MasterLandingPage() {
             </div>
 
             <div className="flex gap-4">
-              <img src="https://b.zmtcdn.com/data/webuikit/9f0c85a5e33adb783fa0aef667075f9e1556003622.png" alt="Google Play" className="h-10 opacity-70 hover:opacity-100 transition-opacity cursor-pointer" />
+              <img 
+                src="https://b.zmtcdn.com/data/webuikit/9f0c85a5e33adb783fa0aef667075f9e1556003622.png" 
+                alt="Google Play" 
+                className="h-10 opacity-70 hover:opacity-100 transition-opacity cursor-pointer" 
+                onClick={() => window.open('https://play.google.com/store/apps/details?id=com.indian.bite.user', '_blank')}
+              />
               <img src="https://b.zmtcdn.com/data/webuikit/23e930757c3df49840c482a8638bf5c31556001144.png" alt="App Store" className="h-10 opacity-70 hover:opacity-100 transition-opacity cursor-pointer" />
             </div>
           </div>

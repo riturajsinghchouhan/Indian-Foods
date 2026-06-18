@@ -980,11 +980,8 @@ export default function RestaurantOnboarding() {
   }
 
 
-  // Load from localStorage on mount and check URL parameter
+  // Separate effect to handle URL step changes without reloading data
   useEffect(() => {
-    setVerifiedPhoneNumber(getVerifiedPhoneFromStoredRestaurant())
-
-    // Check if step is specified in URL (from OTP login redirect)
     const stepParam = searchParams.get("step")
     if (stepParam) {
       const stepNum = parseInt(stepParam, 10)
@@ -992,8 +989,32 @@ export default function RestaurantOnboarding() {
         setStep(stepNum)
       }
     }
+  }, [searchParams])
+
+  // Separate effect for background zone fetching to prevent UI blocking
+  useEffect(() => {
+    const fetchZones = async () => {
+      try {
+        setZonesLoading(true)
+        const zoneRes = await zoneAPI.getPublicZones()
+        if (zoneRes.data?.success) {
+          setZones(zoneRes.data.data?.zones || zoneRes.data.data || [])
+        }
+      } catch (zErr) {
+        debugError("Failed to fetch zones:", zErr)
+      } finally {
+        setZonesLoading(false)
+      }
+    }
+    fetchZones()
+  }, [])
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    setVerifiedPhoneNumber(getVerifiedPhoneFromStoredRestaurant())
 
     const loadData = async () => {
+      const stepParam = searchParams.get("step")
       let loadingTimer = null
       try {
         setLoading(true)
@@ -1001,19 +1022,6 @@ export default function RestaurantOnboarding() {
           loadingTimer = window.setTimeout(() => {
             setLoading(false)
           }, 8000)
-        }
-
-        // Fetch zones for Step 1 location selection
-        try {
-          setZonesLoading(true)
-          const zoneRes = await zoneAPI.getPublicZones()
-          if (zoneRes.data?.success) {
-            setZones(zoneRes.data.data?.zones || zoneRes.data.data || [])
-          }
-        } catch (zErr) {
-          debugError("Failed to fetch zones:", zErr)
-        } finally {
-          setZonesLoading(false)
         }
 
         const currentPhone = getVerifiedPhoneFromStoredRestaurant()
@@ -1170,7 +1178,7 @@ export default function RestaurantOnboarding() {
     }
 
     loadData()
-  }, [searchParams])
+  }, []) // Empty dependency array to prevent data wipe on URL changes
 
   useEffect(() => {
     if (!verifiedPhoneNumber) return
