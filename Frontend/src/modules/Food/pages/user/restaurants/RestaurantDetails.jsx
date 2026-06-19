@@ -2598,60 +2598,76 @@ function RestaurantDetailsContent() {
             </div>
           )}
 
-          {/* Offers */}
-          <button
-            type="button"
-            onClick={() => setShowOffersSheet(true)}
-            className="w-full rounded-2xl border border-gray-900/20 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] px-4 py-3 text-left shadow-[0_12px_30px_rgba(15,23,42,0.18)] transition-all hover:shadow-[0_16px_36px_rgba(15,23,42,0.24)]"
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
-                <Percent className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                {restaurant?.discount > 0 && (
-                  <div className="inline-flex px-2 py-1 mb-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white text-[10px] sm:text-xs font-bold rounded shadow-sm uppercase tracking-wide items-center gap-1">
-                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.864 2.227l8.909 8.91a2.182 2.182 0 010 3.085l-7.364 7.364a2.182 2.182 0 01-3.085 0l-8.91-8.91A2.182 2.182 0 012 11.137V4.41A2.182 2.182 0 014.182 2.23h6.727a2.182 2.182 0 011.955-.003z"/></svg>
-                    FLAT {restaurant.discount}% OFF
+          {/* Offers & Discounts */}
+          <div className="flex flex-col gap-3">
+            {/* Global Discount standalone card */}
+            {restaurant?.discount > 0 && (
+              <div className="w-full rounded-2xl border border-green-200 dark:border-green-900/30 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 px-4 py-3 flex items-center justify-between shadow-[0_4px_12px_rgba(16,185,129,0.05)]">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 shadow-sm">
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.864 2.227l8.909 8.91a2.182 2.182 0 010 3.085l-7.364 7.364a2.182 2.182 0 01-3.085 0l-8.91-8.91A2.182 2.182 0 012 11.137V4.41A2.182 2.182 0 014.182 2.23h6.727a2.182 2.182 0 011.955-.003z"/></svg>
                   </div>
-                )}
-                <div className="relative h-5 overflow-hidden">
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={highlightIndex}
-                      initial={{ y: 16, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: -16, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="text-sm font-semibold text-gray-900 dark:text-white"
-                    >
-                      {offerHeadline}
-                    </motion.span>
-                  </AnimatePresence>
+                  <div>
+                    <p className="text-sm font-black text-green-800 dark:text-green-400 uppercase tracking-wide">
+                      FLAT {restaurant.discount}% OFF
+                    </p>
+                    <p className="text-xs text-green-600 dark:text-green-500 font-medium mt-0.5">
+                      Applied automatically on all items
+                    </p>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{offerSubline}</p>
               </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                  <Star className="h-3 w-3 fill-emerald-700 dark:fill-emerald-400 text-emerald-700 dark:text-emerald-400" />
-                  {ratingLabel}
-                </span>
-                <span className="text-[10px] text-gray-400 dark:text-gray-500">
-                  {reviewsLabel}
-                </span>
+            )}
+
+            {/* Coupons Card */}
+            <button
+              type="button"
+              onClick={() => setShowOffersSheet(true)}
+              className="w-full rounded-2xl border border-gray-900/20 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] px-4 py-3 text-left shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all hover:shadow-[0_12px_24px_rgba(15,23,42,0.12)]"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                  <Percent className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1 flex flex-col justify-center">
+                  <div className="relative h-5 overflow-hidden">
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={highlightIndex}
+                        initial={{ y: 16, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -16, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="text-sm font-semibold text-gray-900 dark:text-white"
+                      >
+                        {offerHeadline}
+                      </motion.span>
+                    </AnimatePresence>
+                  </div>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 truncate">{offerSubline}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                    <Star className="h-3 w-3 fill-emerald-700 dark:fill-emerald-400 text-emerald-700 dark:text-emerald-400" />
+                    {ratingLabel}
+                  </span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                    {reviewsLabel}
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="mt-3 flex items-center gap-1.5">
-              {Array.from({ length: offerIndicatorCount }).map((_, index) => (
-                <span
-                  key={`offer-dot-${index}`}
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    index === activeOfferIndicator ? "bg-orange-500" : "bg-gray-200 dark:bg-gray-700"
-                  }`}
-                />
-              ))}
-            </div>
-          </button>
+              <div className="mt-2.5 flex items-center gap-1.5 pl-[56px]">
+                {Array.from({ length: offerIndicatorCount }).map((_, index) => (
+                  <span
+                    key={`offer-dot-${index}`}
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      index === activeOfferIndicator ? "bg-orange-500" : "bg-gray-200 dark:bg-gray-700"
+                    }`}
+                  />
+                ))}
+              </div>
+            </button>
+          </div>
 
           {/* Filter/Category Buttons */}
           <div className="border-y border-gray-200 py-3 -mx-4 px-4">
