@@ -1647,8 +1647,8 @@ export function useLocation() {
     }
   }, [])
 
-  const requestLocation = async () => {
-    debugLog("?????? User requested location update - clearing cache and fetching fresh")
+  const requestLocation = async (updateDB = true, forceFresh = true) => {
+    debugLog("?????? User requested location update")
     setLoading(true)
     setError(null)
 
@@ -1658,14 +1658,14 @@ export function useLocation() {
         window.dispatchEvent(new CustomEvent("deliveryAddressModeUpdated"))
       } catch {}
 
-      // Clear cached location to force fresh fetch
-      localStorage.removeItem("userLocation")
-      debugLog("??? Cleared cached location from localStorage")
+      if (forceFresh) {
+        // Clear cached location to force fresh fetch
+        localStorage.removeItem("userLocation")
+        debugLog("??? Cleared cached location from localStorage")
+      }
 
       // Show loading, so pass showLoading = true
-      // forceFresh = true, updateDB = true, showLoading = true
-      // This ensures we get fresh GPS coordinates and reverse geocode
-      const location = await getLocation(true, true, true)
+      const location = await getLocation(updateDB, forceFresh, true)
 
       debugLog("??? Fresh location requested successfully:", location)
       debugLog("??? Complete Location details:", {
