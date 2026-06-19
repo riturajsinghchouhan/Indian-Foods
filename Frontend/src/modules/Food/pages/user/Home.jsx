@@ -3065,7 +3065,7 @@ export default function Home() {
                     initial={{ x: "100%" }}
                     animate={{ x: 0 }}
                     exit={{ x: "-100%" }}
-                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                    transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }}
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                 </AnimatePresence>

@@ -2807,13 +2807,13 @@ export default function Cart() {
                     <FileText className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                     <div className="text-left">
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        <span className="text-base text-gray-800 dark:text-gray-200 font-semibold tracking-wide">To Pay</span>
+                        <span className="text-base text-green-600 dark:text-green-500 font-bold tracking-wide">To Pay</span>
                         {platformPricingSavings.hasPlatformPricing && (
                           <span className="text-base text-gray-400 dark:text-gray-500 line-through font-medium">
                             {RUPEE_SYMBOL}{platformPricingSavings.totalPlatformPriceWithGst.toFixed(2)}
                           </span>
                         )}
-                        <span className="text-base font-bold text-gray-900 dark:text-white">
+                        <span className="text-base font-bold text-green-600 dark:text-green-500">
                           {RUPEE_SYMBOL}{total.toFixed(2)}
                         </span>
                       </div>
