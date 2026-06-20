@@ -52,18 +52,40 @@ export default function RestaurantCommission() {
     actions: true,
   })
 
+  const combinedList = useMemo(() => {
+    return approvedRestaurants.map((restaurant, index) => {
+      const commission = commissions.find(c => 
+        String(c.restaurantId) === String(restaurant._id) || 
+        (c.restaurant && String(c.restaurant._id) === String(restaurant._id))
+      );
+      
+      return {
+        _id: restaurant._id,
+        sl: index + 1,
+        restaurantName: restaurant.name,
+        restaurantId: restaurant.restaurantId,
+        hasCustomCommission: !!commission,
+        commissionData: commission || null,
+        defaultCommission: commission ? commission.defaultCommission : {
+          type: 'percentage',
+          value: globalSettings.globalRestaurantCommission
+        },
+        status: commission ? commission.status : true,
+      };
+    });
+  }, [approvedRestaurants, commissions, globalSettings.globalRestaurantCommission]);
+
   const filteredCommissions = useMemo(() => {
     if (!searchQuery.trim()) {
-      return commissions
+      return combinedList
     }
     
     const query = searchQuery.toLowerCase().trim()
-    return commissions.filter(commission =>
-      commission.restaurantName?.toLowerCase().includes(query) ||
-      commission.restaurantId?.toLowerCase().includes(query) ||
-      commission.restaurant?.name?.toLowerCase().includes(query)
+    return combinedList.filter(item =>
+      item.restaurantName?.toLowerCase().includes(query) ||
+      item.restaurantId?.toLowerCase().includes(query)
     )
-  }, [commissions, searchQuery])
+  }, [combinedList, searchQuery])
 
   const filteredRestaurants = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -182,9 +204,13 @@ export default function RestaurantCommission() {
     }
   }
 
-  const handleToggleStatus = async (commission) => {
+  const handleToggleStatus = async (item) => {
+    if (!item.hasCustomCommission || !item.commissionData) {
+      toast.info('Cannot toggle status of global commission. Add a custom commission first.')
+      return
+    }
     try {
-      await adminAPI.toggleRestaurantCommissionStatus(commission._id)
+      await adminAPI.toggleRestaurantCommissionStatus(item.commissionData._id)
       await fetchCommissions()
       toast.success('Commission status updated successfully')
     } catch (error) {
@@ -574,47 +600,55 @@ export default function RestaurantCommission() {
                       </td>
                     </tr>
                   ) : (
-                    filteredCommissions.map((commission) => (
-                      <tr key={commission._id} className="hover:bg-slate-50 transition-colors">
+                    filteredCommissions.map((item) => (
+                      <tr key={item._id} className="hover:bg-slate-50 transition-colors">
                         {visibleColumns.si && (
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm font-medium text-slate-700">{commission.sl || '-'}</span>
+                            <span className="text-sm font-medium text-slate-700">{item.sl || '-'}</span>
                           </td>
                         )}
                         {visibleColumns.restaurant && (
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="text-sm font-medium text-blue-600">
-                              {commission.restaurantName || commission.restaurant?.name || '-'}
+                              {item.restaurantName || '-'}
                             </span>
                           </td>
                         )}
                         {visibleColumns.restaurantId && (
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm text-slate-700">{commission.restaurantId || '-'}</span>
+                            <span className="text-sm text-slate-700">{item.restaurantId || '-'}</span>
                           </td>
                         )}
                         {visibleColumns.defaultCommission && (
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm font-medium text-slate-900">
-                              {commission.defaultCommission?.type === 'percentage' ? (
-                                <>{commission.defaultCommission.value}%</>
-                              ) : (
-                                <>${commission.defaultCommission.value}</>
-                              )}
-                            </span>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-slate-900">
+                                {item.defaultCommission?.type === 'percentage' ? (
+                                  <>{item.defaultCommission.value}%</>
+                                ) : (
+                                  <>${item.defaultCommission.value}</>
+                                )}
+                              </span>
+                              <span className={`text-[10px] font-semibold mt-0.5 px-1.5 py-0.5 rounded-sm inline-block w-fit ${item.hasCustomCommission ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+                                {item.hasCustomCommission ? 'Custom' : 'Global Default'}
+                              </span>
+                            </div>
                           </td>
                         )}
                         {visibleColumns.status && (
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
-                              onClick={() => handleToggleStatus(commission)}
+                              onClick={() => handleToggleStatus(item)}
+                              disabled={!item.hasCustomCommission}
                               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                                commission.status ? "bg-blue-600" : "bg-slate-300"
+                                !item.hasCustomCommission ? "bg-slate-200 cursor-not-allowed opacity-50" : 
+                                item.status ? "bg-blue-600" : "bg-slate-300"
                               }`}
                             >
                               <span
                                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                  commission.status ? "translate-x-6" : "translate-x-1"
+                                  !item.hasCustomCommission ? "translate-x-6" :
+                                  item.status ? "translate-x-6" : "translate-x-1"
                                 }`}
                               />
                             </button>
@@ -623,20 +657,35 @@ export default function RestaurantCommission() {
                         {visibleColumns.actions && (
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => handleEdit(commission)}
-                                className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"
-                                title="Edit"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(commission)}
-                                className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {item.hasCustomCommission ? (
+                                <>
+                                  <button
+                                    onClick={() => handleEdit(item.commissionData)}
+                                    className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(item.commissionData)}
+                                    className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    const restaurant = approvedRestaurants.find(r => r._id === item._id);
+                                    handleSelectRestaurant(restaurant);
+                                  }}
+                                  className="px-3 py-1 rounded-md text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                                  title="Configure custom commission"
+                                >
+                                  Configure
+                                </button>
+                              )}
                             </div>
                           </td>
                         )}
