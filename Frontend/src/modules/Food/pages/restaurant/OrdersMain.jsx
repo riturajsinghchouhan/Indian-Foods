@@ -1777,15 +1777,13 @@ export default function OrdersMain() {
       if (!isSameOrder) return;
 
       const cancelledStatus = normalizeOrderStatusValue(payloadStatus);
-      setPopupOrder((prev) => {
-        const base = prev || activePopupOrder || {};
-        return {
-          ...base,
-          status: cancelledStatus,
-          orderStatus: cancelledStatus,
-        };
-      });
+      
+      // Instantly dismiss popup on cancellation
+      setShowNewOrderPopup(false);
+      setPopupOrder(null);
       clearNewOrder();
+      setCountdown(180);
+      setPrepTime(11);
 
       if (isUserCancelledStatus(cancelledStatus)) {
         toast.info("Order canceled by user");
@@ -2025,25 +2023,7 @@ export default function OrdersMain() {
     }
   }, [showNewOrderPopup]);
 
-  useEffect(() => {
-    if (!showNewOrderPopup) return;
-
-    const activePopupOrder = popupOrder || newOrder;
-    const popupStatus =
-      activePopupOrder?.orderStatus || activePopupOrder?.status;
-
-    if (!isAnyCancelledStatus(popupStatus)) return;
-
-    const timer = setTimeout(() => {
-      setShowNewOrderPopup(false);
-      setPopupOrder(null);
-      clearNewOrder();
-      setCountdown(180);
-      setPrepTime(11);
-    }, 2500);
-
-    return () => clearTimeout(timer);
-  }, [showNewOrderPopup, popupOrder, newOrder]);
+  // Removed the 2.5s delay on cancellation; it is now handled instantly via socket event
 
   useEffect(() => {
     const handleMouseMove = (event) => {
