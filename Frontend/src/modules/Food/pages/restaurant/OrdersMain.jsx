@@ -1778,6 +1778,11 @@ export default function OrdersMain() {
 
       const cancelledStatus = normalizeOrderStatusValue(payloadStatus);
       
+      // Mark both the payload and the active popup order as "shown" so that
+      // checkOrdersToPopup (60s interval) will never resurrect this popup
+      markOrderAsShown(payload);
+      markOrderAsShown(activePopupOrder);
+      
       // Instantly dismiss popup on cancellation
       setShowNewOrderPopup(false);
       setPopupOrder(null);

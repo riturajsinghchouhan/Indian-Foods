@@ -117,6 +117,8 @@ export const useRestaurantNotifications = () => {
   const lastConnectErrorLogRef = useRef(0);
   const lastAlertAtByOrderRef = useRef(new Map());
   const lastBrowserNotificationAtByOrderRef = useRef(new Map());
+  // Track order IDs that have been cancelled so REST polling doesn't resurrect them
+  const cancelledOrderIdsRef = useRef(new Set());
   const CONNECT_ERROR_LOG_THROTTLE_MS = 10000;
   const ALERT_LOOP_INTERVAL_MS = 4500;
   const ALERT_LOOP_MAX_MS = 120000;
@@ -318,6 +320,10 @@ export const useRestaurantNotifications = () => {
             const status = String(o?.status || "").toLowerCase();
             if (status !== "confirmed") return false;
 
+            // Skip orders that have been locally marked as cancelled
+            const oId = String(o?._id || o?.orderMongoId || o?.orderId || '').trim();
+            if (oId && cancelledOrderIdsRef.current.has(oId)) return false;
+
             // If it's a scheduled order, only alert if it's due soon (within 30 mins)
             if (o.scheduledAt) {
               const scheduledTime = new Date(o.scheduledAt).getTime();
@@ -436,7 +442,11 @@ export const useRestaurantNotifications = () => {
              const rows = response?.data?.data?.orders || response?.data?.data?.data?.orders || [];
              const confirmed = (rows || []).filter(o => {
                 const status = String(o?.status || "").toLowerCase();
-                return status === "confirmed" && (!o.scheduledAt || new Date(o.scheduledAt).getTime() <= Date.now() + 30 * 60000);
+                if (status !== "confirmed") return false;
+                // Skip orders that have been locally marked as cancelled
+                const oId = String(o?._id || o?.orderMongoId || o?.orderId || '').trim();
+                if (oId && cancelledOrderIdsRef.current.has(oId)) return false;
+                return !o.scheduledAt || new Date(o.scheduledAt).getTime() <= Date.now() + 30 * 60000;
              }).sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
              
              if (confirmed.length > 0) {
@@ -766,6 +776,16 @@ export const useRestaurantNotifications = () => {
     // Listen for order status updates
     socketRef.current.on('order_status_update', (data) => {
       debugLog('?? Order status update:', data);
+
+      // Track cancelled order IDs so REST polling never resurrects them
+      const statusRaw = String(data?.orderStatus || data?.status || '').toLowerCase().trim().replace(/\s+/g, '_');
+      if (statusRaw === 'cancelled_by_user' || statusRaw === 'cancelled_by_restaurant' || statusRaw === 'cancelled_by_admin' || statusRaw === 'cancelled') {
+        const ids = [data?.orderMongoId, data?.orderId, data?._id, data?.id]
+          .map(v => v == null ? '' : String(v).trim())
+          .filter(Boolean);
+        for (const id of ids) cancelledOrderIdsRef.current.add(id);
+      }
+
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
           new CustomEvent('restaurantOrderStatusUpdate', {
