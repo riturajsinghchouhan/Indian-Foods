@@ -1784,6 +1784,11 @@ export default function OrdersMain() {
       clearNewOrder();
       setCountdown(180);
       setPrepTime(11);
+      
+      // Force refresh the orders list so it doesn't reappear in the next checkOrdersToPopup cycle
+      if (typeof requestOrdersRefresh === 'function') {
+        requestOrdersRefresh();
+      }
 
       if (isUserCancelledStatus(cancelledStatus)) {
         toast.info("Order canceled by user");
