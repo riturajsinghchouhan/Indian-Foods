@@ -1393,6 +1393,9 @@ export default function OrdersMain() {
   }, [showNewOrderPopup]);
   const isMutedRef = useRef(isMuted);
   const newOrderRef = useRef(null);
+  // Refs to always have latest popup order & dismiss helper available in event listeners
+  const popupOrderRef = useRef(null);
+  const cancelDismissRef = useRef(null);
 
   // Pending counts for tabs
   const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
@@ -1746,55 +1749,45 @@ export default function OrdersMain() {
     }
   }, [newOrder]);
 
+  // Keep popupOrderRef in sync so the cancel event listener always has the latest value
   useEffect(() => {
-    const onRestaurantOrderStatusUpdate = (event) => {
-      const payload = event?.detail || {};
-      const payloadStatus = payload?.orderStatus || payload?.status;
-      if (!isAnyCancelledStatus(payloadStatus)) return;
+    popupOrderRef.current = popupOrder;
+  }, [popupOrder]);
 
-      const activePopupOrder = popupOrder || newOrder;
-      if (!activePopupOrder) return;
+  // Keep cancelDismissRef pointing to the latest dismiss function
+  useEffect(() => {
+    cancelDismissRef.current = (payload) => {
+      const currentPopupOrder = popupOrderRef.current;
+      const currentNewOrder = newOrderRef.current;
+      const activePopupOrder = currentPopupOrder || currentNewOrder;
 
-      const activeIds = [
-        activePopupOrder?.orderMongoId,
-        activePopupOrder?.orderId,
-        activePopupOrder?._id,
-        activePopupOrder?.id,
-      ]
-        .map((v) => (v == null ? "" : String(v).trim()))
-        .filter(Boolean);
-
-      const payloadIds = [
-        payload?.orderMongoId,
-        payload?.orderId,
-        payload?._id,
-        payload?.id,
-      ]
-        .map((v) => (v == null ? "" : String(v).trim()))
-        .filter(Boolean);
-
-      const isSameOrder = payloadIds.some((id) => activeIds.includes(id));
-      if (!isSameOrder) return;
-
-      const cancelledStatus = normalizeOrderStatusValue(payloadStatus);
-      
-      // Mark both the payload and the active popup order as "shown" so that
-      // checkOrdersToPopup (60s interval) will never resurrect this popup
+      // Mark as shown so checkOrdersToPopup never re-opens it
+      if (activePopupOrder) markOrderAsShown(activePopupOrder);
       markOrderAsShown(payload);
-      markOrderAsShown(activePopupOrder);
-      
-      // Instantly dismiss popup on cancellation
+
       setShowNewOrderPopup(false);
       setPopupOrder(null);
       clearNewOrder();
       setCountdown(180);
       setPrepTime(11);
-      
-      // Force refresh the orders list so it doesn't reappear in the next checkOrdersToPopup cycle
-      if (typeof requestOrdersRefresh === 'function') {
-        requestOrdersRefresh();
+      requestOrdersRefresh();
+    };
+  });
+
+  // Register cancel listener ONCE on mount using stable refs — no stale closures
+  useEffect(() => {
+    const onRestaurantOrderStatusUpdate = (event) => {
+      const payload = event?.detail || {};
+      const payloadStatus = payload?.orderStatus || payload?.status;
+
+      if (!isAnyCancelledStatus(payloadStatus)) return;
+
+      // Use ref-based dismiss so we always act on latest state
+      if (cancelDismissRef.current) {
+        cancelDismissRef.current(payload);
       }
 
+      const cancelledStatus = normalizeOrderStatusValue(payloadStatus);
       if (isUserCancelledStatus(cancelledStatus)) {
         toast.info("Order canceled by user");
       } else {
@@ -1802,18 +1795,11 @@ export default function OrdersMain() {
       }
     };
 
-    window.addEventListener(
-      "restaurantOrderStatusUpdate",
-      onRestaurantOrderStatusUpdate,
-    );
-
+    window.addEventListener("restaurantOrderStatusUpdate", onRestaurantOrderStatusUpdate);
     return () => {
-      window.removeEventListener(
-        "restaurantOrderStatusUpdate",
-        onRestaurantOrderStatusUpdate,
-      );
+      window.removeEventListener("restaurantOrderStatusUpdate", onRestaurantOrderStatusUpdate);
     };
-  }, [popupOrder, newOrder]);
+  }, []); // Empty deps — registered once, uses refs internally
 
   // Keep refs in sync to avoid stale state inside one-time event handlers.
   useEffect(() => {
