@@ -347,6 +347,25 @@ export const useRestaurantNotifications = () => {
           confirmed.slice(0, 5).forEach((o) => handleIncomingOrderAlert(o, 'poll'));
         }
 
+        // --- NEW: Fallback for Cancellations if Socket failed ---
+        if (activeOrderRef.current) {
+          const activeId = activeOrderRef.current._id || activeOrderRef.current.orderMongoId || activeOrderRef.current.orderId;
+          const matchingOrderInPoll = rows.find(o => o._id === activeId || o.orderId === activeId);
+          if (matchingOrderInPoll) {
+            const statusRaw = String(matchingOrderInPoll.status || matchingOrderInPoll.orderStatus || '').toLowerCase().trim().replace(/\s+/g, '_');
+            if (statusRaw === 'cancelled_by_user' || statusRaw === 'cancelled_by_restaurant' || statusRaw === 'cancelled_by_admin' || statusRaw === 'cancelled') {
+              debugLog('?? Fallback: Active order cancelled detected via REST poll:', matchingOrderInPoll);
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('restaurantOrderStatusUpdate', {
+                    detail: matchingOrderInPoll,
+                  }),
+                );
+              }
+            }
+          }
+        }
+
         // --- NEW: Fallback for Pickup OTP Request if Socket failed ---
         const currentOtpRevealStr = typeof window !== 'undefined' ? localStorage.getItem('restaurant_pickupOtpReveal') : null;
         let currentOtpRevealObj = null;
@@ -452,6 +471,25 @@ export const useRestaurantNotifications = () => {
              if (confirmed.length > 0) {
                 setNewOrder(confirmed[0]);
              }
+
+             // --- NEW: Fallback for Cancellations if Socket failed ---
+             if (activeOrderRef.current) {
+                const activeId = activeOrderRef.current._id || activeOrderRef.current.orderMongoId || activeOrderRef.current.orderId;
+                const matchingOrderInPoll = rows.find(o => o._id === activeId || o.orderId === activeId);
+                if (matchingOrderInPoll) {
+                  const statusRaw = String(matchingOrderInPoll.status || matchingOrderInPoll.orderStatus || '').toLowerCase().trim().replace(/\s+/g, '_');
+                  if (statusRaw === 'cancelled_by_user' || statusRaw === 'cancelled_by_restaurant' || statusRaw === 'cancelled_by_admin' || statusRaw === 'cancelled') {
+                    debugLog('?? Fallback: Active order cancelled detected via REST poll on visibility change:', matchingOrderInPoll);
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(
+                        new CustomEvent('restaurantOrderStatusUpdate', {
+                          detail: matchingOrderInPoll,
+                        }),
+                      );
+                    }
+                  }
+                }
+             }
           }).catch(() => {});
         }
       } else if (document.visibilityState === 'hidden' && activeOrderRef.current) {
@@ -514,66 +552,7 @@ export const useRestaurantNotifications = () => {
     backendUrl = backendUrl.replace(/^(https?):\/+/gi, '$1://');
     backendUrl = backendUrl.replace(/\/+$/, ''); // Remove trailing slashes
     
-    // CRITICAL: Check for localhost in production BEFORE creating socket
-    // Detect production environment more reliably
-    const frontendHostname = window.location.hostname;
-    const isLocalhost = frontendHostname === 'localhost' || 
-                        frontendHostname === '127.0.0.1' ||
-                        frontendHostname === '';
-    const isProductionBuild = import.meta.env.MODE === 'production' || import.meta.env.PROD;
-    // Production deployment: not localhost AND (HTTPS OR has domain name with dots)
-    const isProductionDeployment = !isLocalhost && (
-      window.location.protocol === 'https:' || 
-      (frontendHostname.includes('.') && !frontendHostname.startsWith('192.168.') && !frontendHostname.startsWith('10.'))
-    );
-    
-    // If backend URL is localhost but we're not running locally, BLOCK connection
-    const backendIsLocalhost = backendUrl.includes('localhost') || backendUrl.includes('127.0.0.1');
-    // Block if: backend is localhost AND (production build OR production deployment)
-    // Allow if: frontend is also localhost (development scenario)
-    const shouldBlockConnection = backendIsLocalhost && (isProductionBuild || isProductionDeployment) && !isLocalhost;
-    
-    if (shouldBlockConnection) {
-      // Try to infer backend URL from frontend URL (common pattern: api.domain.com or domain.com/api)
-      const frontendHost = window.location.hostname;
-      const frontendProtocol = window.location.protocol;
-      let suggestedBackendUrl = null;
-      
-      // Common patterns:
-      // - If frontend is on foods.appzeto.com, backend might be api.foods.appzeto.com or foods.appzeto.com
-      if (frontendHost.includes('foods.appzeto.com')) {
-        suggestedBackendUrl = `${frontendProtocol}//api.foods.appzeto.com/api`;
-      } else if (frontendHost.includes('appzeto.com')) {
-        suggestedBackendUrl = `${frontendProtocol}//api.${frontendHost}/api`;
-      }
-      
-      debugError('? CRITICAL: BLOCKING Socket.IO connection to localhost!');
-      debugError('Backend connectivity disabled (UI-only mode).');
-      debugError('?? Current backendUrl:', backendUrl);
-      debugError('?? Current API_BASE_URL:', API_BASE_URL);
-      debugError('?? Frontend hostname:', frontendHost);
-      debugError('?? Frontend protocol:', frontendProtocol);
-      debugError('?? Is production build:', isProductionBuild);
-      debugError('?? Is production deployment:', isProductionDeployment);
-      debugError('?? Backend is localhost:', backendIsLocalhost);
-      if (suggestedBackendUrl) {
-        debugError('?? Suggested backend URL:', suggestedBackendUrl);
-      } else {
-        debugError('?? Backend URL config is disabled in this build.');
-      }
-      debugError('?? Backend URL config is disabled in this build.');
-      
-      // Clean up any existing socket connection
-      if (socketRef.current) {
-        debugLog('?? Cleaning up existing socket connection...');
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-      
-      // Don't try to connect to localhost in production - it will fail
-      setIsConnected(false);
-      return; // CRITICAL: Exit early to prevent socket creation
-    }
+
     
     // Validate backend URL format
     if (!backendUrl || !backendUrl.startsWith('http')) {
