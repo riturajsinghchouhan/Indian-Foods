@@ -3,6 +3,7 @@ import { upload } from '../../../../middleware/upload.js';
 import * as xlsx from 'xlsx';
 import { FoodItem } from '../models/food.model.js';
 import { FoodCategory } from '../models/category.model.js';
+import { FoodAddon } from '../../restaurant/models/foodAddon.model.js';
 import { Queue } from 'bullmq';
 import { getBullMQConnection } from '../../../../queues/connection.js';
 import { MENU_IMAGE_QUEUE } from '../../../../queues/queue.constants.js';
@@ -157,6 +158,37 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                     const [vName, vPrice] = part.split(':');
                     if (vName && vPrice && !isNaN(parseFloat(vPrice))) {
                         variants.push({ name: vName.trim(), price: parseFloat(vPrice.trim()) });
+                    }
+                }
+            }
+
+            // Extract Add-ons
+            const addonsStr = (row['Add-ons (Name:Price, ...)'] || row['Add-ons'] || row.Addons || '').toString().trim();
+            if (addonsStr) {
+                const parts = addonsStr.split(',');
+                for (const part of parts) {
+                    const [aName, aPrice] = part.split(':');
+                    if (aName && aPrice && !isNaN(parseFloat(aPrice))) {
+                        const addonName = aName.trim();
+                        const addonPrice = parseFloat(aPrice.trim());
+                        
+                        // Check if addon exists for this restaurant
+                        const existingAddon = await FoodAddon.findOne({
+                            restaurantId,
+                            'draft.name': { $regex: new RegExp(`^${addonName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+                        });
+                        
+                        if (!existingAddon) {
+                            await FoodAddon.create({
+                                restaurantId,
+                                draft: { name: addonName, price: addonPrice, description: '' },
+                                published: { name: addonName, price: addonPrice, description: '' },
+                                approvalStatus: 'approved',
+                                approvedAt: new Date(),
+                                isAvailable: true
+                            });
+                            logger.info(`[Bulk Upload] Created new global Add-on: "${addonName}" for restaurant ${restaurantId}`);
+                        }
                     }
                 }
             }

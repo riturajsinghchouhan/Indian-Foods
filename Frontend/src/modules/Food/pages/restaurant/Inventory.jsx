@@ -802,6 +802,7 @@ export default function Inventory() {
   // Swipe gesture refs
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
+  const touchEndX = useRef(0)
   const isSwiping = useRef(false)
   const mouseStartX = useRef(0)
 
@@ -1006,6 +1007,7 @@ export default function Inventory() {
   const [addons, setAddons] = useState([])
   const [loadingAddons, setLoadingAddons] = useState(false)
   const [isAddAddonOpen, setIsAddAddonOpen] = useState(false)
+  const [editingAddonId, setEditingAddonId] = useState(null)
   const [addonName, setAddonName] = useState("")
   const [addonDescription, setAddonDescription] = useState("")
   const [addonPrice, setAddonPrice] = useState("")
@@ -1255,6 +1257,7 @@ export default function Inventory() {
         setAddonName(parsed?.name || "")
         setAddonDescription(parsed?.description || "")
         setAddonPrice(parsed?.price || "")
+        setEditingAddonId(parsed?.editingAddonId || null)
         if (parsed?.isOpen) setIsAddAddonOpen(true)
         if (parsed?.preview) {
           setAddonImagePreview(parsed.preview)
@@ -1272,11 +1275,12 @@ export default function Inventory() {
         description: addonDescription,
         price: addonPrice,
         preview: addonImagePreview,
-        isOpen: isAddAddonOpen
+        isOpen: isAddAddonOpen,
+        editingAddonId: editingAddonId
       }
       localStorage.setItem(INVENTORY_ADDON_FORM_KEY, JSON.stringify(payload))
     } catch {}
-  }, [addonName, addonDescription, addonPrice, addonImagePreview, isAddAddonOpen])
+  }, [addonName, addonDescription, addonPrice, addonImagePreview, isAddAddonOpen, editingAddonId])
 
   const resetAddonForm = () => {
     if (addonImagePreview && addonImagePreview.startsWith("blob:")) {
@@ -1287,6 +1291,7 @@ export default function Inventory() {
     setAddonPrice("")
     setAddonImageFile(null)
     setAddonImagePreview("")
+    setEditingAddonId(null)
     if (addonImageInputRef.current) {
       addonImageInputRef.current.value = ""
     }
@@ -1329,7 +1334,7 @@ export default function Inventory() {
     }
     setSavingAddon(true)
     try {
-      let imageUrl = ""
+      let imageUrl = addonImagePreview && !addonImagePreview.startsWith("blob:") ? addonImagePreview : ""
       if (addonImageFile) {
         const uploadRes = await uploadAPI.uploadMedia(addonImageFile, { folder: "appzeto/restaurant/addons" })
         imageUrl = uploadRes?.data?.data?.url || uploadRes?.data?.url || ""
@@ -1341,8 +1346,15 @@ export default function Inventory() {
         image: imageUrl,
         images: imageUrl ? [imageUrl] : [],
       }
-      await restaurantAPI.addAddon(payload)
-      toast.success("Add-on submitted to admin for approval")
+      
+      if (editingAddonId) {
+        await restaurantAPI.updateAddon(editingAddonId, { draft: payload })
+        toast.success("Add-on updated and submitted for approval")
+      } else {
+        await restaurantAPI.addAddon(payload)
+        toast.success("Add-on submitted to admin for approval")
+      }
+      
       resetAddonForm()
       setIsAddAddonOpen(false)
       fetchAddons(true)
@@ -1351,6 +1363,30 @@ export default function Inventory() {
       toast.error(error?.response?.data?.message || "Failed to save add-on")
     } finally {
       setSavingAddon(false)
+    }
+  }
+
+  const handleEditAddon = (addon) => {
+    setAddonName(addon.name || "")
+    setAddonDescription(addon.description || "")
+    setAddonPrice(addon.price || "")
+    setEditingAddonId(addon.id)
+    setAddonImagePreview((addon.images && addon.images[0]) || addon.image || "")
+    setAddonImageFile(null)
+    setIsAddAddonOpen(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleDeleteAddon = async (addonId) => {
+    if (window.confirm("Are you sure you want to delete this add-on?")) {
+      try {
+        await restaurantAPI.deleteAddon(addonId)
+        toast.success("Add-on deleted successfully")
+        fetchAddons(false)
+      } catch (error) {
+        debugError("Error deleting add-on:", error)
+        toast.error("Failed to delete add-on")
+      }
     }
   }
 
@@ -2296,9 +2332,11 @@ export default function Inventory() {
                       {addonImagePreview && (
                         <div className="mb-2">
                           <img
+                            key={addonImagePreview}
                             src={addonImagePreview}
                             alt="Preview"
                             className="w-24 h-24 object-cover rounded border"
+                            onLoad={(e) => (e.target.style.display = "block")}
                             onError={(e) => (e.target.style.display = "none")}
                           />
                         </div>
@@ -2411,14 +2449,32 @@ export default function Inventory() {
                               }}
                             />
                           )}
-                          <div className="flex items-center rounded-full bg-slate-100 px-2 py-1">
-                            <Switch
-                              checked={addon.isAvailable !== false}
-                              onCheckedChange={(checked) =>
-                                handleAddonToggle(addon.id, checked)
-                              }
-                              className="data-[state=checked]:bg-green-600"
-                            />
+                          <div className="flex flex-col items-end gap-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEditAddon(addon)}
+                                className="p-2 rounded-full text-slate-500 hover:bg-slate-100 transition-colors"
+                                title="Edit add-on"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAddon(addon.id)}
+                                className="p-2 rounded-full text-red-500 hover:bg-red-50 transition-colors"
+                                title="Delete add-on"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                              <div className="flex items-center rounded-full bg-slate-100 px-2 py-1 ml-1">
+                                <Switch
+                                  checked={addon.isAvailable !== false}
+                                  onCheckedChange={(checked) =>
+                                    handleAddonToggle(addon.id, checked)
+                                  }
+                                  className="data-[state=checked]:bg-green-600"
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -164,7 +164,7 @@ export async function tryAutoAssign(orderId, options = {}) {
 
     const searchOptions = {
       maxKm,
-      limit: 20,
+      limit: 10000, // No artificial limit, fetch all in the radius
       requiredAmount: 0,
       allowOverLimitFallback: true,
     };
@@ -241,7 +241,8 @@ export async function tryAutoAssign(orderId, options = {}) {
     const io = getIO();
     const payload = buildDeliverySocketPayload(order, order.restaurantId);
 
-    const phase1Batch = eligible.slice(0, Math.min(20, eligible.length));
+    // No batching limit - send to ALL eligible riders in the current radius
+    const phase1Batch = eligible;
 
     if (isPhase2) {
       // PHASE 2 BROADCAST: Notify everyone remaining
@@ -390,7 +391,7 @@ export async function resendDeliveryNotificationRestaurant(orderId, restaurantId
   const requiredAmount = paymentMethod === 'cash' ? Number(order?.pricing?.total || 0) : 0;
   const preview = await listNearbyOnlineDeliveryPartners(order.restaurantId, {
     maxKm: 15,
-    limit: 15,
+    limit: 10000, // No artificial limit
     requiredAmount,
     allowOverLimitFallback: true,
   });

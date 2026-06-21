@@ -134,9 +134,9 @@ const MenuBulkUpload = () => {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = 'Name,Description,Price,Category Name,Food Type (Veg/Non-Veg),Preparation Time,Is Available (TRUE/FALSE),Image URL,Variants (Name:Price, ...)';
-    const row1 = 'Chicken Dum Biryani,Authentic slow-cooked chicken,350,Biryani,Non-Veg,30 mins,TRUE,,"Half:180, Full:350"';
-    const row2 = 'Paneer Tikka,Grilled cottage cheese cubes,280,Starters,Veg,20 mins,TRUE,,';
+    const headers = 'Name,Description,Price,Category Name,Food Type (Veg/Non-Veg),Preparation Time,Is Available (TRUE/FALSE),"Variants (Name:Price, ...)","Add-ons (Name:Price, ...)"';
+    const row1 = 'Chicken Dum Biryani,Authentic slow-cooked chicken,350,Biryani,Non-Veg,30 mins,TRUE,"Half:180, Full:350","Raita:30, Extra Masala:20"';
+    const row2 = 'Paneer Tikka,Grilled cottage cheese cubes,280,Starters,Veg,20 mins,TRUE,,"Mint Chutney:10"';
     const row3 = 'Paneer Pizza,Cheesy paneer loaded pizza,349,Pizza,Veg,20 mins,TRUE,,';
     const csvContent = `${headers}\n${row1}\n${row2}\n${row3}`;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
