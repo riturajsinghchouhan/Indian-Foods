@@ -4,7 +4,7 @@ import { API_BASE_URL } from '@food/api/config';
 import { deliveryAPI } from '@food/api';
 import { toast } from 'sonner';
 import alertSound from '@food/assets/audio/alert.mp3';
-import originalSound from '@food/assets/audio/original.mp3';
+import originalSound from '@food/assets/audio/zomato_sms.mp3';
 import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInbox';
 import { DeliveryNotificationContext } from '../context/DeliveryNotificationContext';
 

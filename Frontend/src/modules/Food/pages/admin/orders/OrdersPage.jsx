@@ -17,7 +17,7 @@ import { Loader2 } from "lucide-react"
 import { OrdersDashboardSkeleton } from "@food/components/ui/loading-skeletons"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
 import alertSound from "@food/assets/audio/zomato_sms.mp3"
-import originalSound from "@food/assets/audio/original.mp3"
+import originalSound from "@food/assets/audio/zomato_sms.mp3"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
