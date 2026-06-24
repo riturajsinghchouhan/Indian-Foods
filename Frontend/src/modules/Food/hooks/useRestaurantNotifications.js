@@ -233,9 +233,7 @@ export const useRestaurantNotifications = () => {
         return;
       }
 
-      // Only re-alert if the tab is hidden. 
-      // If the user has the tab open, they are seeing the orders.
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      if (typeof document !== 'undefined') {
         playNotificationSound(activeOrderRef.current);
       }
     }, ALERT_LOOP_INTERVAL_MS);
@@ -266,13 +264,10 @@ export const useRestaurantNotifications = () => {
 
     activeOrderRef.current = orderData || { id: Date.now() };
 
-    // Play sound immediately if:
-    // 1. It's a real-time socket event (we want to know even if on the page)
-    // 2. OR the tab is hidden (so the poll successfully alerts the user)
     const isTabHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
-    if (isSocket || isTabHidden) {
-      playNotificationSound(orderData);
-    }
+    
+    // Always play sound immediately
+    playNotificationSound(orderData);
 
     startAlertLoop();
 
@@ -467,9 +462,6 @@ export const useRestaurantNotifications = () => {
       if (typeof document === 'undefined') return;
       
       if (document.visibilityState === 'visible') {
-        // Stop any repeating alert loops once the user "sees" the page
-        stopAlertLoop();
-        
         // Force a REST fetch on foreground to catch any orders missed while in background
         if (restaurantId) {
           restaurantAPI.getOrders({ page: 1, limit: 10 }).then(response => {

@@ -269,7 +269,7 @@ export const useDeliveryNotifications = () => {
         return;
       }
 
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      if (typeof document !== 'undefined') {
         playSoundFn(activeOrderRef.current);
       }
     }, ALERT_LOOP_INTERVAL_MS);
