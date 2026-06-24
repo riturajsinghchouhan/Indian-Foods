@@ -1360,6 +1360,25 @@ export default function OrdersMain() {
   const mouseEndX = useRef(0);
   const isMouseDown = useRef(false);
 
+  /**
+   * Extract the best available order ID to use for API calls.
+   * Prefers the MongoDB _id (most reliable), then orderMongoId / mongoId,
+   * then falls back to the short orderId string.
+   */
+  const resolveOrderActionId = (orderLike) => {
+    if (!orderLike) return null;
+    const raw =
+      orderLike._id ||
+      orderLike.orderMongoId ||
+      orderLike.mongoId ||
+      orderLike.orderId ||
+      orderLike.order_id ||
+      orderLike.id ||
+      null;
+    const id = String(raw || '').trim();
+    return id || null;
+  };
+
   // New order popup states
   const [showNewOrderPopup, setShowNewOrderPopup] = useState(false);
   const [popupOrder, setPopupOrder] = useState(null); // Store order for popup (from Socket.IO or API)
