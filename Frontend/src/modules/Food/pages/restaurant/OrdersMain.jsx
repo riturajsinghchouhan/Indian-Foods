@@ -1503,17 +1503,25 @@ export default function OrdersMain() {
     return keys.some((k) => shownOrdersRef.current.has(k));
   };
 
-  const resolveOrderActionId = (orderLike) => {
-    const raw =
-      orderLike?.orderMongoId ||
-      orderLike?._id ||
-      orderLike?.orderId ||
-      orderLike?.order_id ||
-      orderLike?.id;
-    const value = raw == null ? "" : String(raw).trim();
-    return value || null;
+  const getOrderActionIds = (orderLike) => {
+    const ids = [
+      orderLike?.orderMongoId,
+      orderLike?._id,
+      orderLike?.orderId,
+      orderLike?.order_id,
+      orderLike?.id,
+    ];
+    return ids
+      .map((v) => (v == null ? "" : String(v).trim()))
+      .filter(Boolean);
   };
 
+  const doOrdersMatch = (order1, order2) => {
+    if (!order1 || !order2) return false;
+    const ids1 = getOrderActionIds(order1);
+    const ids2 = getOrderActionIds(order2);
+    return ids1.some((id) => ids2.includes(id));
+  };
   const normalizeOrderStatusValue = (value) =>
     String(value || "")
       .toLowerCase()
@@ -1761,16 +1769,12 @@ export default function OrdersMain() {
       const currentNewOrder = newOrderRef.current;
       const activePopupOrder = currentPopupOrder || currentNewOrder;
 
-      // Only dismiss the popup if the cancelled order matches the currently active popup order
-      const activeOrderId = resolveOrderActionId(activePopupOrder);
-      const payloadOrderId = resolveOrderActionId(payload);
-
       // We always want to mark the cancelled order as shown
       markOrderAsShown(payload);
 
       // If there is an active popup and it's NOT the order that was just cancelled, do NOT close it!
-      if (activeOrderId && payloadOrderId && activeOrderId !== payloadOrderId) {
-        debugLog("?? Ignoring cancellation event for order", payloadOrderId, "because popup is showing order", activeOrderId);
+      if (activePopupOrder && payload && !doOrdersMatch(activePopupOrder, payload)) {
+        debugLog("?? Ignoring cancellation event because popup is showing a different order");
         return;
       }
 
