@@ -82,7 +82,7 @@ export const useRestaurantNotifications = () => {
   if (context) return context;
   
   const socketRef = useRef(null);
-  const [newOrder, setNewOrder] = useState(null);
+  const [orderQueue, setOrderQueue] = useState([]); // Queue of pending orders
   const [newReservation, setNewReservation] = useState(null);
   const [pickupOtpReveal, setPickupOtpRevealState] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -137,6 +137,20 @@ export const useRestaurantNotifications = () => {
       ''
     ).trim()
   );
+
+  // Enqueue a new order into the queue (deduplicates by ID)
+  const enqueueOrder = (orderData) => {
+    setOrderQueue(prev => {
+      const key = getOrderAlertKey(orderData);
+      if (key && prev.some(o => getOrderAlertKey(o) === key)) return prev;
+      return [...prev, orderData];
+    });
+  };
+
+  // Remove the first order from the queue
+  const dequeueOrder = () => {
+    setOrderQueue(prev => prev.slice(1));
+  };
 
   const shouldProcessOrderAlert = (orderData = {}) => {
     const key = getOrderAlertKey(orderData);
@@ -342,9 +356,10 @@ export const useRestaurantNotifications = () => {
 
         if (confirmed.length > 0) {
           // Trigger alerts for newest confirmed orders (dedupe prevents spam).
-          const newest = confirmed[0];
-          setNewOrder(newest);
-          confirmed.slice(0, 5).forEach((o) => handleIncomingOrderAlert(o, 'poll'));
+          confirmed.slice(0, 5).forEach((o) => {
+            handleIncomingOrderAlert(o, 'poll');
+            enqueueOrder(o); // add each confirmed order to the queue
+          });
         }
 
         // --- NEW: Fallback for Cancellations if Socket failed ---
@@ -469,7 +484,7 @@ export const useRestaurantNotifications = () => {
              }).sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
              
              if (confirmed.length > 0) {
-                setNewOrder(confirmed[0]);
+                confirmed.slice(0, 5).forEach(o => enqueueOrder(o));
              }
 
              // --- NEW: Fallback for Cancellations if Socket failed ---
@@ -609,10 +624,11 @@ export const useRestaurantNotifications = () => {
     debugLog('?? Is Production Deployment:', isProductionDeployment);
 
     // Initialize socket connection (default namespace)
-    // Use polling only to avoid repeated "WebSocket connection failed" when backend is down
+    // WebSocket-first for instant delivery; polling is the automatic fallback.
     socketRef.current = io(socketUrl, {
       path: '/socket.io/',
-      transports: ['polling'],
+      transports: ['websocket', 'polling'],
+      upgrade: true,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -728,7 +744,7 @@ export const useRestaurantNotifications = () => {
       }
 
       debugLog('?? New order received:', normalizedOrder);
-      setNewOrder(normalizedOrder);
+      enqueueOrder(normalizedOrder); // add to queue
 
       handleIncomingOrderAlert(normalizedOrder, 'socket');
     });
@@ -900,11 +916,15 @@ export const useRestaurantNotifications = () => {
   const clearNewOrder = () => {
     stopAlertLoop();
     activeOrderRef.current = null;
-    setNewOrder(null);
+    dequeueOrder(); // pop front of queue; next order becomes head
   };
+
+  // Expose the head of queue as `newOrder` for backward compatibility
+  const newOrder = orderQueue[0] || null;
 
   return {
     newOrder,
+    orderQueue,
     newReservation,
     pickupOtpReveal,
     clearPickupOtpReveal: () => setPickupOtpReveal(null),

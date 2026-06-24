@@ -1564,7 +1564,7 @@ export default function OrdersMain() {
   };
 
   // Restaurant notifications hook for real-time orders
-  const { newOrder, clearNewOrder, isConnected } = useRestaurantNotifications();
+  const { newOrder, orderQueue, clearNewOrder, isConnected } = useRestaurantNotifications();
 
   const rejectReasons = [
     "Restaurant is too busy",
@@ -1717,10 +1717,12 @@ export default function OrdersMain() {
     };
   }, []);
 
-  // Show new order popup when real order notification arrives from Socket.IO
+  // Show new order popup when real order notification arrives
+  // Queue-aware: if a popup is already open, mark order as shown and let
+  // the queue handle it when the current popup is dismissed.
   useEffect(() => {
     if (newOrder) {
-      debugLog("?? New order received via Socket.IO:", newOrder);
+      debugLog("?? New order (queue head) changed:", newOrder);
 
       if (isAnyCancelledStatus(newOrder?.status || newOrder?.orderStatus)) {
         clearNewOrder();
@@ -1737,22 +1739,22 @@ export default function OrdersMain() {
         toast.info(
           `New scheduled order received for ${new Date(scheduledAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`,
         );
+        clearNewOrder(); // remove from queue so next order can be shown
         requestOrdersRefresh();
-        return; // Do not show the immediate popup
+        return;
       }
 
       if (!hasOrderBeenShown(newOrder)) {
-        if (showNewOrderPopupRef.current) {
-          // If a popup is already open, just refresh the list. 
-          // The background polling will pick this order up next in the queue.
-          requestOrdersRefresh();
-        } else {
-          markOrderAsShown(newOrder);
+        markOrderAsShown(newOrder);
+        if (!showNewOrderPopupRef.current) {
+          // Popup is free — show it immediately
           setPopupOrder(newOrder);
           setShowNewOrderPopup(true);
-          setCountdown(getInitialCountdown(newOrder)); // Calculate relative to createdAt
-          requestOrdersRefresh();
+          setCountdown(getInitialCountdown(newOrder));
         }
+        // If popup is already open, the queue will auto-show this order
+        // once the current popup is dismissed (via clearNewOrder → dequeue).
+        requestOrdersRefresh();
       }
     }
   }, [newOrder]);
@@ -3061,9 +3063,16 @@ export default function OrdersMain() {
                 {/* Header */}
                 <div className="px-4 py-2.5 bg-white border-b border-gray-200 flex items-center justify-between">
                   <div className="flex-1">
-                    <h3 className="text-base font-bold text-gray-900">
-                      {(popupOrder || newOrder)?.orderId || "#Order"}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-gray-900">
+                        {(popupOrder || newOrder)?.orderId || "#Order"}
+                      </h3>
+                      {orderQueue.length > 1 && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white animate-pulse">
+                          +{orderQueue.length - 1} more
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500 mt-0.5">
                       {(popupOrder || newOrder)?.restaurantName || "Restaurant"}
                     </p>
