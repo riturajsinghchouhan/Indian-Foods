@@ -153,13 +153,14 @@ export default function SignupStep1() {
       newErrors.state = "State can contain letters only"
     }
 
-    if (!formData.vehicleNumber.trim()) {
+    const isBicycle = formData.vehicleType === "bicycle"
+    const isEVorBicycle = formData.vehicleType === "ev" || formData.vehicleType === "bicycle"
+
+    if (!isBicycle && !formData.vehicleNumber.trim()) {
       newErrors.vehicleNumber = "Vehicle number is required"
-    } else if (!/^[A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{4}$/.test(formData.vehicleNumber)) {
+    } else if (formData.vehicleNumber.trim() && !/^[A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{4}$/.test(formData.vehicleNumber)) {
       newErrors.vehicleNumber = "Invalid Indian vehicle number format (e.g., MH12AB1234)"
     }
-
-    const isEVorBicycle = formData.vehicleType === "ev" || formData.vehicleType === "bicycle"
     
     if (!isEVorBicycle && !formData.drivingLicenseNumber.trim()) {
       newErrors.drivingLicenseNumber = "Driving License is required for this vehicle type"
@@ -368,7 +369,7 @@ export default function SignupStep1() {
           {/* Vehicle Number */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Vehicle Number <span className="text-red-500">*</span>
+              Vehicle Number {formData.vehicleType === "bicycle" ? "(Optional)" : <span className="text-red-500">*</span>}
             </label>
             <input
               type="text"
