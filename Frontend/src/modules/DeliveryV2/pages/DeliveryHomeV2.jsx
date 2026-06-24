@@ -524,14 +524,26 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     return () => clearInterval(pingInterval);
   }, [isOnline]);
 
-  useEffect(() => { 
-    if (newOrder !== undefined) setIncomingOrder(newOrder); 
-  }, [newOrder]);
 
   useEffect(() => {
-    if (incomingOrder && playNotificationSound) {
+    if (newOrder !== undefined) {
+      setIncomingOrder(newOrder);
+      // Play sound immediately when a new order arrives (same tick, no extra render cycle)
+      if (newOrder && playNotificationSound) {
+        playNotificationSound(newOrder);
+      }
+    }
+  }, [newOrder, playNotificationSound]);
+
+  // Also play sound when incomingOrder changes from polling (not from socket newOrder)
+  const prevIncomingOrderRef = useRef(null);
+  useEffect(() => {
+    const prevId = prevIncomingOrderRef.current?.orderId || prevIncomingOrderRef.current?._id;
+    const currId = incomingOrder?.orderId || incomingOrder?._id;
+    if (incomingOrder && currId !== prevId && playNotificationSound) {
       playNotificationSound(incomingOrder);
     }
+    prevIncomingOrderRef.current = incomingOrder;
   }, [incomingOrder, playNotificationSound]);
 
   useEffect(() => {

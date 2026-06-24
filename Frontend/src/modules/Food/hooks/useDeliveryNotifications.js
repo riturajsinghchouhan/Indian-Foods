@@ -4,7 +4,7 @@ import { API_BASE_URL } from '@food/api/config';
 import { deliveryAPI } from '@food/api';
 import { toast } from 'sonner';
 import alertSound from '@food/assets/audio/alert.mp3';
-import originalSound from '@food/assets/audio/zomato_sms.mp3';
+
 import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInbox';
 import { DeliveryNotificationContext } from '../context/DeliveryNotificationContext';
 
@@ -288,43 +288,24 @@ export const useDeliveryNotifications = () => {
         return;
       }
 
-      // Always use original sound for delivery
-      const soundFile = resolveAudioSource(originalSound, 'delivery-original');
-      
-      // Update audio source if preference changed or initialize if not exists
-      if (audioRef.current) {
-        const currentSrc = audioRef.current.src;
-        const newSrc = soundFile;
-        // Check if source needs to be updated
-        if (!currentSrc.includes(newSrc.split('/').pop())) {
-          audioRef.current.pause();
-          audioRef.current.src = newSrc;
-          audioRef.current.load();
-          debugLog('?? Audio source updated to Original');
-        }
-      } else {
-        // Initialize audio if not exists
-        audioRef.current = new Audio();
-        audioRef.current.src = soundFile;
+      // Lazily create audio if it doesn't exist yet
+      if (!audioRef.current) {
+        const soundFile = resolveAudioSource(alertSound);
+        audioRef.current = new Audio(soundFile);
         audioRef.current.preload = 'auto';
         audioRef.current.volume = 0.9;
-        audioRef.current.load();
-        debugLog('?? Audio initialized with Original Sound', 'Source:', soundFile);
       }
-      
-      if (audioRef.current) {
-        audioRef.current.muted = false;
-        audioRef.current.volume = 0.9;
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(error => {
-          // On strict autoplay environments, we still keep vibration/native bridge path active.
-          if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
-            debugWarn('Error playing notification sound:', error);
-          }
-        });
-      }
+
+      audioRef.current.muted = false;
+      audioRef.current.volume = 0.9;
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(error => {
+        // On strict autoplay environments, vibration/native bridge path stays active.
+        if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
+          debugWarn('Error playing notification sound:', error);
+        }
+      });
     } catch (error) {
-      // Don't log autoplay policy errors
       if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
         debugWarn('Error playing sound:', error);
       }
@@ -618,35 +599,22 @@ export const useDeliveryNotifications = () => {
     };
   }, []);
   
-  // Initialize audio on mount - use selected preference from localStorage
+  // Initialize audio on mount
   useEffect(() => {
-    // Always use original sound for delivery
-    const soundFile = resolveAudioSource(originalSound, 'delivery-original');
-    
+    const soundFile = resolveAudioSource(alertSound);
     if (!audioRef.current) {
       audioRef.current = new Audio(soundFile);
       audioRef.current.preload = 'auto';
-      audioRef.current.volume = 0.7;
-      debugLog('?? Audio initialized with Original Sound');
-    } else {
-      // Update audio source if preference changed
-      const currentSrc = audioRef.current.src;
-      const newSrc = soundFile;
-      if (!currentSrc.includes(newSrc.split('/').pop())) {
-        audioRef.current.pause();
-        audioRef.current.src = newSrc;
-        audioRef.current.load();
-        debugLog('?? Audio updated to Original');
-      }
+      audioRef.current.volume = 0.9;
+      debugLog('?? Audio initialized on mount with Alert Sound');
     }
-    
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
     };
-  }, []); // Note: This runs once on mount. To update dynamically, we'd need to listen to storage events
+  }, []);
 
   // Fetch delivery partner ID
   useEffect(() => {
@@ -761,7 +729,8 @@ export const useDeliveryNotifications = () => {
 
     socketRef.current = io(socketUrl, {
       path: '/socket.io/',
-      transports: ['polling', 'websocket'], // Allow both
+      transports: ['websocket', 'polling'], // WebSocket-first for instant delivery
+      upgrade: true,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
