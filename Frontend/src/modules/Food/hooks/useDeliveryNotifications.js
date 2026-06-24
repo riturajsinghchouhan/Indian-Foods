@@ -37,7 +37,6 @@ const debugError = (...args) => {
 
 if (typeof window !== 'undefined') {
   debugLog('alertSound URL:', alertSound);
-  debugLog('originalSound URL:', originalSound);
 }
 
 const resolveAudioSource = (source) => {
@@ -543,7 +542,7 @@ export const useDeliveryNotifications = () => {
     const handleUserInteraction = async () => {
       userInteractedRef.current = true;
 
-      const soundFile = resolveAudioSource(originalSound, 'delivery-original');
+      const soundFile = resolveAudioSource(alertSound);
 
       if (!audioRef.current) {
         audioRef.current = new Audio(soundFile);
@@ -557,7 +556,7 @@ export const useDeliveryNotifications = () => {
           audioRef.current.muted = true;
           // Ensure src is set even if it was just initialized
           if (!audioRef.current.src || audioRef.current.src === window.location.href) {
-             const soundFile = resolveAudioSource(originalSound);
+             const soundFile = resolveAudioSource(alertSound);
              audioRef.current.src = soundFile;
           }
           audioRef.current.load();
