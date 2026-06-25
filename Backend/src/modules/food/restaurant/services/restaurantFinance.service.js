@@ -89,7 +89,9 @@ export async function getRestaurantFinance(restaurantId, query = {}) {
         .sort({ createdAt: -1 })
         .lean();
 
-    const currentCycleOrders = currentTransactions.map((tx) => {
+    const deliveredCurrentTransactions = currentTransactions.filter(tx => tx.orderId && tx.orderId.orderStatus === 'delivered');
+
+    const currentCycleOrders = deliveredCurrentTransactions.map((tx) => {
         const order = tx.orderId || {};
         const items = Array.isArray(order.items) ? order.items : [];
         const foodNames = items.map((it) => it?.name).filter(Boolean).join(', ');
@@ -122,9 +124,14 @@ export async function getRestaurantFinance(restaurantId, query = {}) {
         restaurantId: rid,
         status: { $in: ['captured', 'authorized'] },
         'settlement.isRestaurantSettled': { $ne: true }
-    }).select('amounts.restaurantShare').lean();
+    })
+        .populate('orderId', 'orderStatus')
+        .select('amounts.restaurantShare orderId')
+        .lean();
 
-    const globalEstimatedPayout = allUnsettledTransactions.reduce(
+    const deliveredUnsettledTransactions = allUnsettledTransactions.filter(tx => tx.orderId && tx.orderId.orderStatus === 'delivered');
+
+    const globalEstimatedPayout = deliveredUnsettledTransactions.reduce(
         (sum, tx) => sum + (Number(tx.amounts?.restaurantShare) || 0),
         0
     );
@@ -135,12 +142,7 @@ export async function getRestaurantFinance(restaurantId, query = {}) {
         {
             $match: {
                 restaurantId: rid,
-                $expr: {
-                    $in: [
-                        { $toLower: { $trim: { input: '$status' } } },
-                        ['pending', 'approved']
-                    ]
-                }
+                status: { $in: ['pending', 'approved', 'processed', 'Pending', 'Approved', 'Processed'] }
             }
         },
         { $group: { _id: null, total: { $sum: '$amount' } } }
@@ -182,7 +184,9 @@ export async function getRestaurantFinance(restaurantId, query = {}) {
             .sort({ createdAt: -1 })
             .lean();
 
-        const pastCycleOrders = pastTransactions.map((tx) => {
+        const deliveredPastTransactions = pastTransactions.filter(tx => tx.orderId && tx.orderId.orderStatus === 'delivered');
+
+        const pastCycleOrders = deliveredPastTransactions.map((tx) => {
             const order = tx.orderId || {};
             const items = Array.isArray(order.items) ? order.items : [];
             const foodNames = items.map((it) => it?.name).filter(Boolean).join(', ');

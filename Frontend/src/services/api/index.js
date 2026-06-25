@@ -419,6 +419,10 @@ export const adminAPI = {
     adminClient.get("/food/admin/orders", { params: { limit: 50, page: 1, ...params } }),
   getOrderById: (orderId) =>
     adminClient.get(`/food/admin/orders/${String(orderId)}`),
+  acceptOrder: (orderId) =>
+    adminClient.patch(`/food/admin/orders/${String(orderId)}/status`, { orderStatus: "confirmed", note: "Accepted by admin" }),
+  rejectOrder: (orderId, reason = "") =>
+    adminClient.patch(`/food/admin/orders/${String(orderId)}/status`, { orderStatus: "cancelled_by_admin", note: reason }),
   deleteOrder: (orderId) =>
     adminClient.delete(`/food/admin/orders/${String(orderId)}`),
   /** Dispatch settings – auto vs manual assign (global) */

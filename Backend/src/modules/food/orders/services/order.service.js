@@ -1756,6 +1756,58 @@ export async function assignDeliveryPartnerAdmin(
   return normalizeOrderForClient(order);
 }
 
+export async function updateOrderStatusAdmin(orderId, adminId, orderStatus, note = "") {
+  const identity = buildOrderIdentityFilter(orderId);
+  if (!identity) throw new ValidationError("Order id required");
+
+  let order = await FoodOrder.findOne(identity);
+  if (!order) throw new NotFoundError("Order not found");
+
+  const from = order.orderStatus;
+  
+  // Allow admin to move it backward or forward, but let's at least log it
+  order.orderStatus = orderStatus;
+  pushStatusHistory(order, {
+    byRole: "ADMIN",
+    byId: adminId,
+    from,
+    to: orderStatus,
+    note: note || "Status updated by admin"
+  });
+  await order.save();
+
+  try {
+    const { getIO, rooms } = await import('../../../../config/socket.js');
+    const io = getIO();
+    if (io) {
+      const payload = {
+        orderMongoId: order._id?.toString?.(),
+        orderId: order._id.toString(),
+        orderStatus: order.orderStatus,
+        title: `Order updated by Admin`,
+        message: `Status changed to ${String(orderStatus).replace(/_/g, " ")}`
+      };
+      io.to(rooms.restaurant(order.restaurantId)).emit("order_status_update", payload);
+      io.to(rooms.user(order.userId)).emit("order_status_update", payload);
+      if (order.dispatch?.deliveryPartnerId) {
+          io.to(rooms.delivery(order.dispatch.deliveryPartnerId)).emit("order_status_update", payload);
+      }
+    }
+  } catch (err) {
+    logger.warn(`Admin update order socket emit failed: ${err?.message || err}`);
+  }
+
+  enqueueOrderEvent('order_status_updated_by_admin', {
+    orderMongoId: order._id?.toString?.(),
+    orderId: order._id.toString(),
+    adminId,
+    from,
+    to: orderStatus
+  });
+
+  return normalizeOrderForClient(order);
+}
+
 export async function deleteOrderAdmin(orderId, adminId) {
   const identity = buildOrderIdentityFilter(orderId);
   if (!identity) throw new ValidationError("Order id required");

@@ -337,7 +337,13 @@ export async function getPaymentStatusController(req, res, next) {
 export async function listOrdersAdminController(req, res, next) {
     try {
         const result = await orderService.listOrdersAdmin(req.query);
-        return sendResponse(res, 200, 'Orders retrieved', result);
+        // Extract orders to the root of the data object so frontend gets it correctly
+        const responseData = {
+            orders: result.orders || result.data,
+            pagination: result.pagination,
+            total: result.total
+        };
+        return sendResponse(res, 200, 'Orders retrieved', responseData);
     } catch (err) {
         next(err);
     }
@@ -360,6 +366,18 @@ export async function assignDeliveryPartnerController(req, res, next) {
         const dto = validateAssignDeliveryDto(req.body);
         const order = await orderService.assignDeliveryPartnerAdmin(orderId, dto.deliveryPartnerId, adminId);
         return sendResponse(res, 200, 'Delivery partner assigned', { order });
+    } catch (err) {
+        next(err);
+    }
+}
+
+export async function updateOrderStatusAdminController(req, res, next) {
+    try {
+        const adminId = req.user?.userId;
+        const orderId = req.params.orderId;
+        const { orderStatus, note } = req.body;
+        const order = await orderService.updateOrderStatusAdmin(orderId, adminId, orderStatus, note);
+        return sendResponse(res, 200, 'Order status updated successfully', { order });
     } catch (err) {
         next(err);
     }

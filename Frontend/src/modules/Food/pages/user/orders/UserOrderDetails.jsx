@@ -398,11 +398,7 @@ export default function UserOrderDetails() {
         yPos += 6;
       }
 
-      if (subscriptionFee > 0) {
-        doc.text("Other Fees:", 140, yPos);
-        doc.text(`Rs. ${subscriptionFee.toFixed(2)}`, totalWidth, yPos, { align: "right" });
-        yPos += 6;
-      }
+
 
       if (discount > 0) {
         doc.text("Discount:", 140, yPos);
@@ -673,12 +669,7 @@ export default function UserOrderDetails() {
                 ₹{Number(pricing.platformFee || 0).toFixed(2)}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500 dark:text-gray-400">Subscription / other fees</span>
-              <span className="text-gray-800 dark:text-gray-200">
-                ₹{Number(pricing.subscriptionFee || 0).toFixed(2)}
-              </span>
-            </div>
+
 
             <div className="border-t border-gray-100 dark:border-gray-800 my-2 pt-2 flex justify-between items-center">
               <span className="font-bold text-gray-800 dark:text-gray-100">Paid</span>

@@ -867,7 +867,7 @@ export async function getTransactionReport(query = {}) {
 
     for (const tx of transactionRows) {
         // Calculate Summary
-        if (tx.status === 'captured' || tx.status === 'settled' || (tx.orderId && tx.orderId.orderStatus === 'delivered')) {
+        if ((tx.status === 'captured' || tx.status === 'settled') && (tx.orderId && tx.orderId.orderStatus === 'delivered')) {
             completedTransaction += tx.amounts?.totalCustomerPaid || 0;
             adminEarning += tx.amounts?.platformNetProfit || 0;
             restaurantEarning += tx.amounts?.restaurantShare || 0;
@@ -1027,6 +1027,7 @@ export async function getRestaurantReport(query = {}) {
     const orderCreatedAtFilter = parseTimeRange(query.time);
     const orderMatch = {
         restaurantId: { $in: restaurantIds },
+        orderStatus: 'delivered',
         $or: [
             { "payment.method": { $in: ["cash", "wallet"] } },
             { "payment.status": { $in: ["paid", "authorized", "captured", "settled", "refunded"] } },
