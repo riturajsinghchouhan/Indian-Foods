@@ -878,25 +878,25 @@ export const useRestaurantNotifications = () => {
         return;
       }
 
-      if (audioRef.current) {
-        audioRef.current.muted = false;
-        audioRef.current.volume = 1;
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(error => {
-          // Don't log autoplay policy errors as they're expected
-          if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
-            debugWarn('Error playing notification sound:', error);
-            // Fallback: try one-shot audio instance (more reliable in background tabs on some browsers)
-            try {
-              const fallbackAudio = new Audio(resolveAudioSource(alertSound, `restaurant-alert-${Date.now()}`));
-              fallbackAudio.volume = 1;
-              fallbackAudio.play().catch(() => {});
-            } catch (fallbackError) {
-              debugWarn('Fallback audio playback failed:', fallbackError);
-            }
-          }
-        });
-      }
+      // if (audioRef.current) {
+      //   audioRef.current.muted = false;
+      //   audioRef.current.volume = 1;
+      //   audioRef.current.currentTime = 0;
+      //   audioRef.current.play().catch(error => {
+      //     // Don't log autoplay policy errors as they're expected
+      //     if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
+      //       debugWarn('Error playing notification sound:', error);
+      //       // Fallback: try one-shot audio instance (more reliable in background tabs on some browsers)
+      //       try {
+      //         const fallbackAudio = new Audio(resolveAudioSource(alertSound, `restaurant-alert-${Date.now()}`));
+      //         fallbackAudio.volume = 1;
+      //         fallbackAudio.play().catch(() => {});
+      //       } catch (fallbackError) {
+      //         debugWarn('Fallback audio playback failed:', fallbackError);
+      //       }
+      //     }
+      //   });
+      // }
     } catch (error) {
       // Don't log autoplay policy errors
       if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
