@@ -1816,6 +1816,21 @@ export default function OrdersMain() {
     const onRestaurantOrderStatusUpdate = (event) => {
       const payload = event?.detail || {};
       const payloadStatus = payload?.orderStatus || payload?.status;
+      const updatedBy = payload?.updatedBy;
+
+      const normalizedStatus = normalizeOrderStatusValue(payloadStatus);
+
+      // --- ADMIN ACCEPTANCE LOGIC ---
+      if (
+        (normalizedStatus === "confirmed" || normalizedStatus === "preparing") &&
+        updatedBy === "ADMIN"
+      ) {
+        if (cancelDismissRef.current) {
+          cancelDismissRef.current(payload);
+        }
+        toast.success("Order assigned by admin to you");
+        return;
+      }
 
       if (!isAnyCancelledStatus(payloadStatus)) return;
 
@@ -1824,8 +1839,7 @@ export default function OrdersMain() {
         cancelDismissRef.current(payload);
       }
 
-      const cancelledStatus = normalizeOrderStatusValue(payloadStatus);
-      if (isUserCancelledStatus(cancelledStatus)) {
+      if (isUserCancelledStatus(normalizedStatus)) {
         toast.info("Order canceled by user");
       } else {
         toast.info("Order cancelled");

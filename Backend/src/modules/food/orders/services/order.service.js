@@ -1785,12 +1785,38 @@ export async function updateOrderStatusAdmin(orderId, adminId, orderStatus, note
         orderId: order._id.toString(),
         orderStatus: order.orderStatus,
         title: `Order updated by Admin`,
-        message: `Status changed to ${String(orderStatus).replace(/_/g, " ")}`
+        message: `Status changed to ${String(orderStatus).replace(/_/g, " ")}`,
+        updatedBy: 'ADMIN'
       };
       io.to(rooms.restaurant(order.restaurantId)).emit("order_status_update", payload);
       io.to(rooms.user(order.userId)).emit("order_status_update", payload);
       if (order.dispatch?.deliveryPartnerId) {
           io.to(rooms.delivery(order.dispatch.deliveryPartnerId)).emit("order_status_update", payload);
+      }
+    }
+
+    // Real-time: delivery request / ready notifications.
+    if (
+      (String(orderStatus) === "preparing" || String(orderStatus) === "confirmed") && 
+      (String(from) !== "preparing" && String(from) !== "confirmed")
+    ) {
+      console.log(
+        `[DEBUG] Admin accepted order ${order._id.toString()}. Status changed to '${orderStatus}'. Triggering FRESH delivery dispatch.`
+      );
+      try {
+        const currentDispatchStatus = order.dispatch?.status;
+        const isAlreadyAccepted = currentDispatchStatus === 'accepted' && order.dispatch?.acceptedAt;
+        
+        if (!isAlreadyAccepted) {
+          await FoodOrder.findByIdAndUpdate(order._id, {
+            $set: { 'dispatch.status': 'unassigned', 'dispatch.offeredTo': [] },
+            $unset: { 'dispatch.dispatchingAt': '', 'dispatch.deliveryPartnerId': '' },
+          });
+        }
+        await dispatchService.tryAutoAssign(order._id);
+        order = await FoodOrder.findById(order._id); 
+      } catch (err) {
+        console.error(`[DEBUG] Auto-assign in updateOrderStatusAdmin failed:`, err);
       }
     }
   } catch (err) {

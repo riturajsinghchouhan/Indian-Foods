@@ -19,7 +19,7 @@ export const processOrderJob = async (job) => {
     // Handle Smart Dispatch Timeout
     if (action === 'DISPATCH_TIMEOUT_CHECK') {
         try {
-            const { processDispatchTimeout } = await import('../../../modules/food/orders/services/order.service.js');
+            const { processDispatchTimeout } = await import('../../modules/food/orders/services/order.service.js');
             // Pass full data object to allow attempt count and other options
             await processDispatchTimeout(orderMongoId, data.partnerId, data);
         } catch (err) {
@@ -30,7 +30,7 @@ export const processOrderJob = async (job) => {
     // Handle Petpooja Sync
     if (action === 'SYNC_PETPOOJA') {
         try {
-            const { pushOrderToPetpooja } = await import('../../../modules/food/orders/services/petpooja.service.js');
+            const { pushOrderToPetpooja } = await import('../../modules/food/orders/services/petpooja.service.js');
             await pushOrderToPetpooja(orderMongoId);
         } catch (err) {
             logger.error(`[BullMQ:order] SYNC_PETPOOJA failed: ${err.message}`);

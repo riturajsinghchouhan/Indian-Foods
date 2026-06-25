@@ -1283,12 +1283,19 @@ export async function getCustomers(query = {}) {
     const userIds = docs.map((u) => u._id).filter(Boolean);
     const orderStats = userIds.length > 0
         ? await FoodOrder.aggregate([
-            { $match: { userId: { $in: userIds } } },
+            { $match: { userId: { $in: userIds }, orderStatus: { $nin: ['created', 'cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin', 'dead'] } } },
+            {
+                $group: {
+                    _id: '$orderId',
+                    userId: { $first: '$userId' },
+                    totalAmount: { $first: { $ifNull: ['$pricing.total', 0] } }
+                }
+            },
             {
                 $group: {
                     _id: '$userId',
                     totalOrder: { $sum: 1 },
-                    totalOrderAmount: { $sum: { $ifNull: ['$pricing.total', 0] } }
+                    totalOrderAmount: { $sum: '$totalAmount' }
                 }
             }
         ])
@@ -1339,12 +1346,19 @@ export async function getCustomerById(id) {
     if (!u) return null;
     const customerObjectId = new mongoose.Types.ObjectId(id);
     const orderStats = await FoodOrder.aggregate([
-        { $match: { userId: customerObjectId } },
+        { $match: { userId: customerObjectId, orderStatus: { $nin: ['created', 'cancelled_by_user', 'cancelled_by_restaurant', 'cancelled_by_admin', 'dead'] } } },
+        {
+            $group: {
+                _id: '$orderId',
+                userId: { $first: '$userId' },
+                totalAmount: { $first: { $ifNull: ['$pricing.total', 0] } }
+            }
+        },
         {
             $group: {
                 _id: '$userId',
                 totalOrders: { $sum: 1 },
-                totalOrderAmount: { $sum: { $ifNull: ['$pricing.total', 0] } }
+                totalOrderAmount: { $sum: '$totalAmount' }
             }
         }
     ]);
