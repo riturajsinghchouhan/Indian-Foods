@@ -1382,7 +1382,7 @@ export default function OrdersMain() {
   // New order popup states
   const [showNewOrderPopup, setShowNewOrderPopup] = useState(false);
   const [popupOrder, setPopupOrder] = useState(null); // Store order for popup (from Socket.IO or API)
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [prepTime, setPrepTime] = useState(11);
   const [countdown, setCountdown] = useState(180); // 3 minutes in seconds
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
