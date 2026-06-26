@@ -118,7 +118,8 @@ export const authAPI = {
       (typeof localStorage !== "undefined"
         ? localStorage.getItem("user_refreshToken")
         : null);
-    return authService.logout(token, fcmToken, platform);
+    const resolvedFcmToken = fcmToken || (typeof localStorage !== "undefined" ? localStorage.getItem("fcm_web_registered_token_user") : null);
+    return authService.logout(token, resolvedFcmToken, platform);
   },
 };
 
@@ -823,7 +824,10 @@ export const restaurantAPI = {
     if (!token) return Promise.reject(new Error("FCM token is required"));
     return restaurantClient.delete(
       `/fcm-tokens/remove/${encodeURIComponent(String(token))}`,
-      { data: { token: String(token), platform } }
+      {
+        params: { platform },
+        data: { token: String(token), platform }
+      }
     );
   },
   /** Outlet timings (restaurant dashboard) */
@@ -1349,6 +1353,7 @@ export const deliveryAPI = {
     return deliveryClient.delete(
       `/fcm-tokens/remove/${encodeURIComponent(String(token))}`,
       {
+        params: { platform },
         data: { token: String(token), platform }
       }
     );
@@ -1753,6 +1758,7 @@ export const userAPI = {
     return userClient.delete(
       `/fcm-tokens/remove/${encodeURIComponent(String(token))}`,
       {
+        params: { platform },
         data: { token: String(token), platform }
       }
     );

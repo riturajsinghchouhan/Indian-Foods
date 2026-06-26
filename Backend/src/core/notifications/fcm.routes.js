@@ -1,5 +1,6 @@
 import express from 'express';
 import { authMiddleware } from '../auth/auth.middleware.js';
+import { verifyAccessToken } from '../auth/token.util.js';
 import { sendError } from '../../utils/response.js';
 import {
     removeFirebaseDeviceToken,
@@ -8,6 +9,8 @@ import {
 } from './firebase.service.js';
 import { FoodUser } from '../users/user.model.js';
 import { FoodRestaurant } from '../../modules/food/restaurant/models/restaurant.model.js';
+import { FoodDeliveryPartner } from '../../modules/food/delivery/models/deliveryPartner.model.js';
+import { FoodAdmin } from '../admin/admin.model.js';
 
 const router = express.Router();
 
@@ -15,6 +18,23 @@ const getOwnerContext = (req) => ({
     ownerType: req.user?.role,
     ownerId: req.user?.userId
 });
+
+const getOwnerContextOptional = (req) => {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+        if (token) {
+            const decoded = verifyAccessToken(token);
+            return {
+                ownerType: decoded.role,
+                ownerId: decoded.userId
+            };
+        }
+    } catch (e) {
+        // Ignore error and return empty context
+    }
+    return { ownerType: null, ownerId: null };
+};
 
 // Public health check for fcm-tokens service
 router.get('/check', (req, res) => {
@@ -125,15 +145,39 @@ router.post('/mobile/save', authMiddleware, async (req, res, next) => {
 
 const handleRemoveToken = async (req, res, next) => {
     try {
-        const { ownerType, ownerId } = getOwnerContext(req);
-        const token = String(req.params?.token || req.body?.token || '').trim();
-        const platform = req.body?.platform === 'mobile' ? 'mobile' : req.body?.platform === 'web' ? 'web' : undefined;
-
+        // Optionally try to parse authorization header first to scope it, 
+        // but fallback to unauthenticated global removal to prevent blocked logouts on expired sessions.
+        let { ownerType, ownerId } = getOwnerContext(req);
         if (!ownerType || !ownerId) {
-            return sendError(res, 401, 'Authentication required');
+            const opt = getOwnerContextOptional(req);
+            ownerType = opt.ownerType;
+            ownerId = opt.ownerId;
         }
 
-        await removeFirebaseDeviceToken({ ownerType, ownerId, token, platform });
+        const token = String(req.params?.token || req.body?.token || '').trim();
+        const platformInput = req.body?.platform || req.query?.platform;
+        const platform = platformInput === 'mobile' ? 'mobile' : platformInput === 'web' ? 'web' : undefined;
+
+        if (!token) {
+            return sendError(res, 400, 'FCM token is required');
+        }
+
+        if (ownerType && ownerId) {
+            // If authenticated (or token successfully decoded), do a targeted removal.
+            await removeFirebaseDeviceToken({ ownerType, ownerId, token, platform });
+        } else {
+            // If unauthenticated (e.g. session expired, logout fallback), perform a global token removal across all collections.
+            const models = [FoodUser, FoodRestaurant, FoodDeliveryPartner, FoodAdmin];
+            await Promise.all(
+                models.map((model) =>
+                    model.updateMany(
+                        { $or: [{ fcmTokens: token }, { fcmTokenMobile: token }] },
+                        { $pull: { fcmTokens: token, fcmTokenMobile: token } }
+                    )
+                )
+            );
+        }
+
         return res.status(200).json({
             success: true,
             message: 'FCM token removed'
@@ -143,8 +187,9 @@ const handleRemoveToken = async (req, res, next) => {
     }
 };
 
-router.delete('/remove', authMiddleware, handleRemoveToken);
-router.delete('/remove/:token', authMiddleware, handleRemoveToken);
+// Remove FCM token routes do NOT enforce authMiddleware to guarantee clean logouts when sessions expire.
+router.delete('/remove', handleRemoveToken);
+router.delete('/remove/:token', handleRemoveToken);
 
 router.post('/test', authMiddleware, async (req, res, next) => {
     try {

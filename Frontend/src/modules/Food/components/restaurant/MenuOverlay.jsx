@@ -208,14 +208,13 @@ export default function MenuOverlay({ showMenu, setShowMenu }) {
                                 await restaurantAPI.logout(null, fcmToken, platform);
                               } catch (e) {}
                               
-                              // Clear authentication state
-                              localStorage.removeItem("restaurant_authenticated")
-                              localStorage.removeItem("restaurant_user")
+                              // Clear authentication state comprehensively
+                              clearModuleAuth("restaurant");
                               setIsAuthenticated(false)
                               // Dispatch custom event for same-tab updates
                               window.dispatchEvent(new Event('restaurantAuthChanged'))
                               // Redirect to login
-                              navigate("/restaurant/login")
+                              navigate("/food/restaurant/login", { replace: true })
                             };
                             doLogout();
                           }

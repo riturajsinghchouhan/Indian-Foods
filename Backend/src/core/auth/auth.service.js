@@ -530,13 +530,15 @@ export const verifyDeliveryOtpAndLogin = async (phone, otp, fcmToken, platform) 
 };
 
 export const logout = async (refreshToken, fcmToken, platform) => {
-  if (!refreshToken && !fcmToken) {
+  const sanitizedFcmToken = fcmToken ? String(fcmToken).trim().replace(/^["']|["']$/g, '') : null;
+
+  if (!refreshToken && !sanitizedFcmToken) {
     throw new ValidationError("Refresh token or FCM token is required");
   }
 
   // 1. Remove specific FCM token from ALL collections if provided
-  if (fcmToken) {
-    console.log(`[FCM-Logout] Starting logout-driven token removal: platform=${platform}, tokenPreview=${fcmToken?.slice(0, 10)}...`);
+  if (sanitizedFcmToken) {
+    console.log(`[FCM-Logout] Starting logout-driven token removal: platform=${platform}, tokenPreview=${sanitizedFcmToken?.slice(0, 10)}...`);
     
     // We try to remove the token from all 4 possible models regardless of the user ID, 
     // ensuring no stale connections are left across any role or app the user was logged into.
@@ -546,8 +548,8 @@ export const logout = async (refreshToken, fcmToken, platform) => {
       await Promise.all(
         models.map((model) =>
           model.updateMany(
-            { $or: [{ fcmTokens: fcmToken }, { fcmTokenMobile: fcmToken }] },
-            { $pull: { fcmTokens: fcmToken, fcmTokenMobile: fcmToken } },
+            { $or: [{ fcmTokens: sanitizedFcmToken }, { fcmTokenMobile: sanitizedFcmToken }] },
+            { $pull: { fcmTokens: sanitizedFcmToken, fcmTokenMobile: sanitizedFcmToken } },
           ),
         ),
       );
