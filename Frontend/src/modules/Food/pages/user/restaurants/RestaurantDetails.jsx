@@ -2145,7 +2145,7 @@ function RestaurantDetailsContent() {
   const renderDishCard = (item, isRecommendedSection) => {
     const quantity = getDishQuantity(item)
     const isVeg = item.foodType === "Veg"
-    const isHighlighted = highlightedDishId === item.id
+    const isHighlighted = highlightedDishId === (item.id || item._id)
 
     const cardContent = (
       <>
@@ -2247,14 +2247,14 @@ function RestaurantDetailsContent() {
                 e.stopPropagation()
                 handleBookmarkClick(item)
               }}
-              className={`p-1.5 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${isDishFavorite(item.id, restaurant?.restaurantId || restaurant?._id || restaurant?.id)
+              className={`p-1.5 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${isDishFavorite(item.id || item._id, restaurant?.restaurantId || restaurant?._id || restaurant?.id)
                 ? "border-red-500 text-red-500 bg-red-50 dark:bg-red-900/20"
                 : "border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400"
                 }`}
             >
               <Bookmark
                 size={18}
-                className={isDishFavorite(item.id, restaurant?.restaurantId || restaurant?._id || restaurant?.id) ? "fill-red-500 text-red-500" : ""}
+                className={isDishFavorite(item.id || item._id, restaurant?.restaurantId || restaurant?._id || restaurant?.id) ? "fill-red-500 text-red-500" : ""}
               />
             </button>
             <button
@@ -2343,12 +2343,13 @@ function RestaurantDetailsContent() {
     if (isHighlighted) {
       return (
         <motion.div
-          key={item.id}
+          key={item.id || item._id}
           ref={(node) => {
+            const itemId = item.id || item._id;
             if (node) {
-              dishCardRefs.current[item.id] = node
+              dishCardRefs.current[itemId] = node
             } else {
-              delete dishCardRefs.current[item.id]
+              delete dishCardRefs.current[itemId]
             }
           }}
           initial={{ scale: 0.98, opacity: 0.95 }}
@@ -2372,12 +2373,13 @@ function RestaurantDetailsContent() {
 
     return (
       <div
-        key={item.id}
+        key={item.id || item._id}
         ref={(node) => {
+          const itemId = item.id || item._id;
           if (node) {
-            dishCardRefs.current[item.id] = node
+            dishCardRefs.current[itemId] = node
           } else {
-            delete dishCardRefs.current[item.id]
+            delete dishCardRefs.current[itemId]
           }
         }}
         className="flex gap-4 p-4 border-b border-gray-100 dark:border-gray-800 last:border-none relative cursor-pointer rounded-2xl hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors duration-200"
@@ -3068,6 +3070,15 @@ function RestaurantDetailsContent() {
                           className="w-full flex items-center justify-between py-3 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors text-left"
                           onClick={() => {
                             setShowMenuSheet(false)
+                            // Expand the section so items are visible
+                            setExpandedSections(prev => {
+                              const newSet = new Set(prev)
+                              newSet.add(category.sectionIndex)
+                              return newSet
+                            })
+                            // Bypass virtual scrolling to ensure the target section is rendered in the DOM
+                            setVisibleItemCount(totalFilteredItems)
+                            
                             // Scroll to category section
                             setTimeout(() => {
                               const sectionId = `menu-section-${category.sectionIndex}`
@@ -3078,7 +3089,7 @@ function RestaurantDetailsContent() {
                                   block: 'start'
                                 })
                               }
-                            }, 300) // Small delay to allow sheet to close
+                            }, 400) // Delay to allow sheet to close and React to render all items
                           }}
                         >
                           <div className="flex items-center gap-3 min-w-0">
@@ -3444,7 +3455,7 @@ function RestaurantDetailsContent() {
                           <span className="text-base font-medium text-gray-900 dark:text-white">Bookmarks</span>
                           {selectedItem && (
                             <Checkbox
-                              checked={isDishFavorite(selectedItem.id, restaurant?.restaurantId || restaurant?._id || restaurant?.id)}
+                              checked={isDishFavorite(selectedItem.id || selectedItem._id, restaurant?.restaurantId || restaurant?._id || restaurant?.id)}
                               onCheckedChange={(checked) => {
                                 if (!checked && selectedItem) {
                                   const restaurantId = restaurant?.restaurantId || restaurant?._id || restaurant?.id
@@ -3561,13 +3572,13 @@ function RestaurantDetailsContent() {
                           e.stopPropagation()
                           handleBookmarkClick(selectedItem)
                         }}
-                        className={`h-10 w-10 rounded-full border flex items-center justify-center transition-all duration-300 ${isDishFavorite(selectedItem.id, restaurant?.restaurantId || restaurant?._id || restaurant?.id)
+                        className={`h-10 w-10 rounded-full border flex items-center justify-center transition-all duration-300 ${isDishFavorite(selectedItem.id || selectedItem._id, restaurant?.restaurantId || restaurant?._id || restaurant?.id)
                           ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400"
                           : "border-white dark:border-gray-800 bg-white/90 dark:bg-[#1a1a1a]/90 text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-[#2a2a2a]"
                           }`}
                       >
                         <Bookmark
-                          className={`h-5 w-5 transition-all duration-300 ${isDishFavorite(selectedItem.id, restaurant?.restaurantId || restaurant?._id || restaurant?.id) ? "fill-red-500 dark:fill-red-400" : ""
+                          className={`h-5 w-5 transition-all duration-300 ${isDishFavorite(selectedItem.id || selectedItem._id, restaurant?.restaurantId || restaurant?._id || restaurant?.id) ? "fill-red-500 dark:fill-red-400" : ""
                             }`}
                         />
                       </button>
