@@ -75,6 +75,12 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   const { items: broadcastItems, unreadCount: notificationUnreadCount, markAsRead: markBroadcastAsRead, dismissAll: dismissAllBroadcast } = useNotificationInbox("delivery", { limit: 20 });
 
   const [incomingOrder, setIncomingOrder] = useState(null);
+  // GHOST-ASSIGNMENT FIX: Track the orderId that is currently displayed on the accept popup.
+  // Once a popup is showing, we "lock" it and ignore new socket/FCM orders until the popup is dismissed.
+  // This prevents the race condition where FCM delivers Order B while Order A popup is still visible,
+  // causing the rider to unknowingly accept Order B instead of Order A.
+  const lockedIncomingOrderIdRef = useRef(null);
+  const [pendingIncomingOrder, setPendingIncomingOrder] = useState(null); // queued next order (shown only after current is dismissed)
   const [cashLimitNotice, setCashLimitNotice] = useState(null);
   const [currentTab, setCurrentTab] = useState(tab);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -525,14 +531,29 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   }, [isOnline]);
 
 
+  // GHOST-ASSIGNMENT FIX: When a new socket/FCM order arrives:
+  // - If no popup is currently showing → display it immediately.
+  // - If a popup IS already showing (lock is set) → queue it as pending. DO NOT overwrite the visible popup.
+  //   This ensures the rider always accepts the order whose details are physically visible on screen.
   useEffect(() => {
-    if (newOrder !== undefined) {
+    if (newOrder === undefined || newOrder === null) return;
+
+    const newId = newOrder?.orderId || newOrder?._id || newOrder?.orderMongoId;
+    const lockedId = lockedIncomingOrderIdRef.current;
+
+    if (!lockedId) {
+      // No popup is showing — safe to display this order
+      lockedIncomingOrderIdRef.current = newId || null;
       setIncomingOrder(newOrder);
-      // Play sound immediately when a new order arrives (same tick, no extra render cycle)
-      if (newOrder && playNotificationSound) {
-        playNotificationSound(newOrder);
-      }
+      if (playNotificationSound) playNotificationSound(newOrder);
+    } else if (newId && newId !== lockedId) {
+      // A DIFFERENT order arrived while popup is already showing — queue it for later
+      console.warn(
+        `[GhostAssignFix] Popup locked on order ${lockedId}. Queuing new order ${newId} instead of overwriting.`
+      );
+      setPendingIncomingOrder(newOrder);
     }
+    // If newId === lockedId, it's a duplicate event for the same order — ignore.
   }, [newOrder, playNotificationSound]);
 
   // Also play sound when incomingOrder changes from polling (not from socket newOrder)
@@ -546,9 +567,29 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     prevIncomingOrderRef.current = incomingOrder;
   }, [incomingOrder, playNotificationSound]);
 
+  // When incomingOrder is cleared (accepted/rejected/claimed), release the lock
+  // and promote the pending order to the visible popup (if any).
+  const clearIncomingOrderWithLock = useCallback(() => {
+    setIncomingOrder(null);
+    clearNewOrder();
+    // If there's a queued order waiting, show it now
+    if (pendingIncomingOrder) {
+      const pendingId = pendingIncomingOrder?.orderId || pendingIncomingOrder?._id || pendingIncomingOrder?.orderMongoId;
+      lockedIncomingOrderIdRef.current = pendingId || null;
+      setIncomingOrder(pendingIncomingOrder);
+      setPendingIncomingOrder(null);
+      if (playNotificationSound) playNotificationSound(pendingIncomingOrder);
+    } else {
+      lockedIncomingOrderIdRef.current = null;
+    }
+  }, [pendingIncomingOrder, clearNewOrder, playNotificationSound]);
+
   useEffect(() => {
     if (activeOrder && incomingOrder) {
+      // Accepted successfully — clear incoming popup and release lock
       setIncomingOrder(null);
+      setPendingIncomingOrder(null);
+      lockedIncomingOrderIdRef.current = null;
     }
   }, [activeOrder, incomingOrder]);
 
@@ -574,21 +615,41 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     }
 
     const incomingId = incomingOrder?.orderId || incomingOrder?._id || incomingOrder?.orderMongoId;
-    if (incomingId && String(incomingId) === String(claimedOrderId.orderId)) {
+    const claimedId = claimedOrderId.orderId;
+
+    // Check if the claimed order matches either the visible popup or the pending (queued) order
+    const matchesVisible = incomingId && String(incomingId) === String(claimedId);
+    const pendingId = pendingIncomingOrder?.orderId || pendingIncomingOrder?._id || pendingIncomingOrder?.orderMongoId;
+    const matchesPending = pendingId && String(pendingId) === String(claimedId);
+
+    if (matchesVisible) {
       if (claimedOrderId.claimedBy === 'cancelled') {
         toast.error('Order was cancelled.', { duration: 4000 });
       } else {
         toast.info('Order was taken by another delivery partner.', { duration: 4000 });
       }
+      // Release lock and promote pending order (if any)
+      lockedIncomingOrderIdRef.current = null;
       setIncomingOrder(null);
       clearNewOrder();
+      if (pendingIncomingOrder) {
+        const nextId = pendingIncomingOrder?.orderId || pendingIncomingOrder?._id || pendingIncomingOrder?.orderMongoId;
+        lockedIncomingOrderIdRef.current = nextId || null;
+        setIncomingOrder(pendingIncomingOrder);
+        setPendingIncomingOrder(null);
+      }
+    } else if (matchesPending) {
+      // The queued (not yet shown) order was claimed — just drop it silently
+      setPendingIncomingOrder(null);
     } else if (!incomingId) {
-       // Failsafe: if incoming is null but we got a claim event, ensure we are clear
+       // Failsafe: if incoming is null but we got a claim event, ensure we are fully clear
+       lockedIncomingOrderIdRef.current = null;
        setIncomingOrder(null);
+       setPendingIncomingOrder(null);
        clearNewOrder();
     }
     clearClaimedOrderId();
-  }, [claimedOrderId, incomingOrder, clearNewOrder, clearClaimedOrderId]);
+  }, [claimedOrderId, incomingOrder, pendingIncomingOrder, clearNewOrder, clearClaimedOrderId, playNotificationSound]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -1119,10 +1180,24 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                   <NewOrderModal 
                     order={incomingOrder} 
                     onAccept={async (o) => {
+                      // GHOST-ASSIGNMENT GUARD: Verify the order ID being accepted is the one
+                      // currently locked/displayed. This catches any edge case where the reference
+                      // might drift between render cycles.
+                      const displayedId = incomingOrder?.orderId || incomingOrder?._id || incomingOrder?.orderMongoId;
+                      const acceptingId = o?.orderId || o?._id || o?.orderMongoId;
+                      if (displayedId && acceptingId && String(displayedId) !== String(acceptingId)) {
+                        console.error(
+                          `[GhostAssignFix] BLOCKED: Attempted to accept order ${acceptingId} but popup shows order ${displayedId}. Aborting.`
+                        );
+                        toast.error('Order mismatch detected. Please try again.', { duration: 4000 });
+                        return;
+                      }
                       try {
-                        await acceptOrder(o);
+                        await acceptOrder(incomingOrder); // Always use incomingOrder (the locked reference)
                         // Only dismiss the modal on successful accept
+                        lockedIncomingOrderIdRef.current = null;
                         setIncomingOrder(null);
+                        setPendingIncomingOrder(null);
                         clearNewOrder();
                       } catch (err) {
                         // acceptOrder already shows a toast for the specific error:
@@ -1135,13 +1210,12 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                                         (err?.response?.status === 403);
                         if (isTaken) {
                           // Dismiss modal — the order is no longer available
-                          setIncomingOrder(null);
-                          clearNewOrder();
+                          clearIncomingOrderWithLock();
                         }
                         // For other errors (network, etc.), keep showing the modal so they can retry
                       }
                     }}
-                    onReject={() => { setIncomingOrder(null); clearNewOrder(); }}
+                    onReject={clearIncomingOrderWithLock}
                     onMinimize={() => setIsModalMinimized(true)}
                   />
                 )}

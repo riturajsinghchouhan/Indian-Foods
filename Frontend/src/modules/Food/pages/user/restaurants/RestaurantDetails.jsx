@@ -233,10 +233,16 @@ function RestaurantDetailsContent() {
         let response = null
         let apiRestaurant = null
 
+        // Create request config with location if available
+        const requestConfig = { noCache: true }
+        if (Number.isFinite(userLocation?.latitude) && Number.isFinite(userLocation?.longitude)) {
+          requestConfig.params = { lat: userLocation.latitude, lng: userLocation.longitude }
+        }
+
         // Try dining API first (if available). If it doesn't return a valid restaurant,
         // always fall back to restaurant API (important when diningAPI is stubbed).
         try {
-          response = await diningAPI.getRestaurantBySlug(slug)
+          response = await diningAPI.getRestaurantBySlug(slug, requestConfig)
           if (response?.data?.success && response?.data?.data) {
             apiRestaurant = response.data.data
             debugLog('? Found restaurant in dining API:', apiRestaurant)
@@ -257,7 +263,7 @@ function RestaurantDetailsContent() {
           try {
             // First, try to get restaurant directly by slug/ID (no zoneId needed)
             try {
-              response = await restaurantAPI.getRestaurantById(slug, { noCache: true })
+              response = await restaurantAPI.getRestaurantById(slug, requestConfig)
               if (response?.data?.success && response?.data?.data) {
                 apiRestaurant = response.data.data
                 debugLog('? Found restaurant in restaurant API by slug/ID:', apiRestaurant)
@@ -286,7 +292,11 @@ function RestaurantDetailsContent() {
 
                     if (matchingRestaurant) {
                       // Get full restaurant details by ID
-                      const fullResponse = await restaurantAPI.getRestaurantById(matchingRestaurant._id || matchingRestaurant.restaurantId, { noCache: true })
+                      const requestConfigFallback = { noCache: true }
+                      if (Number.isFinite(userLocation?.latitude) && Number.isFinite(userLocation?.longitude)) {
+                        requestConfigFallback.params = { lat: userLocation.latitude, lng: userLocation.longitude }
+                      }
+                      const fullResponse = await restaurantAPI.getRestaurantById(matchingRestaurant._id || matchingRestaurant.restaurantId, requestConfigFallback)
                       if (fullResponse.data && fullResponse.data.success && fullResponse.data.data) {
                         apiRestaurant = fullResponse.data.data
                         debugLog('? Found restaurant in restaurant API by name search:', apiRestaurant)
@@ -415,7 +425,7 @@ function RestaurantDetailsContent() {
           const formattedAddress = formatRestaurantAddress(locationObj)
           debugLog('? Final Formatted Address:', formattedAddress)
 
-          // Calculate distance from user to restaurant
+          // Calculate distance from user to restaurant (with routing multiplier)
           const calculateDistance = (lat1, lng1, lat2, lng2) => {
             const R = 6371 // Earth's radius in kilometers
             const dLat = (lat2 - lat1) * Math.PI / 180
@@ -425,7 +435,7 @@ function RestaurantDetailsContent() {
               Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
               Math.sin(dLng / 2) * Math.sin(dLng / 2)
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-            return R * c // Distance in kilometers
+            return (R * c) * 1.35 // Distance in kilometers with multiplier
           }
 
           // Get restaurant coordinates
@@ -443,7 +453,11 @@ function RestaurantDetailsContent() {
 
           // Calculate distance if both coordinates are available
           let calculatedDistance = null
-          if (userLat && userLng && restaurantLat && restaurantLng &&
+          if (apiRestaurant?.distanceText) {
+            calculatedDistance = apiRestaurant.distanceText
+          } else if (actualRestaurant?.distanceText) {
+            calculatedDistance = actualRestaurant.distanceText
+          } else if (userLat && userLng && restaurantLat && restaurantLng &&
             !isNaN(userLat) && !isNaN(userLng) && !isNaN(restaurantLat) && !isNaN(restaurantLng)) {
             const distanceInKm = calculateDistance(userLat, userLng, restaurantLat, restaurantLng)
             // Format distance: show 1 decimal place if >= 1km, otherwise show in meters
@@ -585,6 +599,9 @@ function RestaurantDetailsContent() {
             discount: actualRestaurant?.discount || apiRestaurant?.discount || 0,
             itemDiscounts: Array.isArray(actualRestaurant?.itemDiscounts) ? actualRestaurant.itemDiscounts : (Array.isArray(apiRestaurant?.itemDiscounts) ? apiRestaurant.itemDiscounts : []),
             discountRules: Array.isArray(actualRestaurant?.discountRules) ? actualRestaurant.discountRules : (Array.isArray(apiRestaurant?.discountRules) ? apiRestaurant.discountRules : []),
+            // Preserve backend-computed road distance so it stays consistent with the Home page listing
+            distanceText: apiRestaurant?.distanceText || actualRestaurant?.distanceText || null,
+            distanceInfo: apiRestaurant?.distanceInfo || actualRestaurant?.distanceInfo || null,
           }
 
           debugLog('? Transformed restaurant:', transformedRestaurant)
@@ -1106,7 +1123,7 @@ function RestaurantDetailsContent() {
     if (userLat && userLng && restaurantLat && restaurantLng &&
       !isNaN(userLat) && !isNaN(userLng) && !isNaN(restaurantLat) && !isNaN(restaurantLng)) {
 
-      // Calculate distance
+      // Calculate distance (with routing multiplier)
       const calculateDistance = (lat1, lng1, lat2, lng2) => {
         const R = 6371 // Earth's radius in kilometers
         const dLat = (lat2 - lat1) * Math.PI / 180
@@ -1116,18 +1133,25 @@ function RestaurantDetailsContent() {
           Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
           Math.sin(dLng / 2) * Math.sin(dLng / 2)
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        return R * c // Distance in kilometers
+        return (R * c) * 1.35 // Distance in kilometers with multiplier
       }
 
-      const distanceInKm = calculateDistance(userLat, userLng, restaurantLat, restaurantLng)
       let calculatedDistance = null
+      let distanceInKm = null
 
-      // Format distance: show 1 decimal place if >= 1km, otherwise show in meters
-      if (distanceInKm >= 1) {
-        calculatedDistance = `${distanceInKm.toFixed(1)} km`
+      if (restaurant?.distanceText) {
+        // Prefer backend-computed road distance (Google Distance Matrix) — same source as Home page
+        calculatedDistance = restaurant.distanceText
+        distanceInKm = restaurant.distanceInfo?.distanceValue ? (restaurant.distanceInfo.distanceValue / 1000) : null
       } else {
-        const distanceInMeters = Math.round(distanceInKm * 1000)
-        calculatedDistance = `${distanceInMeters} m`
+        distanceInKm = calculateDistance(userLat, userLng, restaurantLat, restaurantLng)
+        // Format distance: show 1 decimal place if >= 1km, otherwise show in meters
+        if (distanceInKm >= 1) {
+          calculatedDistance = `${distanceInKm.toFixed(1)} km`
+        } else {
+          const distanceInMeters = Math.round(distanceInKm * 1000)
+          calculatedDistance = `${distanceInMeters} m`
+        }
       }
 
       // Only update if distance actually changed

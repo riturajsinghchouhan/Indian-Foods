@@ -808,6 +808,8 @@ export default function Under250() {
                   (deliveryMinutes ? `${deliveryMinutes} mins` : "30 mins"),
                 distance: distanceInKm !== null ? formatDistance(distanceInKm) : fallbackDistance,
                 distanceInKm,
+                distanceText: restaurant?.distanceText || null,
+                distanceInfo: restaurant?.distanceInfo || null,
                 discount: restaurant?.discount || 0,
                 itemDiscounts: Array.isArray(restaurant?.itemDiscounts) ? restaurant.itemDiscounts : [],
                 discountRules: Array.isArray(restaurant?.discountRules) ? restaurant.discountRules : [],

@@ -166,7 +166,7 @@ export default function Gourmet() {
                         Math.sin(dLng / 2) *
                         Math.sin(dLng / 2);
                     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    return R * c; // Distance in kilometers
+                    return (R * c) * 1.35; // Distance in kilometers with routing multiplier
                   };
 
                   let distanceStr = '1.2 km'

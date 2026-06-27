@@ -169,7 +169,7 @@ function calculateDistance(point1, point2) {
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
   
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  return (R * c) * 1.35; // Distance in meters with routing multiplier
 }
 
 /**

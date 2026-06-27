@@ -7,6 +7,7 @@ import { FoodOffer } from '../../admin/models/offer.model.js';
 import { FoodDiningRestaurant } from '../../dining/models/diningRestaurant.model.js';
 import Promocode from '../../../../models/Promocode.js';
 import { upsertOutletTimingsForRestaurant } from './outletTimings.service.js';
+import { getDrivingDistances } from '../../../../services/googleMaps.service.js';
 
 const normalizeName = (value) =>
     String(value || '')
@@ -1471,21 +1472,34 @@ export const listApprovedRestaurants = async (query = {}) => {
         } catch (err) {
             // Silently ignore
         }
-        
-        const restaurants = (restaurantsRawGeo || []).map((r) => ({
-            ...r,
-            restaurantId: r._id,
+        const origin = { lat, lng };
+        const dests = (restaurantsRawGeo || []).map(r => ({
             id: r._id,
-            name: r.restaurantName || '',
-            rating: normalizeRatingValue(r.rating),
-            totalRatings: normalizeTotalRatingsValue(r.totalRatings),
-            profileImage: r.profileImage ? { url: r.profileImage } : null,
-            coverImages: Array.isArray(r.coverImages) ? r.coverImages : [],
-            openingTime: r.openingTime || null,
-            closingTime: r.closingTime || null,
-            openDays: Array.isArray(r.openDays) ? r.openDays : [],
-            menuImages: Array.isArray(r.menuImages) ? r.menuImages : []
+            lat: r.location?.coordinates?.[1],
+            lng: r.location?.coordinates?.[0]
         }));
+        
+        const drivingDistances = await getDrivingDistances(origin, dests);
+        
+        const restaurants = (restaurantsRawGeo || []).map((r) => {
+            const drivingInfo = drivingDistances.get(String(r._id));
+            return {
+                ...r,
+                restaurantId: r._id,
+                id: r._id,
+                name: r.restaurantName || '',
+                rating: normalizeRatingValue(r.rating),
+                totalRatings: normalizeTotalRatingsValue(r.totalRatings),
+                profileImage: r.profileImage ? { url: r.profileImage } : null,
+                coverImages: Array.isArray(r.coverImages) ? r.coverImages : [],
+                openingTime: r.openingTime || null,
+                closingTime: r.closingTime || null,
+                openDays: Array.isArray(r.openDays) ? r.openDays : [],
+                menuImages: Array.isArray(r.menuImages) ? r.menuImages : [],
+                distanceInfo: drivingInfo || null,
+                distanceText: drivingInfo ? drivingInfo.distanceText : null
+            };
+        });
 
         return { restaurants, total, page, limit };
     }
@@ -1577,27 +1591,43 @@ export const listApprovedRestaurants = async (query = {}) => {
         // Silently ignore if population fails
     }
 
-    const restaurants = (restaurantsRaw || []).map((r) => ({
-        ...r,
-        // Frontend user app expects `name` and often checks `profileImage.url`
-        restaurantId: r._id,
-        id: r._id,
-        name: r.restaurantName || '',
-        rating: normalizeRatingValue(r.rating),
-        totalRatings: normalizeTotalRatingsValue(r.totalRatings),
-        profileImage: r.profileImage ? { url: r.profileImage } : null,
-        coverImages: Array.isArray(r.coverImages) ? r.coverImages : [],
-        openingTime: r.openingTime || null,
-        closingTime: r.closingTime || null,
-        openDays: Array.isArray(r.openDays) ? r.openDays : [],
-        // Keep menuImages as an array for fallbacks; allow both string and {url} on client.
-        menuImages: Array.isArray(r.menuImages) ? r.menuImages : []
-    }));
+    let drivingDistances = new Map();
+    if (lat !== null && lng !== null) {
+        const origin = { lat, lng };
+        const dests = (restaurantsRaw || []).map(r => ({
+            id: r._id,
+            lat: r.location?.coordinates?.[1],
+            lng: r.location?.coordinates?.[0]
+        }));
+        drivingDistances = await getDrivingDistances(origin, dests);
+    }
+
+    const restaurants = (restaurantsRaw || []).map((r) => {
+        const drivingInfo = drivingDistances.get(String(r._id));
+        return {
+            ...r,
+            // Frontend user app expects `name` and often checks `profileImage.url`
+            restaurantId: r._id,
+            id: r._id,
+            name: r.restaurantName || '',
+            rating: normalizeRatingValue(r.rating),
+            totalRatings: normalizeTotalRatingsValue(r.totalRatings),
+            profileImage: r.profileImage ? { url: r.profileImage } : null,
+            coverImages: Array.isArray(r.coverImages) ? r.coverImages : [],
+            openingTime: r.openingTime || null,
+            closingTime: r.closingTime || null,
+            openDays: Array.isArray(r.openDays) ? r.openDays : [],
+            // Keep menuImages as an array for fallbacks; allow both string and {url} on client.
+            menuImages: Array.isArray(r.menuImages) ? r.menuImages : [],
+            distanceInfo: drivingInfo || null,
+            distanceText: drivingInfo ? drivingInfo.distanceText : null
+        };
+    });
 
     return { restaurants, total, page, limit };
 };
 
-export const getApprovedRestaurantByIdOrSlug = async (idOrSlug) => {
+export const getApprovedRestaurantByIdOrSlug = async (idOrSlug, query = {}) => {
     const value = String(idOrSlug || '').trim();
     if (!value) return null;
 
@@ -1634,18 +1664,18 @@ export const getApprovedRestaurantByIdOrSlug = async (idOrSlug) => {
                 ? `${Number(o.discountValue) || 0}% OFF`
                 : `Flat ₹${Number(o.discountValue) || 0} OFF`,
             code: o.couponCode,
-            description: `Use code ${o.couponCode}`,
+            description: o.description || `Get ${o.discountType === 'percentage' ? o.discountValue + '%' : '₹' + o.discountValue} discount`,
             discountType: o.discountType,
             discountValue: o.discountValue
         }));
 
         const mappedPromos = validPromos.map(p => ({
             id: String(p._id),
-            title: p.discountType === 'PERCENTAGE'
+            title: p.discountType === 'percentage'
                 ? `${Number(p.discountValue) || 0}% OFF`
                 : `Flat ₹${Number(p.discountValue) || 0} OFF`,
             code: p.code,
-            description: p.description || `Use code ${p.code}`,
+            description: p.description || `Use code ${p.code} for discount`,
             discountType: p.discountType,
             discountValue: p.discountValue
         }));
@@ -1671,6 +1701,25 @@ export const getApprovedRestaurantByIdOrSlug = async (idOrSlug) => {
 
     if (!doc) return null;
 
+    const lat = toFiniteNumber(query.lat);
+    const lng = toFiniteNumber(query.lng);
+    let drivingInfo = null;
+
+    if (lat !== null && lng !== null) {
+        try {
+            const origin = { lat, lng };
+            const dests = [{
+                id: doc._id,
+                lat: doc.location?.coordinates?.[1],
+                lng: doc.location?.coordinates?.[0]
+            }];
+            const drivingDistances = await getDrivingDistances(origin, dests);
+            drivingInfo = drivingDistances.get(String(doc._id)) || null;
+        } catch (err) {
+            // Silently ignore
+        }
+    }
+
     const offers = await fetchOffers(doc._id);
 
     return {
@@ -1681,7 +1730,9 @@ export const getApprovedRestaurantByIdOrSlug = async (idOrSlug) => {
             coupons: offers
         },
         rating: normalizeRatingValue(doc.rating),
-        totalRatings: normalizeTotalRatingsValue(doc.totalRatings)
+        totalRatings: normalizeTotalRatingsValue(doc.totalRatings),
+        distanceInfo: drivingInfo || null,
+        distanceText: drivingInfo ? drivingInfo.distanceText : null
     };
 };
 

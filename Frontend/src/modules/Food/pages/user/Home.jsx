@@ -1920,7 +1920,7 @@ export default function Home() {
             return;
           }
 
-          // Calculate distance helper function
+          // Calculate distance helper function (Fallback Haversine with multiplier)
           const calculateDistance = (lat1, lng1, lat2, lng2) => {
             const R = 6371; // Earth's radius in kilometers
             const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -1932,7 +1932,7 @@ export default function Home() {
               Math.sin(dLng / 2) *
               Math.sin(dLng / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c; // Distance in kilometers
+            return (R * c) * 1.35; // Distance in kilometers with routing multiplier
           };
 
           // Get user coordinates
@@ -1979,7 +1979,11 @@ export default function Home() {
 
               // Calculate distance if both user and restaurant coordinates are available
               let distanceInKm = null;
-              if (
+              if (restaurant.distanceText) {
+                // If backend provided Google Distance Matrix result
+                distance = restaurant.distanceText;
+                distanceInKm = restaurant.distanceInfo?.distanceValue ? (restaurant.distanceInfo.distanceValue / 1000) : null;
+              } else if (
                 userLat &&
                 userLng &&
                 restaurantLat &&
@@ -2086,6 +2090,8 @@ export default function Home() {
                 closingTime: restaurant.closingTime || restaurant?.deliveryTimings?.closingTime || null,
                 zoneRank: restaurant.zoneRank || null,
                 discount: restaurant.discount || 0,
+                distanceText: restaurant.distanceText || null,
+                distanceInfo: restaurant.distanceInfo || null,
               };
             },
             );
@@ -2292,7 +2298,7 @@ export default function Home() {
           Math.sin(dLng / 2) *
           Math.sin(dLng / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c; // Distance in kilometers
+        return (R * c) * 1.35; // Distance in kilometers with routing multiplier
       };
 
       const userLat = effectiveLocation.latitude;
@@ -2324,20 +2330,27 @@ export default function Home() {
           return restaurant;
         }
 
-        const distanceInKm = calculateDistance(
-          userLat,
-          userLng,
-          restaurantLat,
-          restaurantLng,
-        );
         let calculatedDistance = null;
-
-        // Format distance: show 1 decimal place if >= 1km, otherwise show in meters
-        if (distanceInKm >= 1) {
-          calculatedDistance = `${distanceInKm.toFixed(1)} km`;
+        let distanceInKm = null;
+        
+        if (restaurant.distanceText) {
+          calculatedDistance = restaurant.distanceText;
+          distanceInKm = restaurant.distanceInfo?.distanceValue ? (restaurant.distanceInfo.distanceValue / 1000) : null;
         } else {
-          const distanceInMeters = Math.round(distanceInKm * 1000);
-          calculatedDistance = `${distanceInMeters} m`;
+          distanceInKm = calculateDistance(
+            userLat,
+            userLng,
+            restaurantLat,
+            restaurantLng,
+          );
+
+          // Format distance: show 1 decimal place if >= 1km, otherwise show in meters
+          if (distanceInKm >= 1) {
+            calculatedDistance = `${distanceInKm.toFixed(1)} km`;
+          } else {
+            const distanceInMeters = Math.round(distanceInKm * 1000);
+            calculatedDistance = `${distanceInMeters} m`;
+          }
         }
 
         if (

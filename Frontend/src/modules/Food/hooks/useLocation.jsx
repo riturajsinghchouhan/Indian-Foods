@@ -188,7 +188,20 @@ const reverseGeocodeDirect = async (latitude, longitude) => {
 }
 
 export function useLocation() {
-  const [location, setLocation] = useState(null)
+  const [location, setLocation] = useState(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("userLocation")
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (parsed && typeof parsed === "object" && typeof parsed.latitude === "number" && typeof parsed.longitude === "number") {
+            return parsed
+          }
+        }
+      }
+    } catch (e) {}
+    return null
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [permissionGranted, setPermissionGranted] = useState(false)

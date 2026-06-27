@@ -1940,8 +1940,8 @@ export const diningAPI = {
   getOccupiedSeatsPublic: (restaurantId) =>
     userClient.get(`/food/dining/restaurants/${String(restaurantId)}/occupied-seats/public`),
   getHeroBanners: () => userClient.get("/food/hero-banners/ads/public"),
-  getRestaurantBySlug: (slug) =>
-    userClient.get(`/food/restaurant/restaurants/${String(slug)}`),
+  getRestaurantBySlug: (slug, config = {}) =>
+    userClient.get(`/food/restaurant/restaurants/${String(slug)}`, config),
   getOfferBanners: () => Promise.resolve({ data: { success: true, data: [] } }),
   getStories: () => Promise.resolve({ data: { success: true, data: [] } }),
   getBankOffers: () => Promise.resolve({ data: { success: true, data: [] } }),

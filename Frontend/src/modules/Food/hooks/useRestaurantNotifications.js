@@ -874,7 +874,15 @@ export const useRestaurantNotifications = () => {
       // const usedNativeBridge = await triggerWebViewNativeNotification(orderData);
       const usedNativeBridge = false;
       if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-        navigator.vibrate([200, 100, 200, 100, 300]);
+        try {
+          if (navigator.userActivation && !navigator.userActivation.hasBeenActive) {
+            // Skip vibration to avoid Chrome intervention warning if user hasn't interacted
+          } else {
+            navigator.vibrate([200, 100, 200, 100, 300]);
+          }
+        } catch (e) {
+          // Ignore vibration errors
+        }
       }
       if (usedNativeBridge) {
         return;

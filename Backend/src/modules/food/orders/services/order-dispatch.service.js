@@ -82,7 +82,37 @@ async function listNearbyOnlineDeliveryPartners(
     return { partners: [] };
   }
 
-  const final = picked.filter(p => p.status === 'approved');
+  const preFiltered = picked.filter(p => p.status === 'approved');
+
+  // GHOST-ASSIGNMENT FIX (Backend):
+  // Exclude riders who currently have an ACTIVE accepted order.
+  // These riders are already on a delivery trip and must not receive
+  // new order notifications. This prevents the FCM-triggered race condition
+  // where a rider "accepts" an FCM notification for Order B while their screen
+  // still shows Order A's acceptance timer.
+  let busyPartnerIds = new Set();
+  try {
+    const activeOrderDocs = await FoodOrder.find({
+      'dispatch.status': 'accepted',
+      orderStatus: { $in: ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up'] },
+    }).select('dispatch.deliveryPartnerId').lean();
+
+    for (const doc of activeOrderDocs) {
+      if (doc?.dispatch?.deliveryPartnerId) {
+        busyPartnerIds.add(doc.dispatch.deliveryPartnerId.toString());
+      }
+    }
+
+    if (busyPartnerIds.size > 0) {
+      logger.info(`[Dispatch] Excluding ${busyPartnerIds.size} busy rider(s) from new order notification.`);
+    }
+  } catch (err) {
+    // Non-critical: if the busy-check fails, proceed without filtering
+    logger.warn(`[Dispatch] Could not fetch busy riders: ${err.message}. Proceeding without exclusion.`);
+    busyPartnerIds = new Set();
+  }
+
+  const final = preFiltered.filter(p => !busyPartnerIds.has(p.partnerId.toString()));
 
   const cashEligibleFinal = await filterPartnersByCashLimit(final, {
     requiredAmount,
