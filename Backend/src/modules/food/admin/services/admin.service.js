@@ -1311,6 +1311,22 @@ export async function getCustomers(query = {}) {
         ])
     );
 
+    // Fetch wallet balances for these users
+    let walletMap = new Map();
+    try {
+        const { FoodUserWallet } = await import('../../user/models/userWallet.model.js');
+        if (userIds.length > 0) {
+            const wallets = await FoodUserWallet.find({ userId: { $in: userIds } })
+                .select('userId balance')
+                .lean();
+            walletMap = new Map(
+                wallets.map(w => [String(w.userId), Number(w.balance || 0)])
+            );
+        }
+    } catch (err) {
+        // Fallback gracefully if model fails to load
+    }
+
     let customers = docs.map((u) => {
         const stats = orderStatsMap.get(String(u._id)) || { totalOrder: 0, totalOrderAmount: 0 };
         return ({
@@ -1326,6 +1342,7 @@ export async function getCustomers(query = {}) {
         isVerified: u.isVerified === true,
         totalOrder: stats.totalOrder,
         totalOrderAmount: stats.totalOrderAmount,
+        walletBalance: walletMap.get(String(u._id)) || 0,
         joiningDate: u.createdAt,
         createdAt: u.createdAt,
         addresses: u.addresses || []

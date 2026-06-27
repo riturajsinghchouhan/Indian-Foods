@@ -116,12 +116,12 @@ export default function HomeHeader({
             className="flex items-center gap-2 cursor-pointer group min-w-0 flex-1"
             onClick={handleLocationClick}
           >
-            <div className="bg-white/10 p-1 rounded-lg group-active:scale-95 transition-all">
-              <MapPin className="h-3.5 w-3.5 text-white/90 fill-white/20" />
+            <div className="flex-shrink-0 flex items-center justify-center">
+              <MapPin className="h-[26px] w-[26px] text-[#e11d48]" strokeWidth={2.5} />
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1">
-                <span className="text-[14px] font-black text-white truncate drop-shadow-sm">
+                <span className="text-[16px] font-extrabold text-white truncate tracking-tight">
                   {(() => {
                     const area = location?.area || location?.subLocality || location?.mainTitle || location?.neighborhood;
                     const city = (location?.city || "").toLowerCase();
@@ -153,12 +153,16 @@ export default function HomeHeader({
                     return location?.area || location?.city || "Select Location";
                   })()}
                 </span>
-                <ChevronDown className="h-3 w-3 text-white/70" />
+                <ChevronDown className="h-[18px] w-[18px] text-white flex-shrink-0" strokeWidth={2.5} />
               </div>
               
-              <span className="text-[10px] font-medium text-white/90 truncate leading-tight mt-0.5">
+              <span className="text-[12px] font-medium text-white/80 truncate leading-tight mt-0.5">
                 {(() => {
-                  // Format Row 2: State, Pincode (matching screenshot)
+                  const addr = location?.address || "";
+                  if (addr && addr.length > 5 && addr !== "Select location") {
+                     return addr;
+                  }
+                  
                   const state = location?.state || "";
                   const pincode = location?.pincode || "";
                   
@@ -166,18 +170,8 @@ export default function HomeHeader({
                   if (state) return state;
                   if (pincode) return pincode;
                   
-                  // Fallback to snippet of address if no state/pincode
-                  const addr = location?.address || "";
-                  if (addr && addr.length > 10) {
-                     return addr.split(',').slice(1, 3).join(',').trim() || "Pinpoint location";
-                  }
-                  
                   return "Pinpoint location";
                 })()}
-              </span>
-              
-              <span className="text-[9px] font-black text-white/60 uppercase tracking-[0.25em] leading-tight mt-1">
-                {location?.city || "Indore"}
               </span>
             </div>
           </div>

@@ -1126,7 +1126,7 @@ export function useLocation() {
     // Otherwise, allow cached location for faster response
     return getPositionWithRetry({
       enableHighAccuracy: true,  // Use GPS for exact location (highest accuracy)
-      timeout: 5000,             // 5 seconds timeout (fails fast to network-based if GPS is weak)
+      timeout: 15000,            // 15 seconds timeout (gives GPS more time to lock before fallback)
       maximumAge: forceFresh ? 0 : 300000 // 5 minutes cache (huge speedup if already fetched recently)
     })
   }

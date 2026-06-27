@@ -84,7 +84,11 @@ export const calculateDistance = (lat1, lng1, lat2, lng2) => {
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  
+  // Apply a routing multiplier (tortuosity factor) to approximate actual driving distance
+  // from the straight-line Haversine distance. 1.35 is standard for urban grids.
+  const ROUTING_MULTIPLIER = 1.35;
+  return (R * c) * ROUTING_MULTIPLIER;
 };
 
 /**

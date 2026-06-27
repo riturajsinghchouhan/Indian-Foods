@@ -212,7 +212,8 @@ export default function AddressSelectorPage() {
   const handleUseCurrentLocation = async () => {
     try {
       toast.loading("Getting location...", { id: "geo" })
-      const loc = await requestLocation(true, false) // Use cached if recent
+      localStorage.removeItem("userLocation")
+      const loc = await requestLocation(true) // Force fresh GPS
       if (loc?.latitude) {
         const newPos = [loc.latitude, loc.longitude]
         setMapPosition(newPos)

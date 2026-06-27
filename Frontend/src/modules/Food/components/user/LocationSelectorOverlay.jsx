@@ -753,10 +753,11 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       // Request location - this will automatically prompt for permission if needed
       // Clear any cached location first to ensure fresh coordinates
       debugLog("?? Requesting fresh location (clearing cache and forcing fresh GPS)...")
-
+      localStorage.removeItem("userLocation")
+      
       // Increase timeout to 15 seconds to allow GPS to get accurate fix
       // The getLocation function already has a 15-second timeout, so we match it
-      const locationPromise = requestLocation()
+      const locationPromise = requestLocation(true)
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Location request is taking longer than expected. Please check your GPS settings.")), 15000)
       )
