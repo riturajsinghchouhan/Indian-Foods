@@ -1,22 +1,38 @@
-import { useSelector } from 'react-redux';
+﻿import { useLocationContext } from '../context/locationContext';
 
 /**
- * A lightweight hook to read the global location state from Redux.
- * Replaces the heavy useLocation and useZone hooks in child components.
- * Guarantees that location and zoneId are always available synchronously,
- * assuming it's used underneath the <LocationGuard>.
+ * Read centralized location + zone from LocationProvider.
+ * Use this in pages/components instead of mounting the geo engine directly.
  */
 export function useAppLocation() {
-  const { isLocationResolved, coords, zoneId, address } = useSelector((state) => state.location);
+  const ctx = useLocationContext();
+  if (!ctx) {
+    return {
+      isLocationResolved: false,
+      location: null,
+      effectiveLocation: null,
+      zoneId: null,
+      address: null,
+      zoneStatus: 'loading',
+      loading: true,
+      isOutOfService: false,
+      deliveryAddressMode: 'saved',
+    };
+  }
 
   return {
-    isLocationResolved,
-    location: coords,     // matches the { location } return from useLocation
-    zoneId,               // matches { zoneId } from useZone
-    address,
-    // Add compatibility properties so we don't break existing code
-    zoneStatus: zoneId ? 'IN_SERVICE' : 'OUT_OF_SERVICE',
-    loading: !isLocationResolved,
-    isOutOfService: !zoneId
+    isLocationResolved: ctx.isLocationResolved,
+    location: ctx.location,
+    effectiveLocation: ctx.effectiveLocation,
+    zoneId: ctx.zoneId,
+    address: ctx.address,
+    zoneStatus: ctx.zoneStatus,
+    loading: ctx.loading,
+    isOutOfService: ctx.isOutOfService,
+    deliveryAddressMode: ctx.deliveryAddressMode,
+    requestLocation: ctx.requestLocation,
+    setSavedLocation: ctx.setSavedLocation,
+    setDeliveryAddressMode: ctx.setDeliveryAddressMode,
+    refreshZone: ctx.refreshZone,
   };
 }

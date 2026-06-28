@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import { upload } from '../../../../middleware/upload.js';
 import {
     listAddressesController,
@@ -30,6 +30,10 @@ import {
     listMySupportTicketsController
 } from '../controllers/supportTicket.controller.js';
 import { deleteUserAccountController } from '../controllers/deleteAccount.controller.js';
+import {
+    getUserLocationController,
+    updateUserLocationController
+} from '../controllers/userLocation.controller.js';
 
 const router = express.Router();
 
@@ -61,6 +65,9 @@ router.delete('/addresses/:addressId', deleteAddressController);
 router.patch('/addresses/:addressId/default', setDefaultAddressController);
 
 // Delete account (Bearer USER)
+router.get('/location', getUserLocationController);
+router.put('/location', updateUserLocationController);
+
 router.delete('/account', deleteUserAccountController);
 
 export default router;

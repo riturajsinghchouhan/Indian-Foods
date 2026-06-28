@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, useContext } from 'react';
-import io from 'socket.io-client';
 import { toast } from 'sonner';
-import { API_BASE_URL } from '@food/api/config';
 import { userAPI } from '@food/api';
 import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInbox';
 import { UserNotificationContext } from '../context/UserNotificationContext';
+import {
+  acquireUserSocket,
+  releaseUserSocket,
+  subscribeUserSocketConnection,
+} from '@food/utils/userSocketManager';
 
 const debugLog = (...args) => {
   if (import.meta.env.DEV) {
@@ -19,6 +22,7 @@ const debugLog = (...args) => {
 export const useUserNotifications = () => {
   const context = useContext(UserNotificationContext);
   if (context) return context;
+
   const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -30,7 +34,6 @@ export const useUserNotifications = () => {
   const ORDER_STATUS_TOAST_ID = 'user-order-status-update';
   const ORDER_STATUS_DEDUPE_MS = 4000;
 
-  // Fetch current user ID
   useEffect(() => {
     const fetchUserId = async () => {
       try {
@@ -40,7 +43,7 @@ export const useUserNotifications = () => {
           const id = user._id?.toString() || user.userId || user.id;
           setUserId(id);
         }
-      } catch (error) {
+      } catch {
         // Not logged in or error
       }
     };
@@ -48,55 +51,27 @@ export const useUserNotifications = () => {
   }, []);
 
   useEffect(() => {
-    if (!API_BASE_URL || !String(API_BASE_URL).trim()) {
-      setIsConnected(false);
-      return;
-    }
-    if (!userId) {
-      return;
-    }
+    if (!userId) return undefined;
 
-    // Normalize backend URL
-    let backendUrl = API_BASE_URL;
-    try {
-      backendUrl = new URL(backendUrl).origin;
-    } catch {
-      backendUrl = String(backendUrl || "")
-        .replace(/\/api\/v\d+\/?$/i, "")
-        .replace(/\/api\/?$/i, "")
-        .replace(/\/+$/, "");
-    }
+    const sock = acquireUserSocket(userId);
+    if (!sock) return undefined;
 
-    const socketUrl = `${backendUrl}`;
-    
-    // Auth token
-    const token = localStorage.getItem('user_accessToken') || localStorage.getItem('accessToken');
-    if (!token) return;
+    socketRef.current = sock;
+    debugLog('🔌 Using shared user socket, userId:', userId);
 
-    debugLog('🔌 Connecting to User Socket.IO:', socketUrl);
+    const unsubConnection = subscribeUserSocketConnection(setIsConnected);
 
-    socketRef.current = io(socketUrl, {
-      path: '/socket.io/',
-      transports: ['polling', 'websocket'],
-      reconnection: true,
-      auth: { token }
-    });
-
-    socketRef.current.on('connect', () => {
-      debugLog('✅ User Socket connected, userId:', userId);
-      setIsConnected(true);
-      if (typeof window !== 'undefined') window.orderSocketConnected = true;
-      // Backend auto-joins 'user:userId' room based on role/token in config/socket.js
-    });
-
-    socketRef.current.on('order_status_update', (data) => {
+    const onOrderStatus = (data) => {
       debugLog('🔔 Order status update received:', data);
-      
-      const title = data.title || `Order #${data.orderId || 'Update'}`;
-      const message = data.message || `Your order status is now ${String(data.orderStatus || '').replace(/_/g, ' ')}`;
 
-      // Optional: Show toast for important updates (Cancel, Ready, etc.)
-      const isImportant = String(data.orderStatus).includes('cancel') || ['ready_for_pickup', 'ready', 'confirmed'].includes(data.orderStatus);
+      const title = data.title || `Order #${data.orderId || 'Update'}`;
+      const message =
+        data.message ||
+        `Your order status is now ${String(data.orderStatus || '').replace(/_/g, ' ')}`;
+
+      const isImportant =
+        String(data.orderStatus).includes('cancel') ||
+        ['ready_for_pickup', 'ready', 'confirmed'].includes(data.orderStatus);
       const isOrderTrackingScreen =
         typeof window !== 'undefined' &&
         String(window.location?.pathname || '').includes('/user/orders/');
@@ -114,29 +89,50 @@ export const useUserNotifications = () => {
         toast.message(title, {
           id: ORDER_STATUS_TOAST_ID,
           description: message,
-          duration: 6000
+          duration: 6000,
         });
       }
 
-      // Dispatch custom event for OrderTrackingCard and other listeners
-      const event = new CustomEvent('orderStatusNotification', {
-        detail: {
-          orderMongoId: data.orderMongoId,
-          orderId: data.orderId,
-          status: data.orderStatus,
-          orderStatus: data.orderStatus, // Ensure compatibility with different UI checks
-          title,
-          message,
-          deliveryState: data.deliveryState,
-          deliveryVerification: data.deliveryVerification,
-          timestamp: new Date().toISOString()
-        }
-      });
-      window.dispatchEvent(event);
-    });
+      window.dispatchEvent(
+        new CustomEvent('orderStatusNotification', {
+          detail: {
+            orderMongoId: data.orderMongoId,
+            orderId: data.orderId,
+            status: data.orderStatus,
+            orderStatus: data.orderStatus,
+            title,
+            message,
+            deliveryState: data.deliveryState,
+            deliveryVerification: data.deliveryVerification,
+            dispatch: data.dispatch,
+            deliveryPartner: data.deliveryPartner,
+            deliveryPartnerId: data.deliveryPartnerId,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      );
+    };
 
-    /** Customer receives handover OTP when partner confirms "reached drop" (never shown to partner). */
-    socketRef.current.on('delivery_drop_otp', (payload) => {
+    const onOrderState = (activeOrder) => {
+      if (!activeOrder) return;
+      window.dispatchEvent(
+        new CustomEvent('orderStatusNotification', {
+          detail: {
+            orderMongoId: activeOrder.orderMongoId || activeOrder._id,
+            orderId: activeOrder.orderId || activeOrder.order_id,
+            status: activeOrder.orderStatus || activeOrder.status,
+            orderStatus: activeOrder.orderStatus || activeOrder.status,
+            deliveryState: activeOrder.deliveryState,
+            deliveryVerification: activeOrder.deliveryVerification,
+            dispatch: activeOrder.dispatch,
+            resynced: true,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      );
+    };
+
+    const onDropOtp = (payload) => {
       debugLog('🔐 Delivery handover OTP:', payload?.orderId);
       const otp = payload?.otp != null ? String(payload.otp) : '';
       const orderId = payload?.orderId != null ? String(payload.orderId) : '';
@@ -146,13 +142,9 @@ export const useUserNotifications = () => {
       const now = Date.now();
       const lastToast = lastDropOtpToastRef.current;
       const isDuplicateOtp =
-        otpKey &&
-        otpKey === lastToast.key &&
-        now - lastToast.at < DROP_OTP_DEDUPE_MS;
+        otpKey && otpKey === lastToast.key && now - lastToast.at < DROP_OTP_DEDUPE_MS;
 
-      if (isDuplicateOtp) {
-        return;
-      }
+      if (isDuplicateOtp) return;
 
       lastDropOtpToastRef.current = { key: otpKey, at: now };
 
@@ -162,10 +154,11 @@ export const useUserNotifications = () => {
             orderMongoId: payload?.orderMongoId,
             orderId,
             otp,
-            message
-          }
-        })
+            message,
+          },
+        }),
       );
+
       const title = orderId ? `Order ${orderId}` : 'Delivery OTP';
       const parts = [message, otp ? `OTP: ${otp}` : ''].filter(Boolean);
 
@@ -173,37 +166,31 @@ export const useUserNotifications = () => {
       toast.message(title, {
         id: DROP_OTP_TOAST_ID,
         description: parts.join(' — ') || 'Handover OTP from your delivery partner.',
-        duration: 12_000
+        duration: 12_000,
       });
-    });
+    };
 
-    socketRef.current.on('admin_notification', (payload) => {
+    const onAdminNotification = (payload) => {
       toast.message(payload?.title || 'Notification', {
         description: payload?.message || 'New broadcast notification received.',
-        duration: 8000
+        duration: 8000,
       });
       dispatchNotificationInboxRefresh();
-    });
+    };
 
-    socketRef.current.on('connect_error', (error) => {
-      if (import.meta.env.DEV) {
-        // debugLog('❌ Socket connection error:', error.message);
-      }
-      setIsConnected(false);
-      if (typeof window !== 'undefined') window.orderSocketConnected = false;
-    });
-
-    socketRef.current.on('disconnect', (reason) => {
-      debugLog('🔌 Socket disconnected:', reason);
-      setIsConnected(false);
-      if (typeof window !== 'undefined') window.orderSocketConnected = false;
-    });
+    sock.on('order_status_update', onOrderStatus);
+    sock.on('order_state', onOrderState);
+    sock.on('delivery_drop_otp', onDropOtp);
+    sock.on('admin_notification', onAdminNotification);
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
+      sock.off('order_status_update', onOrderStatus);
+      sock.off('order_state', onOrderState);
+      sock.off('delivery_drop_otp', onDropOtp);
+      sock.off('admin_notification', onAdminNotification);
+      unsubConnection();
+      socketRef.current = null;
+      releaseUserSocket();
     };
   }, [userId]);
 

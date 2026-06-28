@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { ArrowLeft, Star, Clock, Bookmark, BadgePercent, Utensils } from "lucide-react"
 import { Button } from "@food/components/ui/button"
@@ -10,8 +10,8 @@ import { API_BASE_URL } from "@food/api/config"
 import OptimizedImage from "@food/components/OptimizedImage"
 import { RestaurantGridSkeleton } from "@food/components/ui/loading-skeletons"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
-import { useLocation } from "@food/hooks/useLocation"
-import { useZone } from "@food/hooks/useZone"
+import { useAppLocation } from "@food/hooks/useAppLocation"
+
 
 // Import banner
 import gourmetBanner from "@food/assets/gourmet_new_banner.png"
@@ -27,9 +27,7 @@ export default function Gourmet() {
   const [gourmetRestaurants, setGourmetRestaurants] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const { location } = useLocation()
-  const { activeZone } = useZone()
-  const zoneId = activeZone?.id || activeZone?._id
+  const { zoneId } = useAppLocation()
   const showGourmetSkeleton = useDelayedLoading(loading)
 
   const backendOrigin = (API_BASE_URL || "").replace(/\/api\/v1\/?$/, "")
@@ -255,7 +253,7 @@ export default function Gourmet() {
                               <Clock className="h-4 w-4 text-primary" strokeWidth={2.5} />
                               <span>{restaurant.estimatedDeliveryTime || '25-30 mins'}</span>
                             </div>
-                            <span className="text-gray-200">•</span>
+                            <span className="text-gray-200">â€¢</span>
                             <div className="flex items-center gap-1.5">
                               <span className="text-[#a05485] font-black">{distanceStr} away</span>
                             </div>

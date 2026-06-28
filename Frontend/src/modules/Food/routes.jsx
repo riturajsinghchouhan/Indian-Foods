@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
-import { useEffect, Suspense, lazy } from "react"
+import { useEffect, Suspense, lazy, useRef } from "react"
 import ProtectedRoute from "@food/components/ProtectedRoute"
 import AuthRedirect from "@food/components/AuthRedirect"
 import Loader from "@food/components/Loader"
@@ -79,9 +79,27 @@ function RestaurantGlobalNotificationListener() {
 
 export default function App() {
   const location = useLocation()
+  const fcmRegisteredModulesRef = useRef(new Set())
 
   useEffect(() => {
+    const path = location.pathname || ""
+    let moduleName = "user"
+    if (path.includes("/food/restaurant") || path.includes("/restaurant")) {
+      moduleName = "restaurant"
+    } else if (path.includes("/food/delivery") || path.includes("/delivery")) {
+      moduleName = "delivery"
+    } else if (path.includes("/food/admin") || path.includes("/admin")) {
+      moduleName = "admin"
+    }
+
+    if (moduleName === "admin") return
+    if (fcmRegisteredModulesRef.current.has(moduleName)) return
+
     registerWebPushForCurrentModule(location.pathname)
+      .then(() => {
+        fcmRegisteredModulesRef.current.add(moduleName)
+      })
+      .catch(() => {})
   }, [location.pathname])
 
   return (

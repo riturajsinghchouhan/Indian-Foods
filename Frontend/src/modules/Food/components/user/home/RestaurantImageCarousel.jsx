@@ -1,0 +1,498 @@
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+
+const WEBVIEW_SESSION_CACHE_BUSTER = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+function OfferBannerContent({ item }) {
+  if (!item) return null;
+  return (
+    <>
+      <p className="text-white text-xs sm:text-sm font-medium uppercase tracking-wide mb-1 drop-shadow-md">
+        {item.dText}
+      </p>
+      <div className="h-px bg-white/40 mb-2 w-24"></div>
+      <div className="flex items-center gap-2">
+        <p className="text-white text-base sm:text-lg font-bold drop-shadow-md truncate max-w-[60%]">
+          {item.name}
+        </p>
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          {item.discountedPrice && item.discountedPrice < item.price ? (
+            <>
+              <span className="text-xs sm:text-sm text-white/80 line-through font-medium drop-shadow-sm">₹{Math.round(item.price)}</span>
+              <span className="font-black text-white text-base sm:text-lg drop-shadow-md">₹{Math.round(item.discountedPrice)}</span>
+            </>
+          ) : (
+            <span className="font-black text-white text-base sm:text-lg drop-shadow-md">₹{Math.round(item.price)}</span>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+const RestaurantImageCarousel = React.memo(
+
+  ({
+    restaurant,
+    priority = false,
+    backendOrigin = "",
+    className = "h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72",
+    roundedClass = "rounded-t-md",
+  }) => {
+    const webviewSessionKeyRef = useRef(WEBVIEW_SESSION_CACHE_BUSTER);
+    const imageElementRef = useRef(null);
+
+    const withCacheBuster = useCallback(
+      (url) => {
+        if (typeof url !== "string" || !url) return "";
+        if (/^data:/i.test(url) || /^blob:/i.test(url)) return url;
+
+        // Resolve relative URLs (e.g. /uploads/...) so they load on mobile when backend is different from frontend.
+        const isRelative = !/^(https?:|\/\/|data:|blob:)/i.test(url.trim());
+        const resolvedUrl =
+          backendOrigin && isRelative
+            ? `${backendOrigin.replace(/\/$/, "")}${url.startsWith("/") ? url : `/${url}`}`
+            : url;
+
+        // Do not mutate signed URLs (legacy S3/Cloudfront/Firebase links can break if query changes).
+        const hasSignedParams =
+          /[?&](X-Amz-|Signature=|Expires=|AWSAccessKeyId=|GoogleAccessId=|token=|sig=|se=|sp=|sv=)/i.test(
+            resolvedUrl,
+          );
+        if (hasSignedParams) return resolvedUrl;
+
+        try {
+          const parsed = new URL(resolvedUrl, window.location.origin);
+
+          // Apply cache-buster only to app/backend-hosted URLs to avoid third-party CDN signature issues.
+          return parsed.toString();
+        } catch {
+          return resolvedUrl;
+        }
+      },
+      [backendOrigin],
+    );
+
+    const images = useMemo(() => {
+      const sourceImages =
+        Array.isArray(restaurant.images) && restaurant.images.length > 0
+          ? restaurant.images
+          : [restaurant.image];
+
+      const validImages = sourceImages
+        .filter((img) => typeof img === "string")
+        .map((img) => img.trim())
+        .filter(Boolean);
+
+      const seen = new Set();
+      const uniqueImages = [];
+      
+      validImages.forEach((img) => {
+        let sig = img;
+        try {
+          let pathParts = new URL(img).pathname.split('/');
+          sig = pathParts[pathParts.length - 1]; // Use just the filename
+        } catch (e) {
+          sig = img;
+        }
+        
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          uniqueImages.push(img);
+        }
+      });
+
+      return uniqueImages.map((img) => withCacheBuster(img));
+    }, [restaurant.images, restaurant.image, withCacheBuster]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [currentItemIndex, setCurrentItemIndex] = useState(0);
+
+    const bannerItems = useMemo(() => {
+      const items = [];
+
+      // If backend populated dish names inside itemDiscounts, use them directly!
+      if (Array.isArray(restaurant.itemDiscounts) && restaurant.itemDiscounts.some(d => d.name)) {
+        restaurant.itemDiscounts.forEach(d => {
+          if (d.name) {
+            items.push({
+              id: d.itemId,
+              name: d.name,
+              price: d.price || 0
+            });
+          }
+        });
+      }
+
+      if (items.length === 0 && restaurant.menu?.sections && Array.isArray(restaurant.menu.sections)) {
+        restaurant.menu.sections.forEach(sec => {
+          if (Array.isArray(sec.items)) items.push(...sec.items);
+        });
+      }
+
+      if (items.length === 0) {
+        if (Array.isArray(restaurant.popularItems) && restaurant.popularItems.length > 0) {
+          items.push(...restaurant.popularItems);
+        } else if (Array.isArray(restaurant.menuItems) && restaurant.menuItems.length > 0) {
+          items.push(...restaurant.menuItems);
+        }
+      }
+
+      if (items.length === 0 && restaurant.featuredDish) {
+        items.push({
+          name: restaurant.featuredDish,
+          price: restaurant.featuredPrice || 0,
+          originalPrice: restaurant.featuredPrice || 0
+        });
+      }
+
+      const globalOffers = Array.isArray(restaurant.offers) ? restaurant.offers : [];
+      let bestGlobalOffer = null;
+      globalOffers.forEach(offer => {
+        if (!bestGlobalOffer || (Number(offer.discountValue) > Number(bestGlobalOffer.discountValue))) {
+          bestGlobalOffer = offer;
+        }
+      });
+
+      const discountedItems = items.map((item) => {
+        let priceNum = Number(item.price || item.originalPrice || 0);
+
+        if (typeof item.price === 'string') {
+          const parsed = parseFloat(item.price.replace(/[^0-9.]/g, ''));
+          if (!isNaN(parsed)) priceNum = parsed;
+        }
+
+        let discountedPrice = null;
+        let dText = 'SPECIAL OFFER';
+
+        const specificDiscount = Array.isArray(restaurant.itemDiscounts)
+          ? restaurant.itemDiscounts.find(d => String(d.itemId) === String(item.id || item._id || item.menuItemId))
+          : null;
+
+        if (specificDiscount) {
+          const discountVal = Number(specificDiscount.discountValue) || 0;
+          const isFlat = String(specificDiscount.discountType || '').toUpperCase() === 'FLAT';
+          if (!isFlat) {
+            discountedPrice = priceNum * (1 - discountVal / 100);
+            dText = `${discountVal}% OFF`;
+          } else {
+            discountedPrice = Math.max(0, priceNum - discountVal);
+            dText = `FLAT â‚¹${discountVal} OFF`;
+          }
+        } else if (!discountedPrice && bestGlobalOffer) {
+          const discountVal = Number(bestGlobalOffer.discountValue) || 0;
+          const isFlat = String(bestGlobalOffer.discountType || '').toUpperCase() === 'FLAT';
+          if (!isFlat) {
+            const maxD = Number(bestGlobalOffer.maxDiscount) || Infinity;
+            const calcD = priceNum * (discountVal / 100);
+            const actualD = Math.min(calcD, maxD);
+            discountedPrice = priceNum - actualD;
+            dText = bestGlobalOffer.title || `${discountVal}% OFF`;
+          } else {
+            discountedPrice = Math.max(0, priceNum - discountVal);
+            dText = bestGlobalOffer.title || `FLAT â‚¹${discountVal} OFF`;
+          }
+        } else if (!discountedPrice && restaurant.discount > 0) {
+          discountedPrice = priceNum * (1 - restaurant.discount / 100);
+          dText = `${restaurant.discount}% OFF`;
+        } else {
+          const matchingRule = (restaurant.discountRules || []).find(rule => {
+            const val = Number(rule.conditionValue);
+            if (rule.conditionType === 'PRICE_ABOVE' && priceNum > val) return true;
+            if (rule.conditionType === 'PRICE_BELOW' && priceNum < val) return true;
+            return false;
+          });
+          if (matchingRule) {
+            const discountVal = matchingRule.discountValue || 0;
+            discountedPrice = priceNum * (1 - discountVal / 100);
+            dText = `${discountVal}% OFF`;
+          }
+        }
+
+        return {
+          name: item.name,
+          price: priceNum,
+          discountedPrice: discountedPrice,
+          dText: dText
+        };
+      }).filter(item => item.discountedPrice !== null && item.discountedPrice < item.price);
+
+      return discountedItems.slice(0, 5);
+    }, [restaurant]);
+
+    useEffect(() => {
+      if (!priority || bannerItems.length <= 1) return;
+      const interval = setInterval(() => {
+        setCurrentItemIndex((prev) => (prev + 1) % bannerItems.length);
+      }, 2000);
+      return () => clearInterval(interval);
+    }, [priority, bannerItems.length]);
+
+    // Auto-slide for restaurant images (priority cards only â€” reduces timer churn)
+    useEffect(() => {
+      if (!priority || images.length <= 1) return;
+      const interval = setInterval(() => {
+        setCurrentIndex((prev) => (prev + 1) % images.length);
+      }, 3500);
+      return () => clearInterval(interval);
+    }, [priority, images.length]);
+
+    const [loadedBySrc, setLoadedBySrc] = useState({});
+    const [, setAttemptedSrcs] = useState({});
+    const [isImageUnavailable, setIsImageUnavailable] = useState(false);
+    const [showShimmer, setShowShimmer] = useState(true);
+    const [lastGoodSrc, setLastGoodSrc] = useState("");
+    const touchStartX = useRef(0);
+    const touchEndX = useRef(0);
+    const isSwiping = useRef(false);
+
+    const safeIndex =
+      images.length > 0
+        ? ((currentIndex % images.length) + images.length) % images.length
+        : 0;
+    const primarySrc = images[safeIndex] || "";
+    const displaySrc = primarySrc;
+    const renderSrc = displaySrc || lastGoodSrc;
+    const isImageLoaded = Boolean(loadedBySrc[renderSrc] || lastGoodSrc);
+
+    // Reset transient image state when restaurant or source list changes.
+    useEffect(() => {
+      setCurrentIndex(0);
+      setLoadedBySrc({});
+      setAttemptedSrcs({});
+      setIsImageUnavailable(images.length === 0);
+      setShowShimmer(images.length > 0);
+    }, [restaurant?.id, restaurant?.slug, restaurant?.updatedAt, images]);
+
+    // Clear sticky successful source only when card identity changes.
+    useEffect(() => {
+      setLastGoodSrc("");
+    }, [restaurant?.id, restaurant?.slug]);
+
+    // WebView can serve from cache without firing onLoad; handle already-complete images.
+    useEffect(() => {
+      if (!renderSrc) return;
+      const imgEl = imageElementRef.current;
+      if (!imgEl) return;
+
+      setShowShimmer(true);
+      const shimmerTimeout = setTimeout(() => {
+        setShowShimmer(false);
+      }, 2500);
+
+      if (imgEl.complete) {
+        if (imgEl.naturalWidth > 0) {
+          setLoadedBySrc((prev) =>
+            prev[renderSrc] ? prev : { ...prev, [renderSrc]: true },
+          );
+          setLastGoodSrc(renderSrc);
+          setShowShimmer(false);
+        } else {
+          setAttemptedSrcs((prev) => ({ ...prev, [renderSrc]: true }));
+        }
+      }
+      return () => clearTimeout(shimmerTimeout);
+    }, [renderSrc]);
+
+    // Handle touch events for swipe
+    const handleTouchStart = (e) => {
+      touchStartX.current = e.touches[0].clientX;
+      isSwiping.current = false;
+    };
+
+    const handleTouchMove = (e) => {
+      const currentX = e.touches[0].clientX;
+      const diff = touchStartX.current - currentX;
+
+      // If swipe distance is significant, mark as swiping
+      if (Math.abs(diff) > 10) {
+        isSwiping.current = true;
+      }
+    };
+
+    const handleTouchEnd = (e) => {
+      if (!isSwiping.current) return;
+
+      touchEndX.current = e.changedTouches[0].clientX;
+      const diff = touchStartX.current - touchEndX.current;
+      const minSwipeDistance = 85; // Keep card swipe less sensitive on mobile
+
+      if (Math.abs(diff) > minSwipeDistance) {
+        if (diff > 0) {
+          // Swipe left - next image
+          setCurrentIndex((prev) => (prev + 1) % images.length);
+        } else {
+          // Swipe right - previous image
+          setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+        }
+      }
+
+      // Reset
+      isSwiping.current = false;
+      touchStartX.current = 0;
+      touchEndX.current = 0;
+    };
+
+    const showMultipleImages = images.length > 1;
+
+    return (
+      <div
+        className={`relative ${className} w-full overflow-hidden ${roundedClass} flex-shrink-0 group`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}>
+        {showShimmer && !isImageUnavailable && Boolean(renderSrc) && (
+          <div className="absolute inset-0 z-[1] overflow-hidden bg-gray-200">
+            <div className="h-full w-full animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200" />
+          </div>
+        )}
+
+        <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110">
+          {renderSrc && (
+            <img
+              ref={imageElementRef}
+              src={renderSrc}
+              alt={`${restaurant.name} - Image ${safeIndex + 1}`}
+              className="w-full h-full object-cover"
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : "low"}
+              decoding="async"
+              onLoad={() => {
+                setLoadedBySrc((prev) => ({ ...prev, [renderSrc]: true }));
+                setLastGoodSrc(renderSrc);
+                setShowShimmer(false);
+              }}
+              onError={() => {
+                setAttemptedSrcs((prev) => {
+                  const next = { ...prev, [primarySrc]: true };
+                  const attemptedCount = Object.keys(next).length;
+
+                  if (attemptedCount >= images.length) {
+                    setIsImageUnavailable(true);
+                  } else if (images.length > 1) {
+                    setCurrentIndex(
+                      (prevIndex) => (prevIndex + 1) % images.length,
+                    );
+                  }
+
+                  return next;
+                });
+                if (images.length === 1) {
+                  setIsImageUnavailable(true);
+                }
+              }}
+            />
+          )}
+          
+          {/* Secretly preload the next image to prevent white flash on swipe */}
+          {images.length > 1 && (
+            <img 
+              src={images[(currentIndex + 1) % images.length]} 
+              className="hidden" 
+              alt="preload next" 
+              aria-hidden="true"
+              decoding="async"
+            />
+          )}
+        </div>
+
+        {isImageUnavailable && (
+          <div className="absolute inset-0 z-[2] flex items-center justify-center bg-gray-100">
+            <span className="text-xs text-gray-500">Image unavailable</span>
+          </div>
+        )}
+
+        {/* Image Indicators - only show if more than 1 image */}
+        {showMultipleImages && (
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex items-center z-10 -space-x-2">
+            {images.map((_, index) => (
+              <button
+                key={index}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCurrentIndex(index);
+                }}
+                className="w-10 h-10 flex items-center justify-center focus:outline-none group/btn rounded-full"
+                aria-label={`Go to image ${index + 1}`}>
+                <div
+                  className={`h-1.5 rounded-full transition-all duration-300 ${index === currentIndex
+                    ? "w-6 bg-white"
+                    : "w-1.5 bg-white/50 group-hover/btn:bg-white/75"
+                    }`}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Gradient Overlay on Hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+        {/* Shine Effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full transition-transform duration-1000 group-hover:animate-shine" />
+
+        {/* Discount Badge */}
+        {restaurant.discount > 0 && (
+          <div className="absolute top-3 left-0 px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white text-[10px] sm:text-xs font-bold rounded-r-lg shadow-md uppercase tracking-wide flex items-center gap-1.5 z-[11]">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.864 2.227l8.909 8.91a2.182 2.182 0 010 3.085l-7.364 7.364a2.182 2.182 0 01-3.085 0l-8.91-8.91A2.182 2.182 0 012 11.137V4.41A2.182 2.182 0 014.182 2.23h6.727a2.182 2.182 0 011.955-.003z" /></svg>
+            {restaurant.discount}% OFF ON ALL MEALS
+          </div>
+        )}
+
+        {/* Sliding Green Banner for Items or Static Fallback */}
+        {bannerItems.length > 0 ? (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-[#00b761] to-transparent z-[20]" style={{ height: '40%' }}>
+            <div className="h-full flex flex-col justify-end w-full relative overflow-hidden">
+              {priority && bannerItems.length > 1 ? (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentItemIndex}
+                    initial={{ x: "100%", opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: "-100%", opacity: 0 }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                    className="absolute inset-0 flex flex-col justify-end pl-4 sm:pl-5 pb-4 sm:pb-5"
+                  >
+                    <OfferBannerContent item={bannerItems[currentItemIndex]} />
+                  </motion.div>
+                </AnimatePresence>
+              ) : (
+                <div className="absolute inset-0 flex flex-col justify-end pl-4 sm:pl-5 pb-4 sm:pb-5">
+                  <OfferBannerContent item={bannerItems[0]} />
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (() => {
+          let maxDiscount = restaurant.discount || 0;
+          if (Array.isArray(restaurant.discountRules) && restaurant.discountRules.length > 0) {
+            const maxRule = Math.max(...restaurant.discountRules.map(r => r.discountValue || 0));
+            if (maxRule > maxDiscount) maxDiscount = maxRule;
+          }
+          if (maxDiscount > 0) {
+            return (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-[#00b761] to-transparent z-[20]" style={{ height: '40%' }}>
+                <div className="h-full flex flex-col justify-end">
+                  <div className="pl-4 sm:pl-5 pb-4 sm:pb-5">
+                    <p className="text-white text-xs sm:text-sm font-medium uppercase tracking-wide mb-1">
+                      SPECIAL OFFER
+                    </p>
+                    <div className="h-px bg-white/30 mb-2 w-24"></div>
+                    <p className="text-white text-base sm:text-lg font-bold">
+                      UP TO {maxDiscount}% OFF
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+      </div>
+    );
+  },
+);
+
+RestaurantImageCarousel.displayName = "RestaurantImageCarousel";
+
+export default RestaurantImageCarousel;

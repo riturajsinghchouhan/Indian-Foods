@@ -427,7 +427,19 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
       ...identity,
       orderStatus: { $in: acceptedStatuses },
       $or: [
-        { 'dispatch.status': 'unassigned' },
+        {
+          'dispatch.status': 'unassigned',
+          'dispatch.offeredTo': {
+            $elemMatch: {
+              partnerId: partnerId,
+              $or: [
+                { action: 'offered' },
+                { action: { $exists: false } },
+                { action: null },
+              ],
+            },
+          },
+        },
         {
           'dispatch.status': 'assigned',
           'dispatch.deliveryPartnerId': partnerId,
@@ -550,21 +562,17 @@ export async function acceptOrderDelivery(orderId, deliveryPartnerId) {
 
         // Broadcast order_claimed to ALL online delivery partners so every popup is dismissed
         const claimedPayload = {
-          orderId: order._id.toString(),
+          orderId: order.order_id || order.orderId || order._id.toString(),
           orderMongoId: order._id?.toString?.(),
           claimedBy: deliveryPartnerId.toString(),
         };
         
-        // 1. Specific broadcast to EVERY partner who was offered this order (100% reliable)
+        // Broadcast order_claimed to every partner who was offered this order
         if (Array.isArray(order.dispatch?.offeredTo)) {
           for (const offer of order.dispatch.offeredTo) {
-            if (String(offer.partnerId) !== String(deliveryPartnerId)) {
-              io.to(rooms.delivery(offer.partnerId)).emit('order_claimed', claimedPayload);
-            }
+            io.to(rooms.delivery(offer.partnerId)).emit('order_claimed', claimedPayload);
           }
         }
-        
-        // 2. Global broadcast fallback
         io.to('all_delivery').emit('order_claimed', claimedPayload);
         logger.info(`[DeliveryDispatch] Broadcasted order_claimed specifically and globally for order ${order._id.toString()}`);
 

@@ -8,8 +8,7 @@ import {
 import { Card, CardContent } from "@food/components/ui/card"
 import { Button } from "@food/components/ui/button"
 import { Input } from "@food/components/ui/input"
-import { useLocation as useGeoLocation } from "@food/hooks/useLocation"
-import { useZone } from "@food/hooks/useZone"
+import { useAppLocation } from "@food/hooks/useAppLocation"
 import { searchAPI, adminAPI } from "@/services/api"
 import { motion, AnimatePresence } from "framer-motion"
 import { createPortal } from "react-dom"
@@ -50,8 +49,7 @@ export default function ProfessionalSearch() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialQuery = searchParams.get("q") || ""
   const navigate = useNavigate()
-  const { location: userCoords } = useGeoLocation()
-  const { zoneId } = useZone(userCoords)
+  const { location: userCoords, zoneId } = useAppLocation()
   
   const [query, setQuery] = useState(initialQuery)
   const debouncedQuery = useDebounce(query, 500)

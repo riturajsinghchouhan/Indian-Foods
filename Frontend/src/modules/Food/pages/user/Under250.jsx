@@ -8,15 +8,13 @@ import MenuScanAnimation from "@food/components/user/MenuScanAnimation"
 import { Card, CardContent } from "@food/components/ui/card"
 import { Button } from "@food/components/ui/button"
 import { useLocationSelector } from "@food/components/user/UserLayout"
-import { useLocation } from "@food/hooks/useLocation"
-import { useZone } from "@food/hooks/useZone"
+import { useAppLocation } from "@food/hooks/useAppLocation"
 import { useCart } from "@food/context/CartContext"
 import PageNavbar from "@food/components/user/PageNavbar"
 import offerImage from "@food/assets/offerimage.png"
 import AddToCartAnimation from "@food/components/user/AddToCartAnimation"
 import OptimizedImage from "@food/components/OptimizedImage"
-import api from "@food/api"
-import { restaurantAPI, adminAPI } from "@food/api"
+import api, { restaurantAPI, adminAPI, getPublicLandingSettings } from "@food/api"
 import { isModuleAuthenticated } from "@food/utils/auth"
 import { flattenMenuItems, getMenuFromResponse } from "@food/utils/menuItems"
 import { calculateDistance, formatDistance } from "@food/utils/common"
@@ -295,8 +293,7 @@ const pageCache = {
 
 export default function Under250() {
   const initialFiltersRef = useRef(readUnder250Filters())
-  const { location } = useLocation()
-  const { zoneId, zoneStatus, isInService, isOutOfService } = useZone(location)
+  const { location, zoneId, zoneStatus, isInService, isOutOfService } = useAppLocation()
   // Initialize state from cache if zoneId matches
   const isCacheValid = pageCache.zoneId === zoneId;
   // Always show scan animation on page load, even if cached, because user likes the animation
@@ -561,20 +558,18 @@ export default function Under250() {
   // Fetch landing settings to get dynamic price limit
   useEffect(() => {
     let cancelled = false
-    api.get('/food/landing/settings/public')
-      .then((res) => {
-        if (cancelled) return
-        const settings = res?.data?.data
-        if (settings && typeof settings.under250PriceLimit === 'number') {
+    getPublicLandingSettings(zoneId)
+      .then((settings) => {
+        if (cancelled || !settings) return
+        if (typeof settings.under250PriceLimit === 'number') {
           setUnder250PriceLimit(settings.under250PriceLimit)
         }
       })
       .catch(() => {
-        // Default to 250 if fetch fails
         setUnder250PriceLimit(250)
       })
     return () => { cancelled = true }
-  }, [])
+  }, [zoneId])
 
   useEffect(() => {
     setCurrentBannerIndex((prev) => {
@@ -674,7 +669,7 @@ export default function Under250() {
     const fetchRestaurantsList = async () => {
       try {
         setLoadingRestaurants(true)
-        const response = await restaurantAPI.getRestaurants(zoneId ? { zoneId } : {}, { noCache: true })
+        const response = await restaurantAPI.getRestaurants(zoneId ? { zoneId } : {})
         const restaurantsRaw = Array.isArray(response?.data?.data?.restaurants)
           ? response.data.data.restaurants
           : []
@@ -741,7 +736,7 @@ export default function Under250() {
             if (!restaurantId) return null
 
             try {
-              const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurantId, { noCache: true })
+              const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurantId)
               const menu = getMenuFromResponse(menuResponse)
               const menuItems = flattenMenuItems(menu)
                 .filter((item) => Number(item?.price || 0) <= under250PriceLimit && item?.isAvailable !== false)

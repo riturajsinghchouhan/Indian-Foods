@@ -190,15 +190,16 @@ export default function OrdersPage() {
 
     fetchOrders()
 
-    // Set up interval to refresh orders every 10 seconds (fallback if Socket.IO fails)
+    const pollMs = isConnected || window.restaurantSocketConnected ? 45000 : 15000
     const refreshInterval = setInterval(() => {
+      if (document.hidden) return
       fetchOrders()
-    }, 10000)
+    }, pollMs)
 
     return () => {
       clearInterval(refreshInterval)
     }
-  }, [])
+  }, [isConnected])
 
   // Refresh orders when new order notification is received
   useEffect(() => {

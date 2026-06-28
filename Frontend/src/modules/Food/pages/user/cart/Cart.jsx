@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, Fragment } from "react"
+﻿import { useState, useEffect, useRef, useMemo, Fragment } from "react"
 import { createPortal } from "react-dom"
 import { Link, useNavigate } from "react-router-dom"
 import { Plus, Minus, ArrowLeft, ChevronRight, Clock, MapPin, Phone, FileText, Utensils, Tag, Percent, Share2, ChevronUp, ChevronDown, X, Check, Settings, CreditCard, Wallet, Building2, Sparkles, Banknote, Zap, CheckCircle2, MessageCircle, Send, Mail, Copy } from "lucide-react"
@@ -10,8 +10,7 @@ import { Button } from "@food/components/ui/button"
 import { useCart } from "@food/context/CartContext"
 import { useProfile } from "@food/context/ProfileContext"
 import { useOrders } from "@food/context/OrdersContext"
-import { useLocation as useUserLocation } from "@food/hooks/useLocation"
-import { useZone } from "@food/hooks/useZone"
+import { useAppLocation } from "@food/hooks/useAppLocation"
 import { useLocationSelector } from "@food/components/user/UserLayout"
 import { orderAPI, restaurantAPI, adminAPI, userAPI, publicAPI, API_ENDPOINTS } from "@food/api"
 import { API_BASE_URL } from "@food/api/config"
@@ -117,7 +116,7 @@ export default function Cart() {
   const { getDefaultAddress, getDefaultPaymentMethod, setDefaultAddress, addresses, paymentMethods, userProfile } = useProfile()
   const { createOrder } = useOrders()
   const { openLocationSelector } = useLocationSelector()
-  const { location: currentLocation, loading: currentLocationLoading } = useUserLocation() // Get live location address
+  const { location: currentLocation, effectiveLocation, loading: currentLocationLoading, zoneId, setSavedLocation } = useAppLocation()
 
   const [showCoupons, setShowCoupons] = useState(false)
   const [appliedCoupon, setAppliedCoupon] = useState(null)
@@ -417,13 +416,7 @@ export default function Cart() {
   const recipientName = String(recipientDetails.name || "").trim() || userProfile?.name || "Your Name"
   const recipientPhone = sanitizeRecipientPhone(recipientDetails.phone || "") || userProfile?.phone || ""
   const selectedAddressCoordinates = defaultAddress?.location?.coordinates
-  const zoneLocation = selectedAddressCoordinates?.length === 2
-    ? {
-      latitude: selectedAddressCoordinates[1],
-      longitude: selectedAddressCoordinates[0]
-    }
-    : currentLocation
-  const { zoneId } = useZone(zoneLocation) // Prefer selected/saved address zone
+  // zoneId comes from centralized LocationProvider (uses GPS or saved address)
   const defaultPayment = getDefaultPaymentMethod()
 
   useEffect(() => {
@@ -1339,20 +1332,6 @@ export default function Cart() {
         return
       }
 
-      // Update location in backend
-      await userAPI.updateLocation({
-        latitude,
-        longitude,
-        address: `${address.street}, ${address.city}`,
-        city: address.city,
-        state: address.state,
-        area: address.additionalDetails || "",
-        formattedAddress: address.additionalDetails
-          ? `${address.additionalDetails}, ${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ''}`
-          : `${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ''}`
-      })
-
-      // Update the location in localStorage
       const locationData = {
         city: address.city,
         state: address.state,
@@ -1365,7 +1344,7 @@ export default function Cart() {
           ? `${address.additionalDetails}, ${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ''}`
           : `${address.street}, ${address.city}, ${address.state}${address.zipCode ? ` ${address.zipCode}` : ''}`
       }
-      localStorage.setItem("userLocation", JSON.stringify(locationData))
+      await setSavedLocation(locationData, { mode: 'saved', persistDb: true })
       // User selected a saved address from Cart; prefer saved mode.
       try {
         localStorage.setItem("deliveryAddressMode", "saved")
@@ -3145,7 +3124,7 @@ export default function Cart() {
                   style={{ animation: 'bounce 0.8s ease-in-out infinite' }}
                 >
                   <div className="w-24 h-24 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center shadow-2xl shadow-yellow-300/60 dark:shadow-yellow-900/40">
-                    <span className="text-5xl">🎉</span>
+                    <span className="text-5xl">ðŸŽ‰</span>
                   </div>
                 </div>
 

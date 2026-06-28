@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react"
+﻿import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react"
 import { authAPI, userAPI } from "@food/api"
+import { persistUserLocation, notifyLocationUpdated, notifyDeliveryModeUpdated } from "@food/utils/locationPersistence"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -286,8 +287,7 @@ export function ProfileProvider({ children }) {
       }))
 
       localStorage.setItem("userAddresses", JSON.stringify(updatedAddresses))
-      localStorage.setItem("deliveryAddressMode", "saved")
-      window.dispatchEvent(new CustomEvent("deliveryAddressModeUpdated"))
+      notifyDeliveryModeUpdated('saved')
 
       const selectedAddress =
         updatedAddresses.find((addr) => addr.isDefault) || updatedAddresses[0]
@@ -352,12 +352,8 @@ export function ProfileProvider({ children }) {
               resolvedAddress || existingLocation?.formattedAddress || "",
           }
 
-          localStorage.setItem("userLocation", JSON.stringify(syncedLocation))
-          window.dispatchEvent(
-            new CustomEvent("userLocationUpdated", {
-              detail: { location: syncedLocation },
-            }),
-          )
+          persistUserLocation(syncedLocation, { mode: 'saved' })
+          notifyLocationUpdated(syncedLocation)
         }
       }
 

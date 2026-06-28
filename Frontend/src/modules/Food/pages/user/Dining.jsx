@@ -8,8 +8,7 @@ import { Badge } from "@food/components/ui/badge"
 import { Card, CardContent } from "@food/components/ui/card"
 import AnimatedPage from "@food/components/user/AnimatedPage"
 import { useSearchOverlay, useLocationSelector } from "@food/components/user/UserLayout"
-import { useLocation as useLocationHook } from "@food/hooks/useLocation"
-import { useZone } from "@food/hooks/useZone"
+import { useAppLocation } from "@food/hooks/useAppLocation"
 import { useProfile } from "@food/context/ProfileContext"
 import { diningAPI } from "@food/api"
 import PageNavbar from "@food/components/user/PageNavbar"
@@ -140,8 +139,7 @@ export default function Dining() {
   const [selectedCuisine, setSelectedCuisine] = useState(null)
   const filterSectionRefs = useRef({})
   const rightContentRef = useRef(null)
-  const { location } = useLocationHook()
-  const { zoneId } = useZone(location)
+  const { location, zoneId } = useAppLocation()
   const { openSearch, closeSearch, setSearchValue } = useSearchOverlay()
   const { addFavorite, removeFavorite, isFavorite } = useProfile()
 

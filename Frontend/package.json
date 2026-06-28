@@ -31,6 +31,7 @@
     "@react-google-maps/api": "^2.20.8",
     "@reduxjs/toolkit": "^2.11.2",
     "@tailwindcss/vite": "^4.1.17",
+    "@tanstack/react-virtual": "^3.14.4",
     "axios": "^1.13.6",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",

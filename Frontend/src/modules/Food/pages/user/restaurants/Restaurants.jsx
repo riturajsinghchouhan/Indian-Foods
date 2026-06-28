@@ -9,8 +9,7 @@ import { Card, CardTitle, CardContent } from "@food/components/ui/card"
 import { Button } from "@food/components/ui/button"
 import { RestaurantGridSkeleton } from "@food/components/ui/loading-skeletons"
 import { useProfile } from "@food/context/ProfileContext"
-import { useZone } from "@food/hooks/useZone"
-import { useLocation } from "@food/hooks/useLocation"
+import { useAppLocation } from "@food/hooks/useAppLocation"
 import { restaurantAPI } from "@food/api"
 import { API_BASE_URL } from "@food/api/config"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
@@ -43,8 +42,7 @@ const pickRestaurantImage = (restaurant) => {
 
 export default function Restaurants() {
   const { addFavorite, removeFavorite, isFavorite } = useProfile()
-  const { location: userLocation } = useLocation()
-  const { zoneId } = useZone(userLocation)
+  const { location: userLocation, zoneId } = useAppLocation()
   const [restaurants, setRestaurants] = useState([])
   const [loading, setLoading] = useState(true)
   const showRestaurantsSkeleton = useDelayedLoading(loading)
@@ -59,7 +57,7 @@ export default function Restaurants() {
         if (zoneId) {
           params.zoneId = zoneId
         }
-        const response = await restaurantAPI.getRestaurants(params, { noCache: true })
+        const response = await restaurantAPI.getRestaurants(params)
         const list =
           response?.data?.data?.restaurants ||
           response?.data?.restaurants ||

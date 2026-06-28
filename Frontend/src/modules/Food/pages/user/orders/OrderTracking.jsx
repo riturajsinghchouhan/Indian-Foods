@@ -39,6 +39,10 @@ import DeliveryTrackingMap from "@food/components/user/DeliveryTrackingMap"
 import { orderAPI, restaurantAPI } from "@food/api"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 import { useUserNotifications } from "@food/hooks/useUserNotifications"
+import {
+  patchOrderFromSocketPayload,
+  socketPayloadNeedsRefetch,
+} from "@food/utils/orderSocketPatch"
 import { RESTAURANT_PIN_SVG, CUSTOMER_PIN_SVG, RIDER_BIKE_SVG } from "@food/constants/mapIcons"
 
 // Fallback definitions in case imports fail at runtime or are shadowed
@@ -1107,7 +1111,7 @@ export default function OrderTracking() {
       if (pollRef.current) pollRef.current(false);
     };
     
-    const pollInterval = (isSocketConnected || window.orderSocketConnected) ? 12000 : 5000;
+    const pollInterval = (isSocketConnected || window.orderSocketConnected) ? 75000 : 12000;
     const interval = setInterval(tick, pollInterval);
 
     return () => clearInterval(interval);
@@ -1156,9 +1160,20 @@ export default function OrderTracking() {
         });
         setOrderStatus(next);
 
-        // Pull latest order state without refresh spam on bursty socket events.
+        setOrder((prev) => {
+          if (!prev) return prev;
+          return transformOrderForTracking(patchOrderFromSocketPayload(prev, payload), prev);
+        });
+
+        const needsRefetch = socketPayloadNeedsRefetch(
+          payload,
+          payload.orderStatus || status,
+        );
         const now = Date.now();
-        if (now - lastRealtimeRefreshRef.current > 1500 && !isRefreshing) {
+        if (needsRefetch && now - lastRealtimeRefreshRef.current > 30000 && !isRefreshing) {
+          lastRealtimeRefreshRef.current = now;
+          handleRefresh();
+        } else if (!order && now - lastRealtimeRefreshRef.current > 2000) {
           lastRealtimeRefreshRef.current = now;
           handleRefresh();
         }

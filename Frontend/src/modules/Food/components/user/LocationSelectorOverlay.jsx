@@ -6,6 +6,7 @@ import { Input } from "@food/components/ui/input"
 import { Label } from "@food/components/ui/label"
 import { Textarea } from "@food/components/ui/textarea"
 import { useLocation as useGeoLocation } from "@food/hooks/useLocation"
+import { useAppLocation } from "@food/hooks/useAppLocation"
 import { useProfile } from "@food/context/ProfileContext"
 import { toast } from "sonner"
 import { locationAPI, userAPI } from "@food/api"
@@ -49,6 +50,7 @@ const getAddressIcon = (address) => {
 
 export default function LocationSelectorOverlay({ isOpen, onClose }) {
   const { location, loading, requestLocation } = useGeoLocation()
+  const { setSavedLocation } = useAppLocation()
   const navigate = useNavigate()
   const { addresses = [], addAddress, updateAddress, setDefaultAddress, userProfile, isAuthenticated } = useProfile()
   const [showAddressForm, setShowAddressForm] = useState(false)
@@ -2070,31 +2072,19 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
       const latitude = coordinates[1]
 
       if (latitude && longitude) {
-        // Update location in backend
-        await userAPI.updateLocation({
-          latitude,
-          longitude,
-          address: `${address.street}, ${address.city}`,
+        const locationData = {
+          label: address.label || "Home",
           city: address.city,
           state: address.state,
+          address: `${address.street}, ${address.city}`,
           area: address.additionalDetails || "",
+          zipCode: address.zipCode,
+          latitude,
+          longitude,
           formattedAddress: `${address.street}, ${address.city}, ${address.state}`
-        })
+        }
+        await setSavedLocation(locationData, { mode: 'saved', persistDb: true })
       }
-
-      // Update the location in localStorage with this address
-      const locationData = {
-        label: address.label || "Home",
-        city: address.city,
-        state: address.state,
-        address: `${address.street}, ${address.city}`,
-        area: address.additionalDetails || "",
-        zipCode: address.zipCode,
-        latitude,
-        longitude,
-        formattedAddress: `${address.street}, ${address.city}, ${address.state}`
-      }
-      localStorage.setItem("userLocation", JSON.stringify(locationData))
 
       // Update map position to show selected address
       setMapPosition([latitude, longitude])

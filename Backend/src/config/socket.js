@@ -1,6 +1,7 @@
-import { Server } from 'socket.io';
+﻿import { Server } from 'socket.io';
 import { config } from './env.js';
 import { logger } from '../utils/logger.js';
+import { haversineMeters, shouldBroadcastLocation } from '../utils/geo.js';
 import { verifyAccessToken } from '../core/auth/token.util.js';
 import { getFirebaseDB } from './firebase.js';
 
@@ -179,7 +180,7 @@ export const initSocket = async (server) => {
             socket.emit('delivery-room-joined', { room, deliveryPartnerId: String(deliveryPartnerId) });
         });
 
-        // ─── Live Tracking Events ───────────────────────────────────────
+        // â”€â”€â”€ Live Tracking Events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         // Users / restaurants subscribe to an order's real-time tracking room.
         socket.on('join-tracking', (orderId) => {
@@ -219,13 +220,16 @@ export const initSocket = async (server) => {
                 deliveryPartnerId: String(userId),
                 lat,
                 lng,
-                boy_lat: lat, // Add boy_lat/lng for compatibility
+                boy_lat: lat,
                 boy_lng: lng,
-                riderLocation: [lat, lng], // Add array format for safety
+                riderLocation: [lat, lng],
                 heading,
                 speed,
                 accuracy,
-                timestamp: now
+                timestamp: now,
+                status: data.status || 'on_the_way',
+                ...(data.polyline ? { polyline: data.polyline } : {}),
+                ...(data.eta != null && data.eta !== '' ? { eta: data.eta } : {}),
             };
 
             logDeliverySocket('Location update received', {
@@ -250,7 +254,7 @@ export const initSocket = async (server) => {
                 socket.to(roomNames.restaurant(data.restaurantId)).emit('location-update', payload);
             }
 
-            // ─── Scalable Persistence (BullMQ + Redis "Hot" Buffering) ───
+            // â”€â”€â”€ Scalable Persistence (BullMQ + Redis "Hot" Buffering) â”€â”€â”€
             try {
                 const { getTrackingQueue } = await import('../queues/index.js');
                 const { getRedisClient } = await import('../config/redis.js');
@@ -279,7 +283,7 @@ export const initSocket = async (server) => {
                 logger.error(`Real-time persistence layer error: ${err.message}`);
             }
 
-            // ─── Firebase Realtime Database Sync (Cost Optimization) ───
+            // â”€â”€â”€ Firebase Realtime Database Sync (Cost Optimization) â”€â”€â”€
             try {
                 const db = getFirebaseDB();
                 if (db) {
@@ -294,7 +298,9 @@ export const initSocket = async (server) => {
                         speed,
                         accuracy,
                         last_updated: now,
-                        status: data.status || 'on_the_way'
+                        status: data.status || 'on_the_way',
+                        ...(data.polyline ? { polyline: data.polyline } : {}),
+                        ...(data.eta != null && data.eta !== '' ? { eta: data.eta } : {}),
                     }).catch(e => logger.error(`Firebase orderRef update error: ${e.message}`));
 
                     // 2. Update global delivery boy status node
@@ -330,7 +336,7 @@ export const initSocket = async (server) => {
             }
         });
 
-        // 🆕 Resync State on Reconnect
+        // ðŸ†• Resync State on Reconnect
         socket.on('resync', async () => {
           try {
             if (role === 'DELIVERY_PARTNER') {
@@ -403,7 +409,7 @@ export const initSocket = async (server) => {
               });
             }
           } catch (err) {
-            logger.error(`Resync failed for ${role}:${userId} — ${err.message}`);
+            logger.error(`Resync failed for ${role}:${userId} â€” ${err.message}`);
           }
         });
     });

@@ -1,11 +1,19 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDeliveryStore } from '@/modules/DeliveryV2/store/useDeliveryStore';
 import { useProximityCheck } from '@/modules/DeliveryV2/hooks/useProximityCheck';
 import { useOrderManager } from '@/modules/DeliveryV2/hooks/useOrderManager';
 import { useDeliveryNotificationContext } from '@food/context/DeliveryNotificationContext';
-import { writeOrderTracking } from '@food/realtimeTracking';
 import { deliveryAPI } from '@food/api';
+import {
+  getOrderAcceptId,
+  getOrderMongoId,
+  getPrimaryIncomingOrder,
+  isSameOrder,
+  normalizeIncomingOrder,
+  removeIncomingOrderFromQueue,
+  upsertIncomingOrderInQueue,
+} from '@food/utils/orderDispatchId';
 import { toast } from 'sonner';
 
 // Components
@@ -30,6 +38,7 @@ import {
   Contact, Package, Phone, MapPin
 } from 'lucide-react';
 
+import { shouldSendLocationUpdate } from "@delivery/utils/trackingInterval";
 import { getHaversineDistance, calculateETA, calculateHeading } from '@/modules/DeliveryV2/utils/geo';
 import { useCompanyName } from "@food/hooks/useCompanyName";
 import { useNavigate } from 'react-router-dom';
@@ -74,13 +83,37 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   const companyName = useCompanyName();
   const { items: broadcastItems, unreadCount: notificationUnreadCount, markAsRead: markBroadcastAsRead, dismissAll: dismissAllBroadcast } = useNotificationInbox("delivery", { limit: 20 });
 
-  const [incomingOrder, setIncomingOrder] = useState(null);
-  // GHOST-ASSIGNMENT FIX: Track the orderId that is currently displayed on the accept popup.
-  // Once a popup is showing, we "lock" it and ignore new socket/FCM orders until the popup is dismissed.
-  // This prevents the race condition where FCM delivers Order B while Order A popup is still visible,
-  // causing the rider to unknowingly accept Order B instead of Order A.
+  const [incomingOrders, setIncomingOrders] = useState([]);
+  const [selectedIncomingId, setSelectedIncomingId] = useState(null);
   const lockedIncomingOrderIdRef = useRef(null);
-  const [pendingIncomingOrder, setPendingIncomingOrder] = useState(null); // queued next order (shown only after current is dismissed)
+
+  const incomingOrder = useMemo(
+    () => getPrimaryIncomingOrder(incomingOrders, selectedIncomingId),
+    [incomingOrders, selectedIncomingId],
+  );
+
+  const selectIncomingOrder = useCallback((order) => {
+    const normalized = normalizeIncomingOrder(order);
+    const id = getOrderMongoId(normalized);
+    if (!id) return;
+    lockedIncomingOrderIdRef.current = id;
+    setSelectedIncomingId(id);
+  }, []);
+
+  const syncSelectionAfterQueueChange = useCallback((nextQueue) => {
+    setSelectedIncomingId((currentSelected) => {
+      const stillExists = (nextQueue || []).some(
+        (item) =>
+          currentSelected &&
+          (getOrderMongoId(item) === currentSelected ||
+            isSameOrder(item, { orderMongoId: currentSelected, _id: currentSelected })),
+      );
+      if (stillExists) return currentSelected;
+      const nextId = nextQueue?.[0] ? getOrderMongoId(nextQueue[0]) : null;
+      lockedIncomingOrderIdRef.current = nextId;
+      return nextId;
+    });
+  }, []);
   const [cashLimitNotice, setCashLimitNotice] = useState(null);
   const [currentTab, setCurrentTab] = useState(tab);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -115,8 +148,37 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   const [simIndex, setSimIndex] = useState(0);
   const [simProgress, setSimProgress] = useState(0); // 0 to 1 between points
   const [activePolyline, setActivePolyline] = useState(null);
+  const lastEmittedPolylineRef = useRef('');
   const mapRef = useRef(null);
   const simInitializedRef = useRef(false);
+
+  const pushRoutePolylineToCustomer = useCallback((polyline) => {
+    const encoded = typeof polyline === 'string' ? polyline : polyline?.points || '';
+    if (!encoded) return;
+
+    const orderId = activeOrder?.orderId || activeOrder?._id;
+    if (!orderId) return;
+
+    if (encoded === lastEmittedPolylineRef.current) return;
+    lastEmittedPolylineRef.current = encoded;
+
+    const coords = lastCoordRef.current || riderLocation;
+    if (!coords || coords.lat == null || coords.lng == null) return;
+
+    emitLocation({
+      orderId,
+      lat: coords.lat,
+      lng: coords.lng,
+      heading: coords.heading || 0,
+      polyline: encoded,
+      status: tripStatus,
+      eta,
+    });
+  }, [activeOrder?.orderId, activeOrder?._id, riderLocation, emitLocation, tripStatus, eta]);
+
+  useEffect(() => {
+    lastEmittedPolylineRef.current = '';
+  }, [activeOrder?._id, tripStatus]);
 
   const isLoggingOut = useRef(false);
   const handleLogout = useCallback(() => {
@@ -156,7 +218,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   useEffect(() => {
     let interval;
     if (isSimMode && simPath.length > 1 && simIndex < simPath.length - 1) {
-      console.log('[SimAuto] Glide Active √');
+      console.log('[SimAuto] Glide Active âˆš');
       
       interval = setInterval(() => {
         setSimProgress(prev => {
@@ -192,25 +254,10 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                 heading, 
                 orderId: activeOrder?.orderId || activeOrder?._id,
                 status: 'on_the_way',
-                polyline: activePolyline // Include polyline in every stream update for resilience
+                polyline: activePolyline,
+                eta,
               };
-              // A. HTTP Backup
-              deliveryAPI.updateLocation(lat, lng, true, { heading }).catch(() => {});
-              
-              // B. SOCKET LIVE (SILKY SMOOTH)
               if (payload.orderId) emitLocation(payload);
-
-              // C. FIREBASE REALTIME DB (Persistent Route for Customer Map)
-              if (payload.orderId) {
-                writeOrderTracking(payload.orderId, { 
-                  lat, 
-                  lng, 
-                  heading, 
-                  polyline: activePolyline,
-                  status: tripStatus,
-                  eta: eta // Publish live ETA to Firebase
-                }).catch(() => {});
-              }
             }
           }
           return nextProgress;
@@ -467,27 +514,14 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
           accuracy: pos.coords.accuracy,
           orderId: activeOrder?.orderId || activeOrder?._id,
           status: 'on_the_way',
-          polyline: activePolyline
+          polyline:
+            typeof activePolyline === 'string'
+              ? activePolyline
+              : activePolyline?.points || activePolyline || null,
+          eta,
         };
 
-        deliveryAPI.updateLocation(lat, lng, true, { 
-          heading: heading || 0,
-          speed: speed || 0,
-          accuracy: pos.coords.accuracy 
-        }).catch(() => {});
-
         if (payload.orderId) emitLocation(payload);
-
-        if (payload.orderId) {
-          writeOrderTracking(payload.orderId, {
-            lat,
-            lng,
-            heading: heading || 0,
-            polyline: activePolyline,
-            status: tripStatus,
-            eta: eta
-          }).catch(() => {});
-        }
       }
     }, () => {
       // IF GPS FAILS/DENIED: Use Indore as a fallback for testing
@@ -506,18 +540,13 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [isOnline, setRiderLocation, isSimMode]);
 
-  // 3.5. Background Ping / Heartbeat
-  // If watchPosition stops firing (e.g. app in background or device stationary),
-  // this ensures we ping the backend periodically. This keeps the token fresh (via 401 interceptor)
-  // and keeps the Delivery Partner "online" in the backend.
+  // Online heartbeat: keep rider visible in admin map / availability without per-tick HTTP.
   useEffect(() => {
     if (!isOnline) return;
     
     const pingInterval = setInterval(() => {
       const now = Date.now();
-      // If no natural GPS update happened in the last 15 seconds, force a ping
-      if (now - lastLocationSentAt.current >= 15000 && lastCoordRef.current) {
-        lastLocationSentAt.current = now;
+      if (now - lastLocationSentAt.current >= 45000 && lastCoordRef.current) {
         deliveryAPI.updateLocation(
           lastCoordRef.current.lat, 
           lastCoordRef.current.lng, 
@@ -525,80 +554,127 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
           { heading: 0, speed: 0, accuracy: null }
         ).catch(() => {});
       }
-    }, 10000); // Check every 10 seconds
+    }, 45000);
     
     return () => clearInterval(pingInterval);
   }, [isOnline]);
 
 
   // GHOST-ASSIGNMENT FIX: When a new socket/FCM order arrives:
-  // - If no popup is currently showing → display it immediately.
-  // - If a popup IS already showing (lock is set) → queue it as pending. DO NOT overwrite the visible popup.
+  // - If no popup is currently showing â†’ display it immediately.
+  // - If a popup IS already showing (lock is set) â†’ queue it as pending. DO NOT overwrite the visible popup.
   //   This ensures the rider always accepts the order whose details are physically visible on screen.
   useEffect(() => {
     if (newOrder === undefined || newOrder === null) return;
 
-    const newId = newOrder?.orderId || newOrder?._id || newOrder?.orderMongoId;
-    const lockedId = lockedIncomingOrderIdRef.current;
+    const normalized = normalizeIncomingOrder(newOrder);
+    const newId = getOrderMongoId(normalized);
+    if (!newId) return;
 
-    if (!lockedId) {
-      // No popup is showing — safe to display this order
-      lockedIncomingOrderIdRef.current = newId || null;
-      setIncomingOrder(newOrder);
-      if (playNotificationSound) playNotificationSound(newOrder);
-    } else if (newId && newId !== lockedId) {
-      // A DIFFERENT order arrived while popup is already showing — queue it for later
-      console.warn(
-        `[GhostAssignFix] Popup locked on order ${lockedId}. Queuing new order ${newId} instead of overwriting.`
-      );
-      setPendingIncomingOrder(newOrder);
-    }
-    // If newId === lockedId, it's a duplicate event for the same order — ignore.
+    setIncomingOrders((prev) => {
+      const wasInQueue = prev.some((item) => isSameOrder(item, normalized));
+      const next = upsertIncomingOrderInQueue(prev, normalized);
+      if (!wasInQueue && playNotificationSound) {
+        playNotificationSound(normalized);
+      }
+      return next;
+    });
+
+    setSelectedIncomingId((prev) => {
+      if (prev) return prev;
+      lockedIncomingOrderIdRef.current = newId;
+      return newId;
+    });
   }, [newOrder, playNotificationSound]);
 
   // Also play sound when incomingOrder changes from polling (not from socket newOrder)
   const prevIncomingOrderRef = useRef(null);
   useEffect(() => {
-    const prevId = prevIncomingOrderRef.current?.orderId || prevIncomingOrderRef.current?._id;
-    const currId = incomingOrder?.orderId || incomingOrder?._id;
+    const prevId = getOrderMongoId(prevIncomingOrderRef.current) || getOrderAcceptId(prevIncomingOrderRef.current);
+    const currId = getOrderMongoId(incomingOrder) || getOrderAcceptId(incomingOrder);
     if (incomingOrder && currId !== prevId && playNotificationSound) {
       playNotificationSound(incomingOrder);
     }
     prevIncomingOrderRef.current = incomingOrder;
   }, [incomingOrder, playNotificationSound]);
 
-  // When incomingOrder is cleared (accepted/rejected/claimed), release the lock
-  // and promote the pending order to the visible popup (if any).
-  const clearIncomingOrderWithLock = useCallback(() => {
-    setIncomingOrder(null);
+  const dismissCurrentIncomingOrder = useCallback(() => {
+    if (!incomingOrder) {
+      setIncomingOrders([]);
+      setSelectedIncomingId(null);
+      lockedIncomingOrderIdRef.current = null;
+      clearNewOrder();
+      return;
+    }
+
+    setIncomingOrders((prev) => {
+      const next = removeIncomingOrderFromQueue(prev, incomingOrder);
+      syncSelectionAfterQueueChange(next);
+      return next;
+    });
     clearNewOrder();
-    // If there's a queued order waiting, show it now
-    if (pendingIncomingOrder) {
-      const pendingId = pendingIncomingOrder?.orderId || pendingIncomingOrder?._id || pendingIncomingOrder?.orderMongoId;
-      lockedIncomingOrderIdRef.current = pendingId || null;
-      setIncomingOrder(pendingIncomingOrder);
-      setPendingIncomingOrder(null);
-      if (playNotificationSound) playNotificationSound(pendingIncomingOrder);
-    } else {
-      lockedIncomingOrderIdRef.current = null;
-    }
-  }, [pendingIncomingOrder, clearNewOrder, playNotificationSound]);
+  }, [incomingOrder, clearNewOrder, syncSelectionAfterQueueChange]);
+
+  const clearAllIncomingOrders = useCallback(() => {
+    setIncomingOrders([]);
+    setSelectedIncomingId(null);
+    lockedIncomingOrderIdRef.current = null;
+    clearNewOrder();
+  }, [clearNewOrder]);
+
+  const removeClaimedOrderFromQueue = useCallback(
+    (claimedRef, { notify = true } = {}) => {
+      const claimedTarget = {
+        orderMongoId: claimedRef?.orderMongoId || claimedRef?.orderId || claimedRef?._id,
+        orderId: claimedRef?.orderId,
+        _id: claimedRef?._id,
+      };
+
+      const wasVisible =
+        incomingOrder && isSameOrder(incomingOrder, claimedTarget);
+      const wasQueued = incomingOrders.some(
+        (item) =>
+          isSameOrder(item, claimedTarget) &&
+          incomingOrder &&
+          !isSameOrder(item, incomingOrder),
+      );
+
+      setIncomingOrders((prev) => {
+        const next = removeIncomingOrderFromQueue(prev, claimedTarget);
+        syncSelectionAfterQueueChange(next);
+        return next;
+      });
+
+      if (notify && wasVisible) {
+        if (claimedRef?.claimedBy === 'cancelled') {
+          toast.error('Order was cancelled.', { duration: 4000 });
+        } else {
+          toast.info('Order was taken by another delivery partner.', { duration: 4000 });
+        }
+      } else if (notify && wasQueued) {
+        toast.info('One of your queued orders was taken.', { duration: 3000 });
+      }
+
+      clearNewOrder();
+    },
+    [incomingOrder, incomingOrders, syncSelectionAfterQueueChange, clearNewOrder],
+  );
 
   useEffect(() => {
-    if (activeOrder && incomingOrder) {
-      // Accepted successfully — clear incoming popup and release lock
-      setIncomingOrder(null);
-      setPendingIncomingOrder(null);
-      lockedIncomingOrderIdRef.current = null;
+    if (selectedIncomingId) {
+      lockedIncomingOrderIdRef.current = selectedIncomingId;
     }
-  }, [activeOrder, incomingOrder]);
+  }, [selectedIncomingId]);
 
-  // When another delivery partner claims the incoming order (via socket 'order_claimed'),
-  // dismiss the NewOrderModal and inform this delivery boy.
   useEffect(() => {
-    if (!claimedOrderId || !claimedOrderId.orderId) return;
-    
-    // Check if WE were the ones who claimed it
+    if (activeOrder && incomingOrders.length > 0) {
+      clearAllIncomingOrders();
+    }
+  }, [activeOrder, incomingOrders.length, clearAllIncomingOrders]);
+
+  useEffect(() => {
+    if (!claimedOrderId?.orderId && !claimedOrderId?.orderMongoId) return;
+
     const token = localStorage.getItem('delivery_accessToken') || '';
     let myUserId = null;
     try {
@@ -606,50 +682,28 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
         const payload = JSON.parse(atob(token.split('.')[1]));
         myUserId = payload.userId;
       }
-    } catch(e) {}
-    
+    } catch (e) {}
+
+    const claimedRef = {
+      orderId: claimedOrderId.orderId,
+      orderMongoId: claimedOrderId.orderMongoId || claimedOrderId.orderId,
+      _id: claimedOrderId.orderMongoId || claimedOrderId.orderId,
+      claimedBy: claimedOrderId.claimedBy,
+    };
+
     if (claimedOrderId.claimedBy && String(claimedOrderId.claimedBy) === String(myUserId)) {
-      // We claimed it, do nothing here (activeOrder will handle it)
+      removeClaimedOrderFromQueue(claimedRef, { notify: false });
       clearClaimedOrderId();
       return;
     }
 
-    const incomingId = incomingOrder?.orderId || incomingOrder?._id || incomingOrder?.orderMongoId;
-    const claimedId = claimedOrderId.orderId;
-
-    // Check if the claimed order matches either the visible popup or the pending (queued) order
-    const matchesVisible = incomingId && String(incomingId) === String(claimedId);
-    const pendingId = pendingIncomingOrder?.orderId || pendingIncomingOrder?._id || pendingIncomingOrder?.orderMongoId;
-    const matchesPending = pendingId && String(pendingId) === String(claimedId);
-
-    if (matchesVisible) {
-      if (claimedOrderId.claimedBy === 'cancelled') {
-        toast.error('Order was cancelled.', { duration: 4000 });
-      } else {
-        toast.info('Order was taken by another delivery partner.', { duration: 4000 });
-      }
-      // Release lock and promote pending order (if any)
-      lockedIncomingOrderIdRef.current = null;
-      setIncomingOrder(null);
-      clearNewOrder();
-      if (pendingIncomingOrder) {
-        const nextId = pendingIncomingOrder?.orderId || pendingIncomingOrder?._id || pendingIncomingOrder?.orderMongoId;
-        lockedIncomingOrderIdRef.current = nextId || null;
-        setIncomingOrder(pendingIncomingOrder);
-        setPendingIncomingOrder(null);
-      }
-    } else if (matchesPending) {
-      // The queued (not yet shown) order was claimed — just drop it silently
-      setPendingIncomingOrder(null);
-    } else if (!incomingId) {
-       // Failsafe: if incoming is null but we got a claim event, ensure we are fully clear
-       lockedIncomingOrderIdRef.current = null;
-       setIncomingOrder(null);
-       setPendingIncomingOrder(null);
-       clearNewOrder();
+    const inQueue = incomingOrders.some((item) => isSameOrder(item, claimedRef));
+    if (inQueue) {
+      removeClaimedOrderFromQueue(claimedRef, { notify: true });
     }
+
     clearClaimedOrderId();
-  }, [claimedOrderId, incomingOrder, pendingIncomingOrder, clearNewOrder, clearClaimedOrderId, playNotificationSound]);
+  }, [claimedOrderId, incomingOrders, removeClaimedOrderFromQueue, clearClaimedOrderId]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -729,24 +783,31 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
           availablePayload?.cashLimit?.blocked ? availablePayload.cashLimit : null;
         if (!cancelled) setCashLimitNotice(nextCashLimitNotice);
 
-        const nextIncomingOrder = availableOrders.find((order) => {
-          const dispatchStatus = String(order?.dispatch?.status || '').toLowerCase();
-          const orderStatus = String(order?.orderStatus || order?.status || '').toLowerCase();
-          return (
-            ['unassigned', 'assigned'].includes(dispatchStatus) &&
-            ['confirmed', 'preparing', 'ready_for_pickup'].includes(orderStatus)
-          );
-        });
+        const availableIncoming = availableOrders
+          .map((order) => normalizeIncomingOrder(order))
+          .filter((order) => {
+            const dispatchStatus = String(order?.dispatch?.status || '').toLowerCase();
+            const orderStatus = String(order?.orderStatus || order?.status || '').toLowerCase();
+            return (
+              ['unassigned', 'assigned'].includes(dispatchStatus) &&
+              ['confirmed', 'preparing', 'ready_for_pickup'].includes(orderStatus)
+            );
+          });
 
-        if (!cancelled && nextIncomingOrder) {
+        if (!cancelled && availableIncoming.length > 0) {
           setCashLimitNotice(null);
-          setIncomingOrder((prev) => {
-            const prevId = prev?.orderId || prev?._id || prev?.orderMongoId;
-            const nextId =
-              nextIncomingOrder?.orderId ||
-              nextIncomingOrder?._id ||
-              nextIncomingOrder?.orderMongoId;
-            return prevId === nextId && prev ? prev : nextIncomingOrder;
+          setIncomingOrders((prev) => {
+            let next = prev;
+            availableIncoming.forEach((order) => {
+              next = upsertIncomingOrderInQueue(next, order);
+            });
+            return next;
+          });
+          setSelectedIncomingId((prev) => {
+            if (prev) return prev;
+            const firstId = getOrderMongoId(availableIncoming[0]);
+            lockedIncomingOrderIdRef.current = firstId || null;
+            return firstId;
           });
         }
       } catch (error) {
@@ -759,7 +820,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
       if (!document.hidden) {
         void hydrateAvailableOrder();
       }
-    }, isSocketConnected ? 12000 : 5000);
+    }, isSocketConnected ? 45000 : 15000);
 
     return () => {
       cancelled = true;
@@ -828,7 +889,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
 
   return (
     <div className="relative h-screen w-full bg-white text-gray-900 overflow-hidden flex flex-col">
-      {/* ─── 1. TOP HEADER (Dynamic Theme Gradient) ─── */}
+      {/* â”€â”€â”€ 1. TOP HEADER (Dynamic Theme Gradient) â”€â”€â”€ */}
       {currentTab !== 'history' && currentTab !== 'profile' && currentTab !== 'pocket' && (
       <div 
         className="absolute top-0 inset-x-0 backdrop-blur-2xl shadow-2xl z-[200] safe-top pb-2 border-b border-white/10"
@@ -901,7 +962,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
           </div>
         </div>
 
-        {/* ─── LIVE STATUS / PROGRESS BADGE (MATCHED PRO) ─── */}
+        {/* â”€â”€â”€ LIVE STATUS / PROGRESS BADGE (MATCHED PRO) â”€â”€â”€ */}
         <AnimatePresence>
           {currentTab === 'feed' && (
             <motion.div 
@@ -1010,7 +1071,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
         }}
       />
 
-      {/* ─── 2. MAIN CONTENT ─── */}
+      {/* â”€â”€â”€ 2. MAIN CONTENT â”€â”€â”€ */}
       <div className={`flex-1 relative overflow-y-auto ${currentTab === 'history' || currentTab === 'profile' || currentTab === 'pocket' ? 'pt-0' : 'pt-[120px]'} no-scrollbar`}>
          {currentTab === 'feed' ? (
            <div className="absolute inset-0 top-[-120px]">
@@ -1022,11 +1083,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                onPathReceived={setSimPath}
                onPolylineReceived={(poly) => {
                  setActivePolyline(poly);
-                 // If we have an order, push the INITIAL polyline to Firebase immediately for the customer
-                 const orderId = activeOrder?.orderId || activeOrder?._id;
-                 if (orderId && poly) {
-                   writeOrderTracking(orderId, { polyline: poly, status: tripStatus, eta: eta }).catch(() => {});
-                 }
+                 pushRoutePolylineToCustomer(poly);
                }}
                zoom={zoom}
              />
@@ -1178,44 +1235,50 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
               <div className="w-full pointer-events-auto relative">
                 {incomingOrder && (
                   <NewOrderModal 
-                    order={incomingOrder} 
-                    onAccept={async (o) => {
-                      // GHOST-ASSIGNMENT GUARD: Verify the order ID being accepted is the one
-                      // currently locked/displayed. This catches any edge case where the reference
-                      // might drift between render cycles.
-                      const displayedId = incomingOrder?.orderId || incomingOrder?._id || incomingOrder?.orderMongoId;
-                      const acceptingId = o?.orderId || o?._id || o?.orderMongoId;
-                      if (displayedId && acceptingId && String(displayedId) !== String(acceptingId)) {
+                    key={getOrderMongoId(incomingOrder) || getOrderAcceptId(incomingOrder)}
+                    order={incomingOrder}
+                    queuedOrders={incomingOrders}
+                    onSelectOrder={selectIncomingOrder}
+                    onAccept={async (orderFromModal) => {
+                      const acceptTarget = normalizeIncomingOrder(orderFromModal || incomingOrder);
+                      const lockedId = lockedIncomingOrderIdRef.current;
+
+                      if (
+                        lockedId &&
+                        acceptTarget &&
+                        !isSameOrder({ orderMongoId: lockedId, _id: lockedId }, acceptTarget)
+                      ) {
                         console.error(
-                          `[GhostAssignFix] BLOCKED: Attempted to accept order ${acceptingId} but popup shows order ${displayedId}. Aborting.`
+                          `[GhostAssignFix] BLOCKED: locked ${lockedId} but accept target is ${getOrderMongoId(acceptTarget) || getOrderAcceptId(acceptTarget)}`,
                         );
+                        toast.error('Order changed while accepting. Please try again.', { duration: 4000 });
+                        return;
+                      }
+
+                      if (
+                        incomingOrder &&
+                        acceptTarget &&
+                        !isSameOrder(incomingOrder, acceptTarget)
+                      ) {
+                        console.error('[GhostAssignFix] BLOCKED: modal order does not match visible popup.');
                         toast.error('Order mismatch detected. Please try again.', { duration: 4000 });
                         return;
                       }
+
                       try {
-                        await acceptOrder(incomingOrder); // Always use incomingOrder (the locked reference)
-                        // Only dismiss the modal on successful accept
-                        lockedIncomingOrderIdRef.current = null;
-                        setIncomingOrder(null);
-                        setPendingIncomingOrder(null);
-                        clearNewOrder();
+                        await acceptOrder(acceptTarget);
+                        clearAllIncomingOrders();
                       } catch (err) {
-                        // acceptOrder already shows a toast for the specific error:
-                        // - "Order already accepted by another partner" (403)
-                        // - Network/timeout errors
-                        // Keep the modal visible only if it's not a "taken" error
                         const msg = String(err?.response?.data?.message || err?.message || '');
                         const isTaken = msg.toLowerCase().includes('already accepted') || 
                                         msg.toLowerCase().includes('another partner') ||
                                         (err?.response?.status === 403);
                         if (isTaken) {
-                          // Dismiss modal — the order is no longer available
-                          clearIncomingOrderWithLock();
+                          removeClaimedOrderFromQueue(acceptTarget, { notify: false });
                         }
-                        // For other errors (network, etc.), keep showing the modal so they can retry
                       }
                     }}
-                    onReject={clearIncomingOrderWithLock}
+                    onReject={dismissCurrentIncomingOrder}
                     onMinimize={() => setIsModalMinimized(true)}
                   />
                 )}
@@ -1306,7 +1369,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                              </div>
                            )}
                         </div>
-                        <ActionSlider label="Slide to Arrive" successLabel="Arrived ✓" disabled={!isWithinRange} onConfirm={reachDrop} color="bg-blue-600" />
+                        <ActionSlider label="Slide to Arrive" successLabel="Arrived âœ“" disabled={!isWithinRange} onConfirm={reachDrop} color="bg-blue-600" />
                       </div>
                     ) : (
                       <button 
@@ -1363,7 +1426,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
         </AnimatePresence>
       )}
 
-      {/* ─── MODALS RESTORED FROM OLD UI ─── */}
+      {/* â”€â”€â”€ MODALS RESTORED FROM OLD UI â”€â”€â”€ */}
       <BottomPopup isOpen={showEmergencyPopup} title="Emergency Help" onClose={() => setShowEmergencyPopup(false)}>
          <div className="grid gap-4 py-2">
            {emergencyOptions.map((opt, i) => (
@@ -1480,8 +1543,16 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
              className="w-full bg-gray-900/90 text-white rounded-2xl py-4 flex items-center justify-between px-6 shadow-2xl backdrop-blur-md border border-white/10"
            >
               <div className="flex flex-col items-start gap-0.5">
-                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Order Action Pending</span>
-                 <span className="text-xs font-bold uppercase tracking-wider">Tap to open delivery panel</span>
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                   {incomingOrders.length > 1
+                     ? `${incomingOrders.length} orders waiting`
+                     : 'Order Action Pending'}
+                 </span>
+                 <span className="text-xs font-bold uppercase tracking-wider">
+                   {incomingOrders.length > 1
+                     ? 'Tap to choose and accept'
+                     : 'Tap to open delivery panel'}
+                 </span>
               </div>
               <div className="bg-orange-500 p-2 rounded-xl text-white">
                  <Plus className="w-5 h-5" />
@@ -1490,7 +1561,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
         </motion.div>
       )}
 
-      {/* ─── 3. BOTTOM NAV (Fixed - Compact Pro) ─── */}
+      {/* â”€â”€â”€ 3. BOTTOM NAV (Fixed - Compact Pro) â”€â”€â”€ */}
       <div className="bg-white border-t border-gray-100 px-8 py-3 pb-6 flex justify-between items-center z-[200] shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
          <button onClick={() => navigate('/food/delivery/feed')} className={`flex flex-col items-center gap-1 transition-all ${currentTab === 'feed' ? 'text-gray-950 scale-110' : 'text-gray-400 opacity-70'}`}>
             <LayoutGrid className="w-6 h-6" /><span className="text-[11px] font-medium font-sans">Feed</span>

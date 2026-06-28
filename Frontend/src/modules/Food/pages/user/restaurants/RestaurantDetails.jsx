@@ -5,8 +5,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { restaurantAPI, diningAPI, orderAPI } from "@food/api"
 import { API_BASE_URL } from "@food/api/config"
 import { toast } from "sonner"
-import { useLocation } from "@food/hooks/useLocation"
-import { useZone } from "@food/hooks/useZone"
+import { useAppLocation } from "@food/hooks/useAppLocation"
 import {
   ArrowLeft,
   Search,
@@ -118,8 +117,7 @@ function RestaurantDetailsContent() {
   const BACKEND_ORIGIN = useMemo(() => API_BASE_URL.replace(/\/api\/?$/, ""), [])
   const { addToCart, updateQuantity, removeFromCart, getCartItem, cart } = useCart()
   const { vegMode, vegModeOption, addDishFavorite, removeDishFavorite, isDishFavorite, getDishFavorites, getFavorites, addFavorite, removeFavorite, isFavorite } = useProfile()
-  const { location: userLocation } = useLocation() // Get user's current location
-  const { zoneId, zone, loading: loadingZone, isOutOfService } = useZone(userLocation) // Get user's zone for zone-based filtering
+  const { location: userLocation, zoneId, zone, loading: loadingZone, isOutOfService } = useAppLocation()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [highlightIndex, setHighlightIndex] = useState(0)
   const [quantities, setQuantities] = useState({})
@@ -619,7 +617,7 @@ function RestaurantDetailsContent() {
           // Load outlet timings asynchronously without blocking the main render flow
           const outletRestaurantId = transformedRestaurant.mongoId || actualRestaurant?._id || apiRestaurant?._id;
           if (outletRestaurantId) {
-            restaurantAPI.getOutletTimingsByRestaurantId(outletRestaurantId, { noCache: true })
+            restaurantAPI.getOutletTimingsByRestaurantId(outletRestaurantId)
               .then(outletResponse => {
                 const outletTimingsData = outletResponse?.data?.data?.outletTimings || outletResponse?.data?.outletTimings;
                 if (outletTimingsData) {
@@ -762,7 +760,7 @@ function RestaurantDetailsContent() {
               for (const lookupId of normalizedLookupIds) {
                 try {
                   debugLog('? Fetching menu for restaurant lookup ID:', lookupId)
-                  const response = await restaurantAPI.getMenuByRestaurantId(lookupId, { noCache: true })
+                  const response = await restaurantAPI.getMenuByRestaurantId(lookupId)
                   if (response?.data?.success) {
                     menuResponse = response
                     resolvedMenuLookupId = lookupId

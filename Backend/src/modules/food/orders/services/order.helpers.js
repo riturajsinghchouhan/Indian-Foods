@@ -185,10 +185,14 @@ export function buildDeliverySocketPayload(orderDoc, restaurantDoc = null) {
     .map((v) => String(v || '').trim())
     .filter(Boolean);
 
+  const orderMongoId =
+    orderDoc?._id?.toString?.() || order?._id?.toString?.() || order?._id;
+  const displayOrderId = order?.order_id || orderMongoId;
+
   return {
-    orderMongoId:
-      orderDoc?._id?.toString?.() || order?._id?.toString?.() || order?._id,
-    orderId: order?.order_id || order?._id?.toString?.(),
+    _id: orderMongoId,
+    orderMongoId,
+    orderId: displayOrderId,
     status: orderDoc?.orderStatus || order?.orderStatus,
     items: order?.items || [],
     pricing: order?.pricing,

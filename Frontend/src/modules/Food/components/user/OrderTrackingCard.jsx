@@ -34,6 +34,10 @@ const CookingAnimation = memo(() => (
 
 import { useOrders } from "@food/context/OrdersContext";
 import { orderAPI } from "@food/api";
+import {
+  patchOrderFromSocketPayload,
+  socketPayloadNeedsRefetch,
+} from "@food/utils/orderSocketPatch";
 
 const getOrderKey = (order) => order?.id || order?._id || order?.orderId || null;
 
@@ -181,7 +185,10 @@ function OrderTrackingCardInner({ hasBottomNav = true }) {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 30000);
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      fetchOrders();
+    }, 90000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
@@ -239,17 +246,14 @@ function OrderTrackingCardInner({ hasBottomNav = true }) {
 
       const snap = activeOrderSnapshotRef.current;
 
-      setActiveOrderOverride((prev) => ({
-        ...(prev || snap || {}),
-        orderStatus: detail?.orderStatus || prev?.orderStatus || snap?.orderStatus,
-        deliveryState: detail?.deliveryState
-          ? { ...(prev?.deliveryState || snap?.deliveryState || {}), ...detail.deliveryState }
-          : prev?.deliveryState || snap?.deliveryState,
-        status: detail?.status || prev?.status || snap?.status,
-      }));
+      setActiveOrderOverride((prev) =>
+        patchOrderFromSocketPayload(prev || snap || {}, detail),
+      );
 
+      const needsRefetch = socketPayloadNeedsRefetch(detail, detail?.orderStatus);
       const now = Date.now();
-      if (now - lastRefreshRef.current < 1500) return;
+      if (!needsRefetch) return;
+      if (now - lastRefreshRef.current < 30000) return;
       lastRefreshRef.current = now;
 
       try {

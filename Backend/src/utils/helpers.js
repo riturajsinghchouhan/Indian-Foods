@@ -1,6 +1,18 @@
+export const parseQueryLimit = (raw, fallback = 100, max = 1000) => {
+    const parsed = parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+    return Math.min(parsed, max);
+};
+
+export const parseQueryPage = (raw, fallback = 1) => {
+    const parsed = parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+    return parsed;
+};
+
 export const buildPaginationOptions = (query) => {
-    const page = Math.max(parseInt(query.page, 10) || 1, 1);
-    const limit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
+    const page = parseQueryPage(query.page, 1);
+    const limit = parseQueryLimit(query.limit, 20, 100);
     const skip = (page - 1) * limit;
 
     return { page, limit, skip };

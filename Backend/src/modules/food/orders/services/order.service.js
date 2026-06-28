@@ -1215,6 +1215,10 @@ export async function updateOrderStatusRestaurant(
         orderMongoId: order._id?.toString?.(),
         orderId: order._id.toString(),
         orderStatus: order.orderStatus,
+        deliveryState: order.deliveryState,
+        deliveryVerification:
+          order.deliveryVerification?.toObject?.() || order.deliveryVerification,
+        dispatch: order.dispatch,
         title,
         message: body,
       };

@@ -5,8 +5,7 @@ import { motion } from "framer-motion";
 import { adminAPI } from "@food/api";
 import { foodImages } from "@food/constants/images";
 import OptimizedImage from "@food/components/OptimizedImage";
-import { useLocation } from "@food/hooks/useLocation";
-import { useZone } from "@food/hooks/useZone";
+import { useAppLocation } from "@food/hooks/useAppLocation"
 import useAppBackNavigation from "@food/hooks/useAppBackNavigation";
 import { API_BASE_URL } from "@food/api/config";
 
@@ -16,8 +15,7 @@ export default function Categories() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const { location } = useLocation();
-  const { zoneId } = useZone(location);
+  const { location, zoneId } = useAppLocation();
 
   const BACKEND_ORIGIN = useMemo(() => API_BASE_URL.replace(/\/api\/?$/, ""), []);
 

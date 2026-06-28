@@ -969,7 +969,12 @@ function NewOrders({ onSelectOrder }) {
     };
 
     fetchOrders();
-    intervalId = setInterval(fetchOrders, 10000);
+    const pollMs =
+      typeof window !== 'undefined' && window.restaurantSocketConnected ? 45000 : 15000;
+    intervalId = setInterval(() => {
+      if (document.hidden) return;
+      fetchOrders();
+    }, pollMs);
 
     return () => {
       isMounted = false;
@@ -1068,7 +1073,12 @@ function AllOrders({ onSelectOrder, onCancel }) {
     };
 
     fetchOrders();
-    intervalId = setInterval(fetchOrders, 10000);
+    const pollMs =
+      typeof window !== 'undefined' && window.restaurantSocketConnected ? 45000 : 15000;
+    intervalId = setInterval(() => {
+      if (document.hidden) return;
+      fetchOrders();
+    }, pollMs);
     countdownIntervalId = setInterval(() => {
       if (isMounted) {
         setCurrentTime(new Date());
@@ -4135,8 +4145,8 @@ function PreparingOrders({
 
     // Auto-refresh every 15s to pick up OTP once rider arrives
     const pollIntervalId = setInterval(() => {
-      if (isMounted) fetchOrders();
-    }, 15000);
+      if (isMounted && !document.hidden) fetchOrders();
+    }, typeof window !== 'undefined' && window.restaurantSocketConnected ? 45000 : 20000);
 
     // Update countdown every second
     const countdownIntervalId = setInterval(() => {
@@ -4442,8 +4452,8 @@ function ReadyOrders({ onSelectOrder, refreshToken = 0 }) {
 
     // Auto-refresh every 15s to pick up OTP once rider arrives
     const pollIntervalId = setInterval(() => {
-      if (isMounted) fetchOrders();
-    }, 15000);
+      if (isMounted && !document.hidden) fetchOrders();
+    }, typeof window !== 'undefined' && window.restaurantSocketConnected ? 45000 : 20000);
 
     return () => {
       isMounted = false;

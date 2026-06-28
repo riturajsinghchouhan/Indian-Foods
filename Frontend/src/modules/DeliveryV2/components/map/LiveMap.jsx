@@ -106,9 +106,31 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
 
   useEffect(() => { if (map) map.setZoom(zoom); }, [zoom, map]);
 
+  const isOffCurrentRoute = useMemo(() => {
+    if (!directions || !parsedRiderLocation || !window.google?.maps?.geometry) return false;
+    const fullPath = directions.routes?.[0]?.overview_path;
+    if (!fullPath?.length) return false;
+
+    const riderLatLng = new window.google.maps.LatLng(
+      parsedRiderLocation.lat,
+      parsedRiderLocation.lng,
+    );
+    let minDistance = Infinity;
+    for (let i = 0; i < fullPath.length; i += 1) {
+      const distance = window.google.maps.geometry.spherical.computeDistanceBetween(
+        riderLatLng,
+        fullPath[i],
+      );
+      if (distance < minDistance) minDistance = distance;
+    }
+    return minDistance > 100;
+  }, [directions, parsedRiderLocation]);
+
   const shouldUpdateRoute = useMemo(() => {
     const now = Date.now();
     if (!directions) return true;
+    if (isOffCurrentRoute) return true;
+
     let throttleMs = 20000;
     if (parsedRiderLocation && targetLocation && window.google) {
       try {
@@ -121,7 +143,7 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
       } catch (e) {}
     }
     return (now - lastDirectionsAt) >= throttleMs;
-  }, [lastDirectionsAt, directions, parsedRiderLocation, targetLocation]);
+  }, [lastDirectionsAt, directions, parsedRiderLocation, targetLocation, isOffCurrentRoute]);
 
   useEffect(() => {
     if (directions && onPathReceived) {
@@ -140,7 +162,9 @@ export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineRecei
     if (status === 'OK' && result) {
       setDirections(result);
       setLastDirectionsAt(Date.now());
-      const encodedPolyline = result.routes[0]?.overview_polyline;
+      const rawPolyline = result.routes?.[0]?.overview_polyline;
+      const encodedPolyline =
+        typeof rawPolyline === 'string' ? rawPolyline : rawPolyline?.points || '';
       if (encodedPolyline && onPolylineReceived) onPolylineReceived(encodedPolyline);
     }
   }, [onPolylineReceived]);

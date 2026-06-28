@@ -15,6 +15,7 @@ import {
     categoryAllowsFoodType,
     GLOBAL_CATEGORY_FILTER
 } from '../../shared/categoryWorkflow.js';
+import { parseQueryLimit, parseQueryPage } from '../../../../utils/helpers.js';
 
 const toStr = (v) => (v != null ? String(v).trim() : '');
 const APPROVED_CATEGORY_FILTER = [
@@ -489,4 +490,64 @@ export async function deleteFood(userId, foodId) {
     }
     await FoodItem.findByIdAndDelete(foodId);
     return { success: true, message: "Food item deleted successfully" };
+}
+
+/** Public: approved food items for user app (zone-scoped, paginated). */
+export async function listPublicApprovedFoods(query = {}) {
+    const limit = parseQueryLimit(query.limit, 100, 1000);
+    const page = parseQueryPage(query.page, 1);
+    const skip = (page - 1) * limit;
+
+    const filter = {
+        approvalStatus: 'approved',
+        isAvailable: { $ne: false }
+    };
+
+    const zoneIdRaw = String(query.zoneId || '').trim();
+    if (zoneIdRaw && mongoose.Types.ObjectId.isValid(zoneIdRaw)) {
+        const zoneRestaurants = await FoodRestaurant.distinct('_id', {
+            zoneId: new mongoose.Types.ObjectId(zoneIdRaw),
+            status: 'approved'
+        });
+        filter.restaurantId = { $in: zoneRestaurants };
+    }
+
+    const [list, total] = await Promise.all([
+        FoodItem.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean(),
+        FoodItem.countDocuments(filter)
+    ]);
+
+    const restaurantIds = Array.from(
+        new Set(list.map((f) => String(f.restaurantId)).filter(Boolean))
+    );
+    const restaurants = restaurantIds.length
+        ? await FoodRestaurant.find({ _id: { $in: restaurantIds } })
+            .select('restaurantName')
+            .lean()
+        : [];
+    const restaurantMap = new Map(
+        restaurants.map((r) => [String(r._id), r.restaurantName])
+    );
+
+    const foods = list.map((f) => ({
+        id: f._id,
+        _id: f._id,
+        restaurantId: f.restaurantId,
+        restaurantName: restaurantMap.get(String(f.restaurantId)) || '',
+        categoryId: f.categoryId || null,
+        categoryName: f.categoryName || '',
+        name: f.name,
+        description: f.description || '',
+        price: getFoodDisplayPrice(f),
+        image: f.image || '',
+        foodType: f.foodType || 'Non-Veg',
+        isAvailable: f.isAvailable !== false,
+        approvalStatus: f.approvalStatus || 'approved'
+    }));
+
+    return { foods, total, page, limit };
 }

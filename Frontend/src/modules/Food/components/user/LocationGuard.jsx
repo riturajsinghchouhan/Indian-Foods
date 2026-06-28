@@ -1,31 +1,23 @@
-import React, { useEffect } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
+﻿import React, { useEffect } from 'react'
+import { useDispatch } from 'react-redux'
 import { setLocation } from '@/app/slices/locationSlice'
-import { useLocation } from '@food/hooks/useLocation'
-import { useZone } from '@food/hooks/useZone'
-
+import { useLocationContext } from '@food/context/locationContext'
 
 export default function LocationGuard({ children }) {
   const dispatch = useDispatch()
-  const { isLocationResolved } = useSelector((state) => state.location)
-  
-  // We only use the hooks here ONCE globally.
-  const { location: coords, loading: locationLoading } = useLocation()
-  const { zoneId, zoneStatus } = useZone(coords)
+  const ctx = useLocationContext()
 
   useEffect(() => {
-    // Unblock the app once location is fetched (or fallback is provided) 
-    // AND zone status is determined (not 'loading').
-    if (coords && !locationLoading && zoneStatus !== 'loading') {
+    if (!ctx) return
+    const { location, zoneId, zoneStatus, loading } = ctx
+    if (location && !loading && zoneStatus !== 'loading') {
       dispatch(setLocation({
-        coords,
+        coords: location,
         zoneId: zoneId || null,
-        address: coords?.address || coords?.formattedAddress || ''
+        address: location?.address || location?.formattedAddress || ''
       }))
     }
-  }, [coords, zoneId, zoneStatus, locationLoading, dispatch])
-
-
+  }, [ctx?.location, ctx?.zoneId, ctx?.zoneStatus, ctx?.loading, dispatch, ctx])
 
   return children
 }

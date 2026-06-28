@@ -515,6 +515,7 @@ export const useRestaurantNotifications = () => {
   useEffect(() => {
     if (!API_BASE_URL || !String(API_BASE_URL).trim()) {
       setIsConnected(false);
+      if (typeof window !== 'undefined') window.restaurantSocketConnected = false;
       return;
     }
     if (!restaurantId) {
@@ -567,6 +568,7 @@ export const useRestaurantNotifications = () => {
       debugError('?? API_BASE_URL:', API_BASE_URL);
       debugError('?? Expected format: https://your-domain.com or ');
       setIsConnected(false);
+      if (typeof window !== 'undefined') window.restaurantSocketConnected = false;
       return; // Don't try to connect with invalid URL
     }
     
@@ -596,6 +598,7 @@ export const useRestaurantNotifications = () => {
         debugError('?? Socket URL:', socketUrl);
         debugError('?? This should have been caught earlier, but blocking anyway');
         setIsConnected(false);
+      if (typeof window !== 'undefined') window.restaurantSocketConnected = false;
         return;
       }
     } catch (urlError) {
@@ -604,6 +607,7 @@ export const useRestaurantNotifications = () => {
       debugError('?? Backend URL:', backendUrl);
       debugError('?? API_BASE_URL:', API_BASE_URL);
       setIsConnected(false);
+      if (typeof window !== 'undefined') window.restaurantSocketConnected = false;
       return; // Don't try to connect with invalid URL
     }
     
@@ -638,6 +642,7 @@ export const useRestaurantNotifications = () => {
       debugLog('? Socket ID:', socketRef.current.id);
       debugLog('? Socket URL:', socketUrl);
       setIsConnected(true);
+      if (typeof window !== 'undefined') window.restaurantSocketConnected = true;
       
       // Join restaurant room immediately after connection with retry
       if (restaurantId) {
@@ -688,12 +693,14 @@ export const useRestaurantNotifications = () => {
         debugWarn('?? Add frontend URL to CORS_ORIGIN in backend .env');
       }
       setIsConnected(false);
+      if (typeof window !== 'undefined') window.restaurantSocketConnected = false;
     });
 
     // Listen for disconnection
     socketRef.current.on('disconnect', (reason) => {
       debugLog('? Restaurant Socket disconnected:', reason);
       setIsConnected(false);
+      if (typeof window !== 'undefined') window.restaurantSocketConnected = false;
       
       if (reason === 'io server disconnect') {
         // Server disconnected the socket, reconnect manually
@@ -710,6 +717,7 @@ export const useRestaurantNotifications = () => {
     socketRef.current.on('reconnect', (attemptNumber) => {
       debugLog(`? Reconnected after ${attemptNumber} attempts`);
       setIsConnected(true);
+      if (typeof window !== 'undefined') window.restaurantSocketConnected = true;
       
       // Rejoin restaurant room after reconnection
       if (restaurantId) {

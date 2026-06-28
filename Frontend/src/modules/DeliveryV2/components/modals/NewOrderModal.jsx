@@ -4,14 +4,20 @@ import { User, MapPin, FastForward, Clock, Phone, ChefHat, ChevronDown } from 'l
 import { ActionSlider } from '@/modules/DeliveryV2/components/ui/ActionSlider';
 import { useDeliveryStore } from '@/modules/DeliveryV2/store/useDeliveryStore';
 import { getHaversineDistance, calculateETA } from '@/modules/DeliveryV2/utils/geo';
+import { getOrderMongoId, getOrderDisplayId, isSameOrder } from '@food/utils/orderDispatchId';
 
 /**
  * NewOrderModal - Ported to Original 1:1 Theme with Slider Accept.
  * Matches the Zomato/Swiggy style Green Header + White Card.
  */
-export const NewOrderModal = ({ order, onAccept, onReject, onMinimize }) => {
+export const NewOrderModal = ({ order, queuedOrders = [], onSelectOrder, onAccept, onReject, onMinimize }) => {
   const { riderLocation } = useDeliveryStore();
   const [timeLeft, setTimeLeft] = useState(30);
+  const orderKey = getOrderMongoId(order) || getOrderDisplayId(order);
+
+  useEffect(() => {
+    setTimeLeft(30);
+  }, [orderKey]);
 
   useEffect(() => {
     if (timeLeft <= 0) {
@@ -147,6 +153,48 @@ export const NewOrderModal = ({ order, onAccept, onReject, onMinimize }) => {
           </div>
         </div>
 
+        {queuedOrders.length > 1 && (
+          <div className="px-4 sm:px-6 py-3 bg-gray-50 border-b border-gray-100">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+              {queuedOrders.length} orders available — tap to switch
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {queuedOrders.map((queuedOrder, index) => {
+                const queuedId = getOrderMongoId(queuedOrder) || getOrderDisplayId(queuedOrder);
+                const isActive = isSameOrder(queuedOrder, order);
+                const earnings =
+                  queuedOrder.earnings ||
+                  queuedOrder.riderEarning ||
+                  queuedOrder.pricing?.deliveryFee ||
+                  0;
+                const label =
+                  getOrderDisplayId(queuedOrder) ||
+                  `Order ${index + 1}`;
+
+                return (
+                  <button
+                    key={queuedId || `order-${index}`}
+                    type="button"
+                    onClick={() => onSelectOrder?.(queuedOrder)}
+                    className={`shrink-0 rounded-2xl px-4 py-2.5 border text-left transition-all ${
+                      isActive
+                        ? 'bg-gray-900 text-white border-gray-900 shadow-lg'
+                        : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="block text-[10px] font-bold uppercase tracking-wider opacity-80">
+                      {label.length > 12 ? `${label.slice(0, 12)}…` : label}
+                    </span>
+                    <span className="block text-sm font-bold mt-0.5">
+                      ₹{Number(earnings || 0).toFixed(0)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Info Body */}
         <div className="p-4 sm:p-8 pb-6 sm:pb-12 space-y-5 sm:space-y-10 overflow-y-auto max-h-[78vh]">
           <div className="flex gap-3 sm:gap-6">
@@ -205,6 +253,7 @@ export const NewOrderModal = ({ order, onAccept, onReject, onMinimize }) => {
         {/* Action Area */}
           <div className="space-y-4 sm:space-y-6 pt-1 sm:pt-2">
             <ActionSlider 
+              key={orderKey}
               label="Slide to Accept" 
               onConfirm={() => onAccept(order)} 
               color="bg-black"

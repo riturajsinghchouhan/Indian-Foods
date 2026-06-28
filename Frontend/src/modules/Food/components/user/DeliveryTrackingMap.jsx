@@ -6,10 +6,9 @@ import {
   DirectionsService, 
   Polyline
 } from '@react-google-maps/api';
-import io from 'socket.io-client';
-import { API_BASE_URL } from '@food/api/config';
 import bikeLogo from '@food/assets/bikelogo.png';
-import { subscribeOrderTracking } from '@food/realtimeTracking';
+import useOrderLocationSubscription from '@food/hooks/useOrderLocationSubscription';
+import { subscribeLocationUpdates } from '@food/utils/userSocketManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigation } from 'lucide-react';
 
@@ -32,7 +31,35 @@ const CUSTOMER_PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="48" hei
   <circle cx="12" cy="9" r="3" fill="#FFFFFF"/>
 </svg>`;
 
-const debugLog = (...args) => console.log('[DeliveryTrackingMap]', ...args);
+function normEncodedPolyline(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  return value.points || value.encodedPath || '';
+}
+
+function distanceToPathMeters(path, riderLatLng) {
+  if (!path?.length || !riderLatLng || !window.google?.maps?.geometry?.spherical) return Infinity;
+  const rider = new window.google.maps.LatLng(riderLatLng.lat, riderLatLng.lng);
+  let minDist = Infinity;
+  for (const pt of path) {
+    const lat = typeof pt.lat === 'function' ? pt.lat() : pt.lat;
+    const lng = typeof pt.lng === 'function' ? pt.lng() : pt.lng;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    const d = window.google.maps.geometry.spherical.computeDistanceBetween(
+      rider,
+      new window.google.maps.LatLng(lat, lng),
+    );
+    if (d < minDist) minDist = d;
+  }
+  return minDist;
+}
+
+const OFF_ROUTE_THRESHOLD_M = 120;
+const LIVE_ROUTE_RECALC_MS = 15000;
+
+const debugLog = (...args) => {
+  if (import.meta.env.DEV) console.log('[DeliveryTrackingMap]', ...args);
+};
 
 /**
  * Given a full route path (array of LatLng) and rider's current position,
@@ -96,13 +123,16 @@ const DeliveryTrackingMap = ({
    * When present, we decode it and use it as the fullRoutePath instead.
    */
   const [cloudPolyline, setCloudPolyline] = useState(null);
+  const [liveRouteRequestKey, setLiveRouteRequestKey] = useState(0);
 
   const [smoothLocation, setSmoothLocation] = useState(null);
-  const socketRef = useRef(null);
   const interpStateRef = useRef({ lastPos: null, nextPos: null, startTime: 0, durationMs: 1500 });
   const lastUpdateAtRef = useRef(0);
   const lastSmoothSetRef = useRef(0);
   const baselineRequestedRef = useRef(false);
+  const lastEncodedPolylineRef = useRef('');
+  const lastLiveRouteAtRef = useRef(0);
+  const liveRouteOriginRef = useRef(null);
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
@@ -124,9 +154,7 @@ const DeliveryTrackingMap = ({
     return [...new Set(ids)];
   }, [orderId, orderTrackingIds]);
 
-  const backendUrl = useMemo(() => {
-    return (API_BASE_URL || '').replace(/\/api\/v1\/?$/i, '').replace(/\/api\/?$/i, '');
-  }, []);
+  useOrderLocationSubscription(trackingIds, { enabled: trackingIds.length > 0 });
 
   // 1. Initial State from Order Payload
   useEffect(() => {
@@ -140,78 +168,61 @@ const DeliveryTrackingMap = ({
     }
   }, [order, riderLocation]);
 
-  // 2. Core Data Sync (Socket + Firebase)
+  // 2. Live location via shared user socket (single connection, no Firebase)
   useEffect(() => {
-    if (!trackingIds.length) return;
+    if (!trackingIds.length) return undefined;
 
-    // A. FIREBASE FALLBACK
-    const unsubs = trackingIds.map(id => subscribeOrderTracking(id, (data) => {
-      const lat = Number(data?.lat ?? data?.boy_lat);
-      const lng = Number(data?.lng ?? data?.boy_lng);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        setRiderLocation(prev => ({
-          lat,
-          lng,
-          heading: Number(data?.heading ?? data?.bearing ?? prev?.heading ?? 0)
-        }));
-      }
+    const applyLocationPayload = (data) => {
+      const dataOrderId =
+        data?.orderId || data?.order_id || data?.trackingId || data?.order?.id || data?.order?._id;
+      const matchedId = dataOrderId
+        ? trackingIds.find((id) => String(id) === String(dataOrderId))
+        : trackingIds.length === 1
+          ? trackingIds[0]
+          : null;
+      const lat = Number(
+        data?.lat ?? data?.boy_lat ?? data?.location?.lat ?? data?.location?.coordinates?.[1],
+      );
+      const lng = Number(
+        data?.lng ?? data?.boy_lng ?? data?.location?.lng ?? data?.location?.coordinates?.[0],
+      );
 
-      // Sync Cloud Polyline and ETA from driver's Firebase push
+      if (!data || !matchedId || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      const nextPos = {
+        lat,
+        lng,
+        heading: Number(data?.heading ?? data?.bearing ?? data?.location?.heading ?? 0),
+      };
+      const now = Date.now();
+      const delta = Math.max(300, Math.min(now - (lastUpdateAtRef.current || now), 4000));
+      lastUpdateAtRef.current = now;
+
+      interpStateRef.current = {
+        lastPos: interpStateRef.current.nextPos || nextPos,
+        nextPos,
+        startTime: now,
+        durationMs: delta,
+      };
+
+      setRiderLocation(nextPos);
+
       if (data?.polyline) {
-        debugLog('📡 Received Cloud Polyline for live path');
-        setCloudPolyline(data.polyline);
+        const encoded = normEncodedPolyline(data.polyline);
+        if (encoded && encoded !== lastEncodedPolylineRef.current) {
+          lastEncodedPolylineRef.current = encoded;
+          setCloudPolyline(encoded);
+          debugLog('📡 Route polyline updated from rider');
+        }
       }
       if (data?.eta) {
-        debugLog('⏱️ Received real-time ETA:', data.eta);
         setCurrentEta(data.eta);
-        if (onEtaUpdate) onEtaUpdate(data.eta);
+        onEtaUpdate?.(data.eta);
       }
-    }));
-
-    // B. SOCKET.IO REALTIME
-    const token = localStorage.getItem('user_accessToken') || localStorage.getItem('accessToken') || '';
-    socketRef.current = io(backendUrl, {
-      transports: ['websocket'],
-      auth: { token }
-    });
-
-    socketRef.current.on('connect', () => {
-      trackingIds.forEach(id => socketRef.current.emit('join-tracking', id));
-    });
-
-    socketRef.current.on('location-update', (data) => {
-      const dataOrderId = data?.orderId || data?.order_id || data?.trackingId || data?.order?.id || data?.order?._id;
-      const matchedId = dataOrderId
-        ? trackingIds.find(id => String(id) === String(dataOrderId))
-        : (trackingIds.length === 1 ? trackingIds[0] : null);
-      const lat = Number(data?.lat ?? data?.boy_lat ?? data?.location?.lat ?? data?.location?.coordinates?.[1]);
-      const lng = Number(data?.lng ?? data?.boy_lng ?? data?.location?.lng ?? data?.location?.coordinates?.[0]);
-      if (data && matchedId && Number.isFinite(lat) && Number.isFinite(lng)) {
-        const nextPos = {
-          lat,
-          lng,
-          heading: Number(data?.heading ?? data?.bearing ?? data?.location?.heading ?? 0)
-        };
-        const now = Date.now();
-        const delta = Math.max(300, Math.min(now - (lastUpdateAtRef.current || now), 4000));
-        lastUpdateAtRef.current = now;
-
-        interpStateRef.current = {
-          lastPos: interpStateRef.current.nextPos || nextPos,
-          nextPos: nextPos,
-          startTime: now,
-          durationMs: delta
-        };
-
-        setRiderLocation(nextPos);
-      }
-    });
-
-    return () => {
-      unsubs.forEach(u => u?.());
-      socketRef.current?.disconnect();
     };
-  }, [trackingIds, backendUrl]);
+
+    return subscribeLocationUpdates(applyLocationPayload);
+  }, [trackingIds, onEtaUpdate]);
 
   // 3. Smooth Animation Loop (60 FPS Glide)
   useEffect(() => {
@@ -248,17 +259,17 @@ const DeliveryTrackingMap = ({
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  // 4. When cloudPolyline updates: decode & store as fullRoutePath
+  // 4. When cloudPolyline updates: decode & replace fullRoutePath
   useEffect(() => {
     if (!cloudPolyline || !isLoaded || !window.google?.maps?.geometry?.encoding) return;
     try {
-      const decoded = window.google.maps.geometry.encoding.decodePath(
-        typeof cloudPolyline === 'string' ? cloudPolyline : (cloudPolyline.points || '')
-      );
+      const encoded = normEncodedPolyline(cloudPolyline);
+      if (!encoded) return;
+      const decoded = window.google.maps.geometry.encoding.decodePath(encoded);
       const plain = decoded.map(normPt).filter(Boolean);
       if (plain.length > 1) {
         setFullRoutePath(plain);
-        debugLog(`🗺️ Cloud polyline decoded: ${plain.length} points`);
+        debugLog(`🗺️ Rider polyline applied: ${plain.length} points`);
       }
     } catch (e) {
       debugLog('Cloud polyline decode error:', e);
@@ -268,7 +279,43 @@ const DeliveryTrackingMap = ({
   const displayRiderLocation = smoothLocation || riderLocation;
 
   const tripStatus = order?.status || order?.orderStatus || 'pending';
-  const isOrderPickedUp = ['picked_up', 'out_for_delivery', 'delivered'].includes(tripStatus.toLowerCase());
+  const isOrderPickedUp = ['picked_up', 'out_for_delivery', 'delivered'].includes(
+    tripStatus.toLowerCase(),
+  );
+
+  const routeDestination = useMemo(() => {
+    if (isOrderPickedUp) return customerCoords || null;
+    return restaurantCoords || null;
+  }, [isOrderPickedUp, customerCoords, restaurantCoords]);
+
+  const isRiderOffRoute = useMemo(() => {
+    if (!fullRoutePath?.length || !displayRiderLocation || !isLoaded) return false;
+    return distanceToPathMeters(fullRoutePath, displayRiderLocation) > OFF_ROUTE_THRESHOLD_M;
+  }, [fullRoutePath, displayRiderLocation, isLoaded]);
+
+  // Recalculate rider → destination when driver leaves the current polyline
+  useEffect(() => {
+    if (!isRiderOffRoute || !displayRiderLocation || !routeDestination) return undefined;
+    const now = Date.now();
+    if (now - lastLiveRouteAtRef.current < LIVE_ROUTE_RECALC_MS) return undefined;
+
+    lastLiveRouteAtRef.current = now;
+    liveRouteOriginRef.current = {
+      lat: displayRiderLocation.lat,
+      lng: displayRiderLocation.lng,
+    };
+    setLiveRouteRequestKey((key) => key + 1);
+    debugLog('🔁 Rider off-route — requesting fresh directions');
+    return undefined;
+  }, [isRiderOffRoute, displayRiderLocation, routeDestination]);
+
+  useEffect(() => {
+    baselineRequestedRef.current = false;
+    lastEncodedPolylineRef.current = '';
+    lastLiveRouteAtRef.current = 0;
+    setCloudPolyline(null);
+    setFullRoutePath(null);
+  }, [orderId, isOrderPickedUp]);
 
   // 5. Smart camera: fit bounds
   const lastCameraUpdateRef = useRef({ time: 0, status: null });
@@ -312,13 +359,50 @@ const DeliveryTrackingMap = ({
   }, [currentEta, onEtaUpdate]);
 
   const baselineDirectionsOptions = useMemo(() => {
-    if (!restaurantCoords || !customerCoords || cloudPolyline) return null;
+    if (!restaurantCoords || !customerCoords) return null;
+    if (fullRoutePath?.length) return null;
     return {
       origin: restaurantCoords,
       destination: customerCoords,
-      travelMode: 'DRIVING'
+      travelMode: 'DRIVING',
     };
-  }, [restaurantCoords?.lat, restaurantCoords?.lng, customerCoords?.lat, customerCoords?.lng, cloudPolyline]);
+  }, [
+    restaurantCoords?.lat,
+    restaurantCoords?.lng,
+    customerCoords?.lat,
+    customerCoords?.lng,
+    fullRoutePath?.length,
+  ]);
+
+  const liveRiderDirectionsOptions = useMemo(() => {
+    const origin = liveRouteOriginRef.current;
+    if (!origin || !routeDestination || !isRiderOffRoute) return null;
+    return {
+      origin,
+      destination: routeDestination,
+      travelMode: 'DRIVING',
+    };
+  }, [
+    routeDestination?.lat,
+    routeDestination?.lng,
+    isRiderOffRoute,
+    liveRouteRequestKey,
+  ]);
+
+  const liveDirectionsCallback = useCallback((result, status) => {
+    if (status !== 'OK' || !result) return;
+    const rawPath = result.routes?.[0]?.overview_path || [];
+    const plain = rawPath.map(normPt).filter(Boolean);
+    if (plain.length > 1) {
+      setFullRoutePath(plain);
+      debugLog(`✅ Live off-route path: ${plain.length} points`);
+    }
+    const durationText = result?.routes?.[0]?.legs?.[0]?.duration?.text;
+    if (durationText) {
+      setCurrentEta(durationText);
+      onEtaUpdate?.(durationText);
+    }
+  }, [onEtaUpdate]);
 
   /**
    * SPLIT POLYLINE LOGIC:
@@ -384,7 +468,7 @@ const DeliveryTrackingMap = ({
           ]
         }}
       >
-        {/* BASELINE DIRECTIONS API CALL (only needed if no cloudPolyline) */}
+        {/* Initial restaurant → customer route when no rider polyline yet */}
         {!fullRoutePath && baselineDirectionsOptions && !baselineRequestedRef.current && (
           <DirectionsService
             options={baselineDirectionsOptions}
@@ -392,6 +476,15 @@ const DeliveryTrackingMap = ({
               baselineRequestedRef.current = true;
               baselineDirectionsCallback(r, s);
             }}
+          />
+        )}
+
+        {/* Rider deviated — recalculate from current rider position */}
+        {liveRiderDirectionsOptions && (
+          <DirectionsService
+            key={`live-route-${liveRouteRequestKey}`}
+            options={liveRiderDirectionsOptions}
+            callback={liveDirectionsCallback}
           />
         )}
 

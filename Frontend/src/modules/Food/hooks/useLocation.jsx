@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react"
+﻿import { useState, useEffect, useRef } from "react"
+import { useLocationFromContext } from '../context/locationContext';
 import { locationAPI, userAPI } from "@food/api"
 
 const debugLog = (...args) => {}
@@ -187,7 +188,7 @@ const reverseGeocodeDirect = async (latitude, longitude) => {
   return run
 }
 
-export function useLocation() {
+export function useLocationEngine() {
   const [location, setLocation] = useState(() => {
     try {
       if (typeof window !== "undefined") {
@@ -337,8 +338,28 @@ export function useLocation() {
   // Google Places API removed - using OLA Maps only
 
   /* Removed Google Geocoding/Places (maps.googleapis.com). Uses BigDataCloud reverse-geocode only. */
-  const reverseGeocodeWithGoogleMaps = async (latitude, longitude, _options = {}) =>
-    reverseGeocodeDirect(latitude, longitude)
+  const reverseGeocodeWithGoogleMaps = async (latitude, longitude, _options = {}) => {
+    try {
+      const res = await locationAPI.reverseGeocode(latitude, longitude);
+      const loc = res?.data?.data?.location;
+      if (loc?.formattedAddress) {
+        const value = {
+          city: loc.city || '',
+          state: loc.state || '',
+          country: loc.country || 'India',
+          area: loc.area || '',
+          mainTitle: loc.area || loc.city,
+          address: loc.address || loc.formattedAddress,
+          formattedAddress: loc.formattedAddress,
+        };
+        globalReverseGeocodeLastSuccess = value;
+        return value;
+      }
+    } catch (err) {
+      debugWarn('Backend reverse geocode failed, using direct fallback:', err?.message);
+    }
+    return reverseGeocodeDirect(latitude, longitude);
+  }
 
 
   /* ===================== OLA MAPS REVERSE GEOCODE (DEPRECATED - KEPT FOR FALLBACK) ===================== */
@@ -873,7 +894,7 @@ export function useLocation() {
               })
 
               // Validate coordinates are in India range BEFORE attempting geocoding
-              // India: Latitude 6.5� to 37.1� N, Longitude 68.7� to 97.4� E
+              // India: Latitude 6.5ï¿½ to 37.1ï¿½ N, Longitude 68.7ï¿½ to 97.4ï¿½ E
               const isInIndiaRange = latitude >= 6.5 && latitude <= 37.1 && longitude >= 68.7 && longitude <= 97.4 && longitude > 0
 
               // Reverse geocode (BigDataCloud via reverseGeocodeWithGoogleMaps wrapper)
@@ -1173,7 +1194,7 @@ export function useLocation() {
             retryCount = 0
 
             // Validate coordinates are in India range BEFORE attempting geocoding
-            // India: Latitude 6.5� to 37.1� N, Longitude 68.7� to 97.4� E
+            // India: Latitude 6.5ï¿½ to 37.1ï¿½ N, Longitude 68.7ï¿½ to 97.4ï¿½ E
             const isInIndiaRange = latitude >= 6.5 && latitude <= 37.1 && longitude >= 68.7 && longitude <= 97.4 && longitude > 0
 
             // "Geocode once" mode:
@@ -1734,3 +1755,8 @@ export function useLocation() {
   }
 }
 
+
+/** Consumer hook — reads centralized LocationProvider state. */
+export function useLocation() {
+  return useLocationFromContext();
+}

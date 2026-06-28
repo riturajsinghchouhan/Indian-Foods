@@ -14,12 +14,10 @@ import {
 
 // Import shared food images - prevents duplication
 import { foodImages } from "@food/constants/images"
-import api from "@food/api"
-import { restaurantAPI, adminAPI } from "@food/api"
+import api, { restaurantAPI, getPublicCategories, getPublicFoods } from "@food/api"
 import { API_BASE_URL } from "@food/api/config"
 import { useProfile } from "@food/context/ProfileContext"
-import { useLocation } from "@food/hooks/useLocation"
-import { useZone } from "@food/hooks/useZone"
+import { useAppLocation } from "@food/hooks/useAppLocation"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
 import { getMenuFromResponse } from "@food/utils/menuItems"
 import { normalizeImageUrl } from "@food/utils/common"
@@ -43,8 +41,7 @@ export default function CategoryPage() {
   const { category } = useParams()
   const navigate = useNavigate()
   const { vegMode, vegModeOption } = useProfile()
-  const { location } = useLocation()
-  const { zoneId, isOutOfService } = useZone(location)
+  const { location, zoneId, isOutOfService } = useAppLocation()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState(category?.toLowerCase() || 'all')
   const [activeFilters, setActiveFilters] = useState(new Set())
@@ -205,8 +202,10 @@ export default function CategoryPage() {
 
     approvedFoodsInFlightRef.current = (async () => {
       try {
-        const response = await adminAPI.getFoods({ limit: 50 })
-        const list = response?.data?.data?.foods || []
+        const params = { limit: 50 }
+        if (zoneId) params.zoneId = zoneId
+        const data = await getPublicFoods(params)
+        const list = data?.foods || []
         const approvedFoods = Array.isArray(list)
           ? list.filter((food) =>
               String(food?.approvalStatus || "").toLowerCase() === "approved" &&
@@ -228,6 +227,9 @@ export default function CategoryPage() {
   }
 
   useEffect(() => {
+    approvedFoodsCacheRef.current = null
+    approvedFoodsInFlightRef.current = null
+
     let cancelled = false
 
     void (async () => {
@@ -240,7 +242,7 @@ export default function CategoryPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [zoneId])
 
   const buildFallbackMenuFromFoods = (foods, restaurant) => {
     const restaurantIds = new Set(
@@ -549,21 +551,20 @@ export default function CategoryPage() {
     return uniqueByRestaurant(nextRows)
   }
 
-  // Fetch categories from admin API
+  // Fetch categories from public API (cached)
   useEffect(() => {
     let isCancelled = false;
 
     const fetchCategories = async () => {
       try {
         setLoadingCategories(true)
-        const response = await adminAPI.getPublicCategories(zoneId ? { zoneId } : {})
+        const data = await getPublicCategories(zoneId || null)
 
         if (isCancelled) return;
 
-        if (response.data && response.data.success && response.data.data && response.data.data.categories) {
-          const categoriesArray = response.data.data.categories
+        const categoriesArray = data?.categories || []
 
-          // Transform API categories to match expected format
+        if (Array.isArray(categoriesArray) && categoriesArray.length > 0) {
           const transformedCategories = [
             { id: 'all', name: "All", image: null, slug: 'all' },
             ...categoriesArray.map((cat) => ({
@@ -922,7 +923,7 @@ export default function CategoryPage() {
                       let menu = null
                       for (const lookupId of lookupIds) {
                         try {
-                          const menuResponse = await restaurantAPI.getMenuByRestaurantId(lookupId, { noCache: true })
+                          const menuResponse = await restaurantAPI.getMenuByRestaurantId(lookupId)
                           const rawMenu = getMenuFromResponse(menuResponse)
                           const normalizedMenu = normalizeMenu(rawMenu)
                           if (menuResponse?.data?.success && normalizedMenu?.sections?.length > 0) {

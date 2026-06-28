@@ -137,6 +137,26 @@ const userSchema = new mongoose.Schema(
         addresses: {
             type: [userAddressSchema],
             default: []
+        },
+        lastKnownLocation: {
+            type: {
+                type: String,
+                enum: ['Point'],
+                default: 'Point'
+            },
+            coordinates: {
+                type: [Number],
+                default: undefined
+            },
+            latitude: { type: Number },
+            longitude: { type: Number },
+            address: { type: String, trim: true, default: '' },
+            formattedAddress: { type: String, trim: true, default: '' },
+            city: { type: String, trim: true, default: '' },
+            state: { type: String, trim: true, default: '' },
+            area: { type: String, trim: true, default: '' },
+            accuracy: { type: Number },
+            updatedAt: { type: Date }
         }
     },
     {

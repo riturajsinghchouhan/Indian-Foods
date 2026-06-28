@@ -8,6 +8,7 @@ import { FoodDiningRestaurant } from '../../dining/models/diningRestaurant.model
 import Promocode from '../../../../models/Promocode.js';
 import { upsertOutletTimingsForRestaurant } from './outletTimings.service.js';
 import { getDrivingDistances } from '../../../../services/googleMaps.service.js';
+import { parseQueryLimit, parseQueryPage } from '../../../../utils/helpers.js';
 
 const normalizeName = (value) =>
     String(value || '')
@@ -1252,8 +1253,8 @@ export const uploadRestaurantMenuImages = async (restaurantId, files = []) => {
 };
 
 export const listApprovedRestaurants = async (query = {}) => {
-    const limit = Math.min(Math.max(parseInt(query.limit, 10) || 100, 1), 1000);
-    const page = Math.max(parseInt(query.page, 10) || 1, 1);
+    const limit = parseQueryLimit(query.limit, 100, 1000);
+    const page = parseQueryPage(query.page, 1);
     const skip = (page - 1) * limit;
 
     const filter = { status: 'approved' };

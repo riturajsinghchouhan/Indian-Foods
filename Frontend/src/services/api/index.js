@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API layer - auth connected to new backend; rest stubbed for UI compatibility.
  */
 
@@ -80,6 +80,55 @@ const getUserMeOnce = () => {
   }
   return userMeInFlight;
 };
+
+/** Dedupe FCM token POST — skip if same token was saved recently (avoids spam on route changes). */
+function createSaveFcmTokenOnce(client) {
+  const savedAt = new Map();
+  const inFlight = new Map();
+  const TTL_MS = 24 * 60 * 60 * 1000;
+
+  return (token, platform = "web") => {
+    if (!token) return Promise.reject(new Error("FCM token is required"));
+    const normalizedToken = String(token);
+    const normalizedPlatform = platform === "mobile" ? "mobile" : "web";
+    const key = `${normalizedPlatform}:${normalizedToken}`;
+
+    const last = savedAt.get(key);
+    if (last && Date.now() - last < TTL_MS) {
+      return Promise.resolve({
+        data: { success: true, message: "FCM token already saved", deduped: true },
+        status: 200,
+        statusText: "OK",
+        headers: {},
+        config: {},
+      });
+    }
+
+    if (inFlight.has(key)) return inFlight.get(key);
+
+    const path =
+      normalizedPlatform === "mobile"
+        ? "/fcm-tokens/mobile/save"
+        : "/fcm-tokens/save";
+
+    const promise = client
+      .post(path, { token: normalizedToken, platform: normalizedPlatform })
+      .then((res) => {
+        savedAt.set(key, Date.now());
+        return res;
+      })
+      .finally(() => {
+        inFlight.delete(key);
+      });
+
+    inFlight.set(key, promise);
+    return promise;
+  };
+}
+
+const saveUserFcmTokenOnce = createSaveFcmTokenOnce(userClient);
+const saveRestaurantFcmTokenOnce = createSaveFcmTokenOnce(restaurantClient);
+const saveDeliveryFcmTokenOnce = createSaveFcmTokenOnce(deliveryClient);
 
 /** Auth API - user OTP + admin login via new backend */
 export const authAPI = {
@@ -169,14 +218,14 @@ export const adminAPI = {
     return adminClient.put("/food/admin/business-settings", data, config);
   },
   login: (email, password) => authService.adminLogin(email, password),
-  /** POST /auth/admin/forgot-password/request-otp – only accepts registered admin email */
+  /** POST /auth/admin/forgot-password/request-otp â€“ only accepts registered admin email */
   requestForgotPasswordOtp: (email) =>
     adminClient.post("/auth/admin/forgot-password/request-otp", {
       email: String(email || "")
         .trim()
         .toLowerCase(),
     }),
-  /** POST /auth/admin/forgot-password/reset – verify OTP and set new password in one call */
+  /** POST /auth/admin/forgot-password/reset â€“ verify OTP and set new password in one call */
   resetPasswordWithOtp: (email, otp, newPassword) =>
     adminClient.post("/auth/admin/forgot-password/reset", {
       email: String(email || "")
@@ -415,7 +464,7 @@ export const adminAPI = {
     adminClient.patch(`/food/admin/customers/${String(id)}/status`, { isActive: isActive !== false }),
   topupCustomerWallet: (id, amount, description) =>
     adminClient.post(`/food/admin/customers/${String(id)}/wallet-topup`, { amount: Number(amount), description }),
-  /** Orders (admin) – list, get by id, assign delivery partner */
+  /** Orders (admin) â€“ list, get by id, assign delivery partner */
   getOrders: (params = {}) =>
     adminClient.get("/food/admin/orders", { params: { limit: 50, page: 1, ...params } }),
   getOrderById: (orderId) =>
@@ -426,7 +475,7 @@ export const adminAPI = {
     adminClient.patch(`/food/admin/orders/${String(orderId)}/status`, { orderStatus: "cancelled_by_admin", note: reason }),
   deleteOrder: (orderId) =>
     adminClient.delete(`/food/admin/orders/${String(orderId)}`),
-  /** Dispatch settings – auto vs manual assign (global) */
+  /** Dispatch settings â€“ auto vs manual assign (global) */
   /** Create restaurant (admin). Single API: POST /food/admin/restaurants. Body: JSON with image URLs. */
   createRestaurant: (body) =>
     adminClient.post("/food/admin/restaurants", body ?? {}),
@@ -480,12 +529,9 @@ export const adminAPI = {
   /** Public env variables (safe subset). Used for runtime keys like Google Maps. */
   // getPublicEnvVariables removed: rely on import.meta.env instead.
 
-  /** Public categories (user app) - zone-aware */
+  /** Public categories (user app) - zone-aware, cached + deduped */
   getPublicCategories: (params = {}, config = {}) =>
-    userClient.get("/food/restaurant/categories/public", {
-      params: params ?? {},
-      ...config,
-    }),
+    getPublicCategoriesOnce(params, config),
 
   /** Offers & Coupons (admin) */
   getAllOffers: (params = {}) =>
@@ -814,12 +860,7 @@ export const restaurantAPI = {
     restaurantClient.get(`/food/restaurant/orders/${String(orderId)}`),
   updateMenu: (body) =>
     restaurantClient.patch("/food/restaurant/menu", body ?? {}),
-  saveFcmToken: (token, platform = "web") => {
-    if (!token) return Promise.reject(new Error("FCM token is required"));
-    const path =
-      platform === "mobile" ? "/fcm-tokens/mobile/save" : "/fcm-tokens/save";
-    return restaurantClient.post(path, { token: String(token), platform });
-  },
+  saveFcmToken: saveRestaurantFcmTokenOnce,
   removeFcmToken: (token, platform = "web") => {
     if (!token) return Promise.reject(new Error("FCM token is required"));
     return restaurantClient.delete(
@@ -1109,6 +1150,8 @@ function createInFlightCache({ ttlMs }) {
 const publicRestaurantsCache = createInFlightCache({ ttlMs: 300000 }); // 5 minutes
 const publicRestaurantMenuCache = createInFlightCache({ ttlMs: 300000 });
 const publicRestaurantOutletTimingsCache = createInFlightCache({ ttlMs: 300000 });
+const publicCategoriesCache = createInFlightCache({ ttlMs: 300000 });
+const publicFoodsCache = createInFlightCache({ ttlMs: 300000 });
 const publicGenericGetCache = createInFlightCache({ ttlMs: 300000 });
 
 export const publicGetOnce = (url, config = {}) => {
@@ -1133,6 +1176,74 @@ export const publicGetOnce = (url, config = {}) => {
   );
 };
 
+/** Cached public landing settings — shared by Home, BottomNav, DesktopNavbar, Under250. */
+export const getPublicLandingSettings = (zoneId = null) =>
+  publicGetOnce("/food/landing/settings/public", {
+    params: zoneId ? { zoneId } : {},
+  }).then((res) => res?.data?.data ?? res?.data ?? {});
+
+/** Cached explore icons — shared across Home and landing config. */
+export const getPublicExploreIcons = (zoneId = null) =>
+  publicGetOnce("/food/explore-icons/public", {
+    params: zoneId ? { zoneId } : {},
+  }).then((res) => res?.data?.data ?? res?.data ?? {});
+
+const getPublicCategoriesOnce = (params = {}, config = {}) => {
+  const { noCache, ...axiosConfig } = config || {};
+  const keyParams =
+    params && typeof params === "object" ? { ...params } : {};
+  if (keyParams._ts) delete keyParams._ts;
+
+  if (noCache) {
+    return userClient.get("/food/restaurant/categories/public", {
+      params: keyParams,
+      ...axiosConfig,
+    });
+  }
+
+  const key = `categories:${stableStringify(keyParams)}`;
+  return publicCategoriesCache.getOrCreate(key, () =>
+    userClient.get("/food/restaurant/categories/public", {
+      params: keyParams,
+      ...axiosConfig,
+    }),
+  );
+};
+
+/** Cached public categories — shared by Home, CategoryPage, SearchResults, etc. */
+export const getPublicCategories = (zoneId = null, config = {}) =>
+  getPublicCategoriesOnce(zoneId ? { zoneId } : {}, config).then(
+    (res) => res?.data?.data ?? res?.data ?? {},
+  );
+
+const getPublicFoodsOnce = (params = {}, config = {}) => {
+  const { noCache, ...axiosConfig } = config || {};
+  const keyParams =
+    params && typeof params === "object" ? { ...params } : {};
+  if (keyParams._ts) delete keyParams._ts;
+
+  if (noCache) {
+    return userClient.get("/food/restaurant/foods/public", {
+      params: keyParams,
+      ...axiosConfig,
+    });
+  }
+
+  const key = `foods:${stableStringify(keyParams)}`;
+  return publicFoodsCache.getOrCreate(key, () =>
+    userClient.get("/food/restaurant/foods/public", {
+      params: keyParams,
+      ...axiosConfig,
+    }),
+  );
+};
+
+/** Cached public foods — zone-scoped approved items for CategoryPage fallbacks. */
+export const getPublicFoods = (params = {}, config = {}) =>
+  getPublicFoodsOnce(params, config).then(
+    (res) => res?.data?.data ?? res?.data ?? {},
+  );
+
 const getPublicRestaurantsOnce = (params = {}, config = {}) => {
   const { noCache, ...axiosConfig } = config || {};
   if (noCache) {
@@ -1145,6 +1256,13 @@ const getPublicRestaurantsOnce = (params = {}, config = {}) => {
   // `_ts` is an explicit cache-buster in many call sites; ignore it for dedupe purposes.
   if (keyParams && typeof keyParams === "object") {
     delete keyParams._ts;
+    // Round coords so minor GPS jitter does not bust the cache.
+    if (Number.isFinite(Number(keyParams.lat))) {
+      keyParams.lat = Math.round(Number(keyParams.lat) * 100000) / 100000;
+    }
+    if (Number.isFinite(Number(keyParams.lng))) {
+      keyParams.lng = Math.round(Number(keyParams.lng) * 100000) / 100000;
+    }
   }
   const key = `restaurants:${stableStringify(keyParams)}`;
   return publicRestaurantsCache.getOrCreate(key, () =>
@@ -1339,15 +1457,7 @@ export const deliveryAPI = {
     }
     return deliveryClient.patch("/food/delivery/profile/bank-details", formData);
   },
-  saveFcmToken: (token, platform = "web") => {
-    if (!token) return Promise.reject(new Error("FCM token is required"));
-    const path =
-      platform === "mobile" ? "/fcm-tokens/mobile/save" : "/fcm-tokens/save";
-    return deliveryClient.post(
-      path,
-      { token: String(token), platform }
-    );
-  },
+  saveFcmToken: saveDeliveryFcmTokenOnce,
   removeFcmToken: (token, platform = "web") => {
     if (!token) return Promise.reject(new Error("FCM token is required"));
     return deliveryClient.delete(
@@ -1733,24 +1843,14 @@ export const userAPI = {
     userClient.get("/food/user/safety-emergency-reports", {
       params: params ?? {}
     }),
-  /**
-   * Legacy UI compatibility: update "current user location".
-   * We already persist the user's selected location in localStorage in the UI.
-   * Keep this as a no-op success so existing flows don't break.
-   */
-  updateLocation: (_payload) =>
-    Promise.resolve({
-      data: { success: true, message: "Location saved (client)", data: null },
-    }),
+  /** GET /food/user/location (Bearer USER) */
+  getLocation: () => userClient.get("/food/user/location"),
+  /** PUT /food/user/location (Bearer USER) */
+  updateLocation: (payload) =>
+    userClient.put("/food/user/location", payload ?? {}),
   saveFcmToken: (token, options = {}) => {
-    if (!token) return Promise.reject(new Error("FCM token is required"));
     const platform = options?.platform === "mobile" ? "mobile" : "web";
-    const path =
-      platform === "mobile" ? "/fcm-tokens/mobile/save" : "/fcm-tokens/save";
-    return userClient.post(
-      path,
-      { token: String(token), platform }
-    );
+    return saveUserFcmTokenOnce(token, platform);
   },
   removeFcmToken: (token, options = {}) => {
     if (!token) return Promise.reject(new Error("FCM token is required"));
@@ -1771,7 +1871,16 @@ export const userAPI = {
   deleteAccount: () =>
     userClient.delete("/food/user/account"),
 };
-export const locationAPI = createStubAPI();
+export const locationAPI = {
+  /** GET /food/location/reverse-geocode?lat=&lng= (public) */
+  reverseGeocode: (latitude, longitude) =>
+    userClient.get("/food/location/reverse-geocode", {
+      params: { lat: latitude, lng: longitude },
+    }),
+  /** POST /food/location/distance — road + straight-line legs */
+  computeDistance: (body) =>
+    userClient.post("/food/location/distance", body ?? {}),
+};
 export const zoneAPI = {
   /** Public: detect active service zone for a lat/lng point. */
   detectZone: (lat, lng) =>
@@ -1824,7 +1933,7 @@ export const uploadAPI = {
     });
   },
 };
-/** Order API (user app – Bearer USER token). Minimal calls: single create/verify, list/details cached by caller. */
+/** Order API (user app â€“ Bearer USER token). Minimal calls: single create/verify, list/details cached by caller. */
 export const orderAPI = {
   calculateOrder: (payload) =>
     userClient.post("/food/orders/calculate", payload ?? {}),

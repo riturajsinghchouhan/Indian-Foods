@@ -6,6 +6,11 @@ import { toast } from 'sonner';
 import alertSound from '@food/assets/audio/alert.mp3';
 
 import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInbox';
+import {
+  getOrderAlertKey,
+  getOrderMongoId,
+  normalizeIncomingOrder,
+} from '@food/utils/orderDispatchId';
 import { DeliveryNotificationContext } from '../context/DeliveryNotificationContext';
 
 const shouldLogDeliverySocket = () => {
@@ -214,18 +219,6 @@ export const useDeliveryNotifications = () => {
   const NOTIFICATION_PERMISSION_ASKED_KEY = 'delivery_notification_permission_asked';
 
   // Step 3: All callbacks before effects (unconditional)
-  const getOrderAlertKey = (orderData = {}) => (
-    String(
-      orderData?.orderMongoId ||
-      orderData?.order_mongo_id ||
-      orderData?.orderId ||
-      orderData?.order_id ||
-      orderData?._id ||
-      orderData?.id ||
-      ''
-    ).trim()
-  );
-
   const shouldProcessOrderAlert = (orderData = {}) => {
     const key = getOrderAlertKey(orderData);
     if (!key) return true;
@@ -417,9 +410,10 @@ export const useDeliveryNotifications = () => {
       });
 
       if (recoverableOrder && !activeOrderRef.current) {
-        debugLog('Recovered available delivery order after reconnect/focus:', recoverableOrder);
-        setNewOrder(recoverableOrder);
-        handleIncomingOrderAlert(recoverableOrder);
+        const normalized = normalizeIncomingOrder(recoverableOrder);
+        debugLog('Recovered available delivery order after reconnect/focus:', normalized);
+        setNewOrder(normalized);
+        handleIncomingOrderAlert(normalized);
       }
     } catch (error) {
       debugWarn('Delivery recovery sync failed:', error?.message || error);
@@ -843,8 +837,9 @@ export const useDeliveryNotifications = () => {
         debugLog('?? Ignored new_order - rider is offline');
         return;
       }
-      setNewOrder(orderData);
-      handleIncomingOrderAlert(orderData);
+      const normalized = normalizeIncomingOrder(orderData);
+      setNewOrder(normalized);
+      handleIncomingOrderAlert(normalized);
     });
 
     // Listen for priority-based order notifications (new_order_available)
@@ -858,9 +853,9 @@ export const useDeliveryNotifications = () => {
         debugLog('?? Ignored new_order_available - rider is offline');
         return;
       }
-      // Treat it the same as new_order for now - delivery boy can accept it
-      setNewOrder(orderData);
-      handleIncomingOrderAlert(orderData);
+      const normalized = normalizeIncomingOrder(orderData);
+      setNewOrder(normalized);
+      handleIncomingOrderAlert(normalized);
     });
 
     socketRef.current.on('play_notification_sound', (data) => {
@@ -952,8 +947,14 @@ export const useDeliveryNotifications = () => {
       stopAlertLoop();
       activeOrderRef.current = null;
       setNewOrder(null);
-      const claimedId = data?.orderId || data?.orderMongoId || data?.order_id;
-      if (claimedId) setClaimedOrderId({ orderId: claimedId, claimedBy: data?.claimedBy });
+      const claimedId = getOrderMongoId(data) || data?.orderId || data?.order_id;
+      if (claimedId) {
+        setClaimedOrderId({
+          orderId: claimedId,
+          orderMongoId: getOrderMongoId(data) || claimedId,
+          claimedBy: data?.claimedBy,
+        });
+      }
     });
 
     socketRef.current.on('admin_notification', (payload) => {

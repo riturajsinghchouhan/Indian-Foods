@@ -803,6 +803,13 @@ export async function registerWebPushForCurrentModule(pathname = window.location
         tokenPreview: `${token.slice(0, 12)}...`,
       });
 
+      const lastSavedToken = getSavedToken(moduleName);
+      if (lastSavedToken === token) {
+        pushDebugLog(PUSH_DEBUG_PREFIX, "FCM token unchanged — skipping backend sync", { moduleName });
+        await attachForegroundListener(app);
+        return;
+      }
+
       // Cache the token in localStorage so it can be retrieved during logout for cleanup.
       setSavedToken(moduleName, token);
 

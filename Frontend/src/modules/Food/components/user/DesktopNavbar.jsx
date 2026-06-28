@@ -12,7 +12,8 @@ import { FaLocationDot } from "react-icons/fa6"
 import { AnimatePresence, motion } from "framer-motion"
 import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
-import api from "@food/api"
+import { getPublicLandingSettings } from "@food/api"
+import { useAppLocation } from "@food/hooks/useAppLocation"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -26,6 +27,7 @@ export default function DesktopNavbar({ showLogo = true }) {
     const { openLocationSelector } = useLocationSelector()
     const { setSearchValue } = useSearchOverlay()
     const { vegMode, setVegMode } = useProfile()
+    const { zoneId } = useAppLocation()
     const [heroSearch, setHeroSearch] = useState("")
     const [logoUrl, setLogoUrl] = useState(null)
     const [companyName, setCompanyName] = useState(null)
@@ -167,17 +169,14 @@ export default function DesktopNavbar({ showLogo = true }) {
     // Fetch landing settings to get dynamic price limit
     useEffect(() => {
         let cancelled = false
-        api.get('/food/landing/settings/public')
-            .then((res) => {
-                if (cancelled) return
-                const settings = res?.data?.data
-                if (settings) {
-                    if (typeof settings.under250PriceLimit === 'number') {
-                        setUnder250PriceLimit(settings.under250PriceLimit)
-                    }
-                    if (typeof settings.showDining === 'boolean') {
-                        setShowDining(settings.showDining)
-                    }
+        getPublicLandingSettings(zoneId || null)
+            .then((settings) => {
+                if (cancelled || !settings) return
+                if (typeof settings.under250PriceLimit === 'number') {
+                    setUnder250PriceLimit(settings.under250PriceLimit)
+                }
+                if (typeof settings.showDining === 'boolean') {
+                    setShowDining(settings.showDining)
                 }
             })
             .catch(() => {
@@ -187,7 +186,7 @@ export default function DesktopNavbar({ showLogo = true }) {
                 }
             })
         return () => { cancelled = true }
-    }, [])
+    }, [zoneId])
 
     return (
         <nav

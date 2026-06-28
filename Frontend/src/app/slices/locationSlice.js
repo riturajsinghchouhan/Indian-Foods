@@ -18,13 +18,20 @@ const locationSlice = createSlice({
       state.address = address;
       state.isLocationResolved = true;
       
-      // Sync to local storage for axios interceptor
+      // Sync to local storage for axios interceptor + legacy readers
       if (zoneId) {
         localStorage.setItem('userZoneId', zoneId);
       }
       if (coords?.latitude && coords?.longitude) {
-        localStorage.setItem('userLat', coords.latitude);
-        localStorage.setItem('userLng', coords.longitude);
+        localStorage.setItem('userLat', String(coords.latitude));
+        localStorage.setItem('userLng', String(coords.longitude));
+        try {
+          localStorage.setItem('userLocation', JSON.stringify({
+            ...coords,
+            address: address || coords.address || '',
+            formattedAddress: coords.formattedAddress || address || coords.address || '',
+          }));
+        } catch (_) {}
       }
     },
     clearLocation: (state) => {

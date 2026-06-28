@@ -1,4 +1,4 @@
-import { useSearchParams, Link, useNavigate } from "react-router-dom";
+﻿import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import React, {
   useRef,
   useEffect,
@@ -46,10 +46,8 @@ import StickyCartCard from "@food/components/user/StickyCartCard";
 import OrderTrackingCard from "@food/components/user/OrderTrackingCard";
 import {
   CategoryChipRowSkeleton,
-  ExploreGridSkeleton,
   HeroBannerSkeleton,
   LoadingSkeletonRegion,
-  RestaurantGridSkeleton,
 } from "@food/components/ui/loading-skeletons";
 import { useProfile } from "@food/context/ProfileContext";
 import { useCart } from "@food/context/CartContext";
@@ -86,28 +84,31 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@food/components/ui/dropdown-menu";
-import { useLocation } from "@food/hooks/useLocation";
-import { useZone } from "@food/hooks/useZone";
+import { useAppLocation } from "@food/hooks/useAppLocation";
 import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png";
 import offerImage from "@food/assets/offerimage.png";
-import api, { publicGetOnce, restaurantAPI, adminAPI } from "@food/api";
+import api, { publicGetOnce, restaurantAPI, getPublicLandingSettings, getPublicExploreIcons, getPublicCategories } from "@food/api";
 import { API_BASE_URL } from "@food/api/config";
 import OptimizedImage, { ShopPlaceholder } from "@food/components/OptimizedImage";
 import { getRestaurantAvailabilityStatus } from "@food/utils/restaurantAvailability";
 import HomeHeader from "@food/components/user/home/HomeHeader";
+import HeroBanner from "@food/components/user/home/HeroBanner";
+import RestaurantGrid from "@food/components/user/home/RestaurantGrid";
+import ExploreMoreSection from "@food/components/user/home/ExploreMoreSection";
+import RestaurantImageCarousel from "@food/components/user/home/RestaurantImageCarousel";
 import QuickSection from "@food/components/user/home/QuickSection";
 import PromoRow from "@food/components/user/home/PromoRow";
 import FestBanner from "@food/components/user/home/FestBanner";
 import chefMascot from "@food/assets/chef-mascot.png";
 import AdsBannerCarousel from "@food/components/user/home/AdsBannerCarousel";
+import { getRestaurantDisplayName } from "@food/utils/restaurantDisplayName";
+import { primeOutletTimingsCache } from "@food/utils/outletTimingsCache";
 
 // Explore More Icons
 import exploreOffers from "@food/assets/explore more icons/offers.png";
 import exploreGourmet from "@food/assets/explore more icons/gourmet.png";
 import exploreTop10 from "@food/assets/explore more icons/top 10.png";
 import exploreCollection from "@food/assets/explore more icons/collection.png";
-
-// Banner images for hero carousel - will be fetched from API
 
 // Animated placeholder for search - moved outside component to prevent recreation
 const placeholders = [
@@ -121,516 +122,31 @@ const placeholders = [
   'Search "dosa"',
 ];
 
-const WEBVIEW_SESSION_CACHE_BUSTER = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-const getRestaurantDisplayName = (restaurant) => {
-  const nameCandidates = [
-    restaurant?.name,
-    restaurant?.restaurantName,
-    restaurant?.restaurantName?.english,
-    restaurant?.restaurantName?.value,
-    restaurant?.onboarding?.step1?.restaurantName,
-  ];
-  const resolvedName = nameCandidates.find(
-    (candidate) =>
-      typeof candidate === "string" && candidate.trim().length > 0,
-  );
-  return resolvedName ? resolvedName.trim() : "Restaurant";
-};
-
-// Restaurant Image Carousel Component
-const RestaurantImageCarousel = React.memo(
-  ({
-    restaurant,
-    priority = false,
-    backendOrigin = "",
-    className = "h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72",
-    roundedClass = "rounded-t-md",
-  }) => {
-    const webviewSessionKeyRef = useRef(WEBVIEW_SESSION_CACHE_BUSTER);
-    const imageElementRef = useRef(null);
-
-    const withCacheBuster = useCallback(
-      (url) => {
-        if (typeof url !== "string" || !url) return "";
-        if (/^data:/i.test(url) || /^blob:/i.test(url)) return url;
-
-        // Resolve relative URLs (e.g. /uploads/...) so they load on mobile when backend is different from frontend.
-        const isRelative = !/^(https?:|\/\/|data:|blob:)/i.test(url.trim());
-        const resolvedUrl =
-          backendOrigin && isRelative
-            ? `${backendOrigin.replace(/\/$/, "")}${url.startsWith("/") ? url : `/${url}`}`
-            : url;
-
-        // Do not mutate signed URLs (legacy S3/Cloudfront/Firebase links can break if query changes).
-        const hasSignedParams =
-          /[?&](X-Amz-|Signature=|Expires=|AWSAccessKeyId=|GoogleAccessId=|token=|sig=|se=|sp=|sv=)/i.test(
-            resolvedUrl,
-          );
-        if (hasSignedParams) return resolvedUrl;
-
-        try {
-          const parsed = new URL(resolvedUrl, window.location.origin);
-
-          // Apply cache-buster only to app/backend-hosted URLs to avoid third-party CDN signature issues.
-          return parsed.toString();
-        } catch {
-          return resolvedUrl;
-        }
-      },
-      [backendOrigin],
-    );
-
-    const images = useMemo(() => {
-      const sourceImages =
-        Array.isArray(restaurant.images) && restaurant.images.length > 0
-          ? restaurant.images
-          : [restaurant.image];
-
-      const validImages = sourceImages
-        .filter((img) => typeof img === "string")
-        .map((img) => img.trim())
-        .filter(Boolean);
-
-      const seen = new Set();
-      const uniqueImages = [];
-      
-      validImages.forEach((img) => {
-        let sig = img;
-        try {
-          let pathParts = new URL(img).pathname.split('/');
-          sig = pathParts[pathParts.length - 1]; // Use just the filename
-        } catch (e) {
-          sig = img;
-        }
-        
-        if (!seen.has(sig)) {
-          seen.add(sig);
-          uniqueImages.push(img);
-        }
-      });
-
-      return uniqueImages.map((img) => withCacheBuster(img));
-    }, [restaurant.images, restaurant.image, withCacheBuster]);
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [currentItemIndex, setCurrentItemIndex] = useState(0);
-
-    const bannerItems = useMemo(() => {
-      const items = [];
-
-      // If backend populated dish names inside itemDiscounts, use them directly!
-      if (Array.isArray(restaurant.itemDiscounts) && restaurant.itemDiscounts.some(d => d.name)) {
-        restaurant.itemDiscounts.forEach(d => {
-          if (d.name) {
-            items.push({
-              id: d.itemId,
-              name: d.name,
-              price: d.price || 0
-            });
-          }
-        });
-      }
-
-      if (items.length === 0 && restaurant.menu?.sections && Array.isArray(restaurant.menu.sections)) {
-        restaurant.menu.sections.forEach(sec => {
-          if (Array.isArray(sec.items)) items.push(...sec.items);
-        });
-      }
-
-      if (items.length === 0) {
-        if (Array.isArray(restaurant.popularItems) && restaurant.popularItems.length > 0) {
-          items.push(...restaurant.popularItems);
-        } else if (Array.isArray(restaurant.menuItems) && restaurant.menuItems.length > 0) {
-          items.push(...restaurant.menuItems);
-        }
-      }
-
-      if (items.length === 0 && restaurant.featuredDish) {
-        items.push({
-          name: restaurant.featuredDish,
-          price: restaurant.featuredPrice || 0,
-          originalPrice: restaurant.featuredPrice || 0
-        });
-      }
-
-      const globalOffers = Array.isArray(restaurant.offers) ? restaurant.offers : [];
-      let bestGlobalOffer = null;
-      globalOffers.forEach(offer => {
-        if (!bestGlobalOffer || (Number(offer.discountValue) > Number(bestGlobalOffer.discountValue))) {
-          bestGlobalOffer = offer;
-        }
-      });
-
-      const discountedItems = items.map((item) => {
-        let priceNum = Number(item.price || item.originalPrice || 0);
-
-        if (typeof item.price === 'string') {
-          const parsed = parseFloat(item.price.replace(/[^0-9.]/g, ''));
-          if (!isNaN(parsed)) priceNum = parsed;
-        }
-
-        let discountedPrice = null;
-        let dText = 'SPECIAL OFFER';
-
-        const specificDiscount = Array.isArray(restaurant.itemDiscounts)
-          ? restaurant.itemDiscounts.find(d => String(d.itemId) === String(item.id || item._id || item.menuItemId))
-          : null;
-
-        if (specificDiscount) {
-          const discountVal = Number(specificDiscount.discountValue) || 0;
-          const isFlat = String(specificDiscount.discountType || '').toUpperCase() === 'FLAT';
-          if (!isFlat) {
-            discountedPrice = priceNum * (1 - discountVal / 100);
-            dText = `${discountVal}% OFF`;
-          } else {
-            discountedPrice = Math.max(0, priceNum - discountVal);
-            dText = `FLAT ₹${discountVal} OFF`;
-          }
-        } else if (!discountedPrice && bestGlobalOffer) {
-          const discountVal = Number(bestGlobalOffer.discountValue) || 0;
-          const isFlat = String(bestGlobalOffer.discountType || '').toUpperCase() === 'FLAT';
-          if (!isFlat) {
-            const maxD = Number(bestGlobalOffer.maxDiscount) || Infinity;
-            const calcD = priceNum * (discountVal / 100);
-            const actualD = Math.min(calcD, maxD);
-            discountedPrice = priceNum - actualD;
-            dText = bestGlobalOffer.title || `${discountVal}% OFF`;
-          } else {
-            discountedPrice = Math.max(0, priceNum - discountVal);
-            dText = bestGlobalOffer.title || `FLAT ₹${discountVal} OFF`;
-          }
-        } else if (!discountedPrice && restaurant.discount > 0) {
-          discountedPrice = priceNum * (1 - restaurant.discount / 100);
-          dText = `${restaurant.discount}% OFF`;
-        } else {
-          const matchingRule = (restaurant.discountRules || []).find(rule => {
-            const val = Number(rule.conditionValue);
-            if (rule.conditionType === 'PRICE_ABOVE' && priceNum > val) return true;
-            if (rule.conditionType === 'PRICE_BELOW' && priceNum < val) return true;
-            return false;
-          });
-          if (matchingRule) {
-            const discountVal = matchingRule.discountValue || 0;
-            discountedPrice = priceNum * (1 - discountVal / 100);
-            dText = `${discountVal}% OFF`;
-          }
-        }
-
-        return {
-          name: item.name,
-          price: priceNum,
-          discountedPrice: discountedPrice,
-          dText: dText
-        };
-      }).filter(item => item.discountedPrice !== null && item.discountedPrice < item.price);
-
-      return discountedItems.slice(0, 5);
-    }, [restaurant]);
-
-    useEffect(() => {
-      if (bannerItems.length <= 1) return;
-      const interval = setInterval(() => {
-        setCurrentItemIndex((prev) => (prev + 1) % bannerItems.length);
-      }, 2000);
-      return () => clearInterval(interval);
-    }, [bannerItems.length]);
-
-    // Auto-slide for restaurant images
-    useEffect(() => {
-      if (images.length <= 1) return;
-      const interval = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % images.length);
-      }, 3500);
-      return () => clearInterval(interval);
-    }, [images.length]);
-
-    const [loadedBySrc, setLoadedBySrc] = useState({});
-    const [, setAttemptedSrcs] = useState({});
-    const [isImageUnavailable, setIsImageUnavailable] = useState(false);
-    const [showShimmer, setShowShimmer] = useState(true);
-    const [lastGoodSrc, setLastGoodSrc] = useState("");
-    const touchStartX = useRef(0);
-    const touchEndX = useRef(0);
-    const isSwiping = useRef(false);
-
-    const safeIndex =
-      images.length > 0
-        ? ((currentIndex % images.length) + images.length) % images.length
-        : 0;
-    const primarySrc = images[safeIndex] || "";
-    const displaySrc = primarySrc;
-    const renderSrc = displaySrc || lastGoodSrc;
-    const isImageLoaded = Boolean(loadedBySrc[renderSrc] || lastGoodSrc);
-
-    // Reset transient image state when restaurant or source list changes.
-    useEffect(() => {
-      setCurrentIndex(0);
-      setLoadedBySrc({});
-      setAttemptedSrcs({});
-      setIsImageUnavailable(images.length === 0);
-      setShowShimmer(images.length > 0);
-    }, [restaurant?.id, restaurant?.slug, restaurant?.updatedAt, images]);
-
-    // Clear sticky successful source only when card identity changes.
-    useEffect(() => {
-      setLastGoodSrc("");
-    }, [restaurant?.id, restaurant?.slug]);
-
-    // WebView can serve from cache without firing onLoad; handle already-complete images.
-    useEffect(() => {
-      if (!renderSrc) return;
-      const imgEl = imageElementRef.current;
-      if (!imgEl) return;
-
-      setShowShimmer(true);
-      const shimmerTimeout = setTimeout(() => {
-        setShowShimmer(false);
-      }, 2500);
-
-      if (imgEl.complete) {
-        if (imgEl.naturalWidth > 0) {
-          setLoadedBySrc((prev) =>
-            prev[renderSrc] ? prev : { ...prev, [renderSrc]: true },
-          );
-          setLastGoodSrc(renderSrc);
-          setShowShimmer(false);
-        } else {
-          setAttemptedSrcs((prev) => ({ ...prev, [renderSrc]: true }));
-        }
-      }
-      return () => clearTimeout(shimmerTimeout);
-    }, [renderSrc]);
-
-    // Handle touch events for swipe
-    const handleTouchStart = (e) => {
-      touchStartX.current = e.touches[0].clientX;
-      isSwiping.current = false;
-    };
-
-    const handleTouchMove = (e) => {
-      const currentX = e.touches[0].clientX;
-      const diff = touchStartX.current - currentX;
-
-      // If swipe distance is significant, mark as swiping
-      if (Math.abs(diff) > 10) {
-        isSwiping.current = true;
-      }
-    };
-
-    const handleTouchEnd = (e) => {
-      if (!isSwiping.current) return;
-
-      touchEndX.current = e.changedTouches[0].clientX;
-      const diff = touchStartX.current - touchEndX.current;
-      const minSwipeDistance = 85; // Keep card swipe less sensitive on mobile
-
-      if (Math.abs(diff) > minSwipeDistance) {
-        if (diff > 0) {
-          // Swipe left - next image
-          setCurrentIndex((prev) => (prev + 1) % images.length);
-        } else {
-          // Swipe right - previous image
-          setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
-        }
-      }
-
-      // Reset
-      isSwiping.current = false;
-      touchStartX.current = 0;
-      touchEndX.current = 0;
-    };
-
-    const showMultipleImages = images.length > 1;
-
-    return (
-      <div
-        className={`relative ${className} w-full overflow-hidden ${roundedClass} flex-shrink-0 group`}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}>
-        {showShimmer && !isImageUnavailable && Boolean(renderSrc) && (
-          <div className="absolute inset-0 z-[1] overflow-hidden bg-gray-200">
-            <div className="h-full w-full animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200" />
-          </div>
-        )}
-
-        <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110">
-          {renderSrc && (
-            <img
-              ref={imageElementRef}
-              src={renderSrc}
-              alt={`${restaurant.name} - Image ${safeIndex + 1}`}
-              className="w-full h-full object-cover"
-              loading={priority ? "eager" : "lazy"}
-              fetchPriority={priority ? "high" : "low"}
-              decoding="async"
-              onLoad={() => {
-                setLoadedBySrc((prev) => ({ ...prev, [renderSrc]: true }));
-                setLastGoodSrc(renderSrc);
-                setShowShimmer(false);
-              }}
-              onError={() => {
-                setAttemptedSrcs((prev) => {
-                  const next = { ...prev, [primarySrc]: true };
-                  const attemptedCount = Object.keys(next).length;
-
-                  if (attemptedCount >= images.length) {
-                    setIsImageUnavailable(true);
-                  } else if (images.length > 1) {
-                    setCurrentIndex(
-                      (prevIndex) => (prevIndex + 1) % images.length,
-                    );
-                  }
-
-                  return next;
-                });
-                if (images.length === 1) {
-                  setIsImageUnavailable(true);
-                }
-              }}
-            />
-          )}
-          
-          {/* Secretly preload the next image to prevent white flash on swipe */}
-          {images.length > 1 && (
-            <img 
-              src={images[(currentIndex + 1) % images.length]} 
-              className="hidden" 
-              alt="preload next" 
-              aria-hidden="true"
-              decoding="async"
-            />
-          )}
-        </div>
-
-        {isImageUnavailable && (
-          <div className="absolute inset-0 z-[2] flex items-center justify-center bg-gray-100">
-            <span className="text-xs text-gray-500">Image unavailable</span>
-          </div>
-        )}
-
-        {/* Image Indicators - only show if more than 1 image */}
-        {showMultipleImages && (
-          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex items-center z-10 -space-x-2">
-            {images.map((_, index) => (
-              <button
-                key={index}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setCurrentIndex(index);
-                }}
-                className="w-10 h-10 flex items-center justify-center focus:outline-none group/btn rounded-full"
-                aria-label={`Go to image ${index + 1}`}>
-                <div
-                  className={`h-1.5 rounded-full transition-all duration-300 ${index === currentIndex
-                    ? "w-6 bg-white"
-                    : "w-1.5 bg-white/50 group-hover/btn:bg-white/75"
-                    }`}
-                />
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Gradient Overlay on Hover */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
-        {/* Shine Effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full transition-transform duration-1000 group-hover:animate-shine" />
-
-        {/* Discount Badge */}
-        {restaurant.discount > 0 && (
-          <div className="absolute top-3 left-0 px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-500 text-white text-[10px] sm:text-xs font-bold rounded-r-lg shadow-md uppercase tracking-wide flex items-center gap-1.5 z-[11]">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.864 2.227l8.909 8.91a2.182 2.182 0 010 3.085l-7.364 7.364a2.182 2.182 0 01-3.085 0l-8.91-8.91A2.182 2.182 0 012 11.137V4.41A2.182 2.182 0 014.182 2.23h6.727a2.182 2.182 0 011.955-.003z" /></svg>
-            {restaurant.discount}% OFF ON ALL MEALS
-          </div>
-        )}
-
-        {/* Sliding Green Banner for Items or Static Fallback */}
-        {bannerItems.length > 0 ? (
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-[#00b761] to-transparent z-[20]" style={{ height: '40%' }}>
-            <div className="h-full flex flex-col justify-end w-full relative overflow-hidden">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentItemIndex}
-                  initial={{ x: "100%", opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: "-100%", opacity: 0 }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="absolute inset-0 flex flex-col justify-end pl-4 sm:pl-5 pb-4 sm:pb-5"
-                >
-                  <p className="text-white text-xs sm:text-sm font-medium uppercase tracking-wide mb-1 drop-shadow-md">
-                    {bannerItems[currentItemIndex].dText}
-                  </p>
-                  <div className="h-px bg-white/40 mb-2 w-24"></div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-white text-base sm:text-lg font-bold drop-shadow-md truncate max-w-[60%]">
-                      {bannerItems[currentItemIndex].name}
-                    </p>
-                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      {bannerItems[currentItemIndex].discountedPrice && bannerItems[currentItemIndex].discountedPrice < bannerItems[currentItemIndex].price ? (
-                        <>
-                          <span className="text-xs sm:text-sm text-white/80 line-through font-medium drop-shadow-sm">₹{Math.round(bannerItems[currentItemIndex].price)}</span>
-                          <span className="font-black text-white text-base sm:text-lg drop-shadow-md">₹{Math.round(bannerItems[currentItemIndex].discountedPrice)}</span>
-                        </>
-                      ) : (
-                        <span className="font-black text-white text-base sm:text-lg drop-shadow-md">₹{Math.round(bannerItems[currentItemIndex].price)}</span>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </div>
-        ) : (() => {
-          let maxDiscount = restaurant.discount || 0;
-          if (Array.isArray(restaurant.discountRules) && restaurant.discountRules.length > 0) {
-            const maxRule = Math.max(...restaurant.discountRules.map(r => r.discountValue || 0));
-            if (maxRule > maxDiscount) maxDiscount = maxRule;
-          }
-          if (maxDiscount > 0) {
-            return (
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-[#00b761] to-transparent z-[20]" style={{ height: '40%' }}>
-                <div className="h-full flex flex-col justify-end">
-                  <div className="pl-4 sm:pl-5 pb-4 sm:pb-5">
-                    <p className="text-white text-xs sm:text-sm font-medium uppercase tracking-wide mb-1">
-                      SPECIAL OFFER
-                    </p>
-                    <div className="h-px bg-white/30 mb-2 w-24"></div>
-                    <p className="text-white text-base sm:text-lg font-bold">
-                      UP TO {maxDiscount}% OFF
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
-      </div>
-    );
-  },
-);
-
 const homePageCache = {
   effectiveZoneId: null,
   lat: null,
   lng: null,
   landingExploreMore: null,
+  landingExploreFetched: false,
   exploreMoreHeading: null,
   recommendedRestaurantIds: null,
   under250PriceLimit: null,
   recommendedRestaurantsFromSettings: null,
-  festBannerImages: [],
+  festBannerImages: null,
   heroBannerImages: null,
   heroBannersData: null,
+  heroBannersFetched: false,
   adsBannerImages: null,
   adsBannersData: null,
+  adsBannersFetched: false,
 };
 
+const roundCoord = (value) =>
+  Number.isFinite(Number(value))
+    ? Math.round(Number(value) * 100000) / 100000
+    : null;
+
 export default function Home() {
-  const HERO_BANNER_AUTO_SLIDE_MS = 3500;
   const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -657,52 +173,64 @@ export default function Home() {
   const [showStickySearch, setShowStickySearch] = useState(false);
   const [isCategoryStuck, setIsCategoryStuck] = useState(false);
   const categoryAnchorRef = useRef(null);
+  const lastScrollY = useRef(0);
+  const scrollRafRef = useRef(null);
 
   useEffect(() => {
-    const handleScrollHeader = () => {
+    const runScrollWork = () => {
+      scrollRafRef.current = null;
       const currentScrollY = window.scrollY;
+
       const categoriesSection = document.getElementById("categories-section");
-
-      if (!categoriesSection) return;
-
-      const rect = categoriesSection.getBoundingClientRect();
-      const sectionBottom = rect.bottom + currentScrollY;
-
-      // When to show/hide the sticky header
-      if (currentScrollY > sectionBottom) {
-        setIsStickyHeaderVisible(true);
-      } else {
-        setIsStickyHeaderVisible(false);
+      if (categoriesSection) {
+        const rect = categoriesSection.getBoundingClientRect();
+        const sectionBottom = rect.bottom + currentScrollY;
+        setIsStickyHeaderVisible(currentScrollY > sectionBottom);
+        setShowStickySearch(currentScrollY < lastScrollY.current);
       }
 
-      // Track scroll direction for search bar visibility in sticky header
-      if (currentScrollY < lastScrollY.current) {
-        // Scrolling UP
-        setShowStickySearch(true);
+      const heroShell = heroShellRef.current;
+      const stickyHeader = stickyHeaderRef.current;
+      if (heroShell) {
+        const heroRect = heroShell.getBoundingClientRect();
+        const stickyHeight = stickyHeader?.getBoundingClientRect().height || 0;
+        setHasScrolledPastBanner(heroRect.bottom <= stickyHeight);
       } else {
-        // Scrolling DOWN
-        setShowStickySearch(false);
+        setHasScrolledPastBanner(false);
       }
 
       lastScrollY.current = currentScrollY;
     };
 
-    window.addEventListener("scroll", handleScrollHeader, { passive: true });
-    return () => window.removeEventListener("scroll", handleScrollHeader);
+    const onScrollOrResize = () => {
+      if (scrollRafRef.current != null) return;
+      scrollRafRef.current = window.requestAnimationFrame(runScrollWork);
+    };
+
+    runScrollWork();
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize);
+
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+      if (scrollRafRef.current != null) {
+        window.cancelAnimationFrame(scrollRafRef.current);
+      }
+    };
   }, []);
 
-  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
-  const [heroBannerImages, setHeroBannerImages] = useState(() => homePageCache.heroBannerImages || []);
-  const [heroBannersData, setHeroBannersData] = useState(() => homePageCache.heroBannersData || []);
-  const [loadingBanners, setLoadingBanners] = useState(() => !homePageCache.heroBannerImages);
-  const [adsBannerImages, setAdsBannerImages] = useState(() => homePageCache.adsBannerImages || []);
-  const [adsBannersData, setAdsBannersData] = useState(() => homePageCache.adsBannersData || []);
-  const [loadingAdsBanners, setLoadingAdsBanners] = useState(() => !homePageCache.adsBannerImages);
+  const [heroBannerImages, setHeroBannerImages] = useState(() => homePageCache.heroBannerImages ?? []);
+  const [heroBannersData, setHeroBannersData] = useState(() => homePageCache.heroBannersData ?? []);
+  const [loadingBanners, setLoadingBanners] = useState(() => !homePageCache.heroBannersFetched);
+  const [adsBannerImages, setAdsBannerImages] = useState(() => homePageCache.adsBannerImages ?? []);
+  const [adsBannersData, setAdsBannersData] = useState(() => homePageCache.adsBannersData ?? []);
+  const [loadingAdsBanners, setLoadingAdsBanners] = useState(() => !homePageCache.adsBannersFetched);
   const [hasScrolledPastBanner, setHasScrolledPastBanner] = useState(false);
   const [landingCategories, setLandingCategories] = useState([]);
   const [landingExploreMore, setLandingExploreMore] = useState(() => homePageCache.landingExploreMore || []);
   const [exploreMoreHeading, setExploreMoreHeading] = useState(() => homePageCache.exploreMoreHeading || "Explore More");
-  const [festBannerImages, setFestBannerImages] = useState(() => homePageCache.festBannerImages || []);
+  const [festBannerImages, setFestBannerImages] = useState(() => homePageCache.festBannerImages ?? []);
   const [bgIndex, setBgIndex] = useState(0);
   const [recommendedRestaurantIds, setRecommendedRestaurantIds] = useState(() => homePageCache.recommendedRestaurantIds || []);
   const [under250PriceLimit, setUnder250PriceLimit] = useState(() => homePageCache.under250PriceLimit || 250);
@@ -710,23 +238,14 @@ export default function Home() {
     recommendedRestaurantsFromSettings,
     setRecommendedRestaurantsFromSettings,
   ] = useState(() => homePageCache.recommendedRestaurantsFromSettings || []);
-  const [loadingLandingConfig, setLoadingLandingConfig] = useState(() => !homePageCache.landingExploreMore);
+  const [loadingLandingConfig, setLoadingLandingConfig] = useState(() => !homePageCache.landingExploreFetched);
   const [restaurantsData, setRestaurantsData] = useState(() => homePageCache.restaurantsData || []);
   const [loadingRestaurants, setLoadingRestaurants] = useState(() => !homePageCache.restaurantsData);
   const [realCategories, setRealCategories] = useState([]);
   const [loadingRealCategories, setLoadingRealCategories] = useState(true);
   const [menuCategories, setMenuCategories] = useState([]);
   const [loadingMenuCategories, setLoadingMenuCategories] = useState(false);
-  const [, setRestaurantDietMeta] = useState({});
   const [showAllCategoriesModal, setShowAllCategoriesModal] = useState(false);
-  const [availabilityTick, setAvailabilityTick] = useState(Date.now());
-  const RESTAURANTS_BATCH_SIZE = 9;
-  const [visibleRestaurantCount, setVisibleRestaurantCount] = useState(
-    RESTAURANTS_BATCH_SIZE,
-  );
-  const restaurantLoadMoreRef = useRef(null);
-  const publicCategoriesCacheRef = useRef(new Map());
-  const publicCategoriesInFlightRef = useRef(new Map());
   const isHandlingSwitchOff = useRef(false);
   const heroShellRef = useRef(null);
   const stickyHeaderRef = useRef(null);
@@ -787,7 +306,7 @@ export default function Home() {
           const parsed = new URL(normalizedInput, window.location.origin);
 
           // In mobile production, localhost/127.0.0.1 inside image URLs is unreachable.
-          // Use BACKEND_ORIGIN (API server) for image host, not frontend host�uploads are served by the backend.
+          // Use BACKEND_ORIGIN (API server) for image host, not frontend hostï¿½uploads are served by the backend.
           if (
             appHost &&
             appHost !== "localhost" &&
@@ -931,39 +450,6 @@ export default function Home() {
     [buildRestaurantImageCandidates],
   );
 
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setAvailabilityTick(Date.now());
-    }, 60000);
-
-    return () => clearInterval(intervalId);
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const heroShell = heroShellRef.current;
-      const stickyHeader = stickyHeaderRef.current;
-
-      if (!heroShell) {
-        setHasScrolledPastBanner(false);
-        return;
-      }
-
-      const heroRect = heroShell.getBoundingClientRect();
-      const stickyHeight = stickyHeader?.getBoundingClientRect().height || 0;
-      setHasScrolledPastBanner(heroRect.bottom <= stickyHeight);
-    };
-
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-    };
-  }, []);
-
   // Merge API explore items with fallback to ensure all 4 cards are shown
   const finalExploreItems = useMemo(() => {
     const fallback = [
@@ -1032,13 +518,6 @@ export default function Home() {
   }, [menuCategories, realCategories, normalizedLandingCategories]);
 
   // Swipe functionality for hero banner carousel
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const touchEndX = useRef(0);
-  const touchEndY = useRef(0);
-  const isSwiping = useRef(false);
-  const autoSlideIntervalRef = useRef(null);
-
   // Sync prevVegMode when vegMode changes from context
   useEffect(() => {
     if (vegMode !== prevVegMode && !isHandlingSwitchOff.current) {
@@ -1127,150 +606,6 @@ export default function Home() {
   }, [showVegModePopup]);
 
 
-  // Old backend endpoint removed: keep UI stable with empty categories.
-  useEffect(() => {
-    setLoadingRealCategories(true);
-    setRealCategories([]);
-    setLoadingRealCategories(false);
-  }, []);
-
-
-  // Keep index within current banner bounds after admin updates/reloads.
-  useEffect(() => {
-    setCurrentBannerIndex((prev) => {
-      if (heroBannerImages.length === 0) return 0;
-      return Math.min(prev, heroBannerImages.length - 1);
-    });
-  }, [heroBannerImages.length]);
-
-  // Preload hero images to avoid white blink during slide transition.
-  useEffect(() => {
-    heroBannerImages.forEach((src) => {
-      if (!src) return;
-      const img = new window.Image();
-      img.src = src;
-    });
-  }, [heroBannerImages]);
-
-  const startHeroBannerAutoSlide = useCallback(() => {
-    if (autoSlideIntervalRef.current) {
-      clearInterval(autoSlideIntervalRef.current);
-    }
-
-    if (heroBannerImages.length <= 1) return;
-
-    autoSlideIntervalRef.current = setInterval(() => {
-      if (!isSwiping.current) {
-        setCurrentBannerIndex((prev) => (prev + 1) % heroBannerImages.length);
-      }
-    }, HERO_BANNER_AUTO_SLIDE_MS);
-  }, [heroBannerImages.length, HERO_BANNER_AUTO_SLIDE_MS]);
-
-  // Auto-cycle hero banner images
-  useEffect(() => {
-    startHeroBannerAutoSlide();
-
-    return () => {
-      if (autoSlideIntervalRef.current) {
-        clearInterval(autoSlideIntervalRef.current);
-      }
-    };
-  }, [startHeroBannerAutoSlide]);
-
-  // Helper function to reset auto-slide timer
-  const resetAutoSlide = useCallback(() => {
-    startHeroBannerAutoSlide();
-  }, [startHeroBannerAutoSlide]);
-
-  // Swipe handlers for hero banner carousel
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    isSwiping.current = true;
-  };
-
-  const handleTouchMove = (e) => {
-    touchEndX.current = e.touches[0].clientX;
-    touchEndY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = () => {
-    if (!isSwiping.current || heroBannerImages.length === 0) return;
-
-    const deltaX = touchEndX.current - touchStartX.current;
-    const deltaY = Math.abs(touchEndY.current - touchStartY.current);
-    const minSwipeDistance = 50; // Minimum distance for a swipe
-
-    // Check if it's a horizontal swipe (not vertical scroll)
-    if (Math.abs(deltaX) > minSwipeDistance && Math.abs(deltaX) > deltaY) {
-      if (deltaX > 0) {
-        // Swipe right - go to previous image
-        setCurrentBannerIndex(
-          (prev) =>
-            (prev - 1 + heroBannerImages.length) % heroBannerImages.length,
-        );
-      } else {
-        // Swipe left - go to next image
-        setCurrentBannerIndex((prev) => (prev + 1) % heroBannerImages.length);
-      }
-      // Reset auto-slide timer after manual swipe
-      resetAutoSlide();
-    }
-
-    // Reset swipe state after a short delay
-    setTimeout(() => {
-      isSwiping.current = false;
-    }, 300);
-
-    // Reset touch positions
-    touchStartX.current = 0;
-    touchStartY.current = 0;
-    touchEndX.current = 0;
-    touchEndY.current = 0;
-  };
-
-  // Mouse handlers for desktop drag support
-  const handleMouseDown = (e) => {
-    touchStartX.current = e.clientX;
-    touchStartY.current = e.clientY;
-    isSwiping.current = true;
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isSwiping.current) return;
-    touchEndX.current = e.clientX;
-    touchEndY.current = e.clientY;
-  };
-
-  const handleMouseUp = () => {
-    if (!isSwiping.current || heroBannerImages.length === 0) return;
-
-    const deltaX = touchEndX.current - touchStartX.current;
-    const deltaY = Math.abs(touchEndY.current - touchStartY.current);
-    const minSwipeDistance = 50;
-
-    if (Math.abs(deltaX) > minSwipeDistance && Math.abs(deltaX) > deltaY) {
-      if (deltaX > 0) {
-        setCurrentBannerIndex(
-          (prev) =>
-            (prev - 1 + heroBannerImages.length) % heroBannerImages.length,
-        );
-      } else {
-        setCurrentBannerIndex((prev) => (prev + 1) % heroBannerImages.length);
-      }
-      // Reset auto-slide timer after manual swipe
-      resetAutoSlide();
-    }
-
-    setTimeout(() => {
-      isSwiping.current = false;
-    }, 300);
-
-    touchStartX.current = 0;
-    touchStartY.current = 0;
-    touchEndX.current = 0;
-    touchEndY.current = 0;
-  };
   const [activeFilters, setActiveFilters] = useState(new Set());
   const [sortBy, setSortBy] = useState(null); // null, 'price-low', 'price-high', 'rating-high', 'rating-low'
   const [selectedCuisine, setSelectedCuisine] = useState(null);
@@ -1284,7 +619,7 @@ export default function Home() {
   const [activeFilterTab, setActiveFilterTab] = useState("sort");
   const categoryScrollRef = useRef(null);
   const gsapAnimationsRef = useRef([]);
-  // Show skeletons immediately while loading — delayed toggles caused visible layout swap (CLS).
+  // Show skeletons immediately while loading â€” delayed toggles caused visible layout swap (CLS).
   const showBannerSkeleton = loadingBanners;
   const showCategorySkeleton = loadingRealCategories || loadingMenuCategories;
   const showExploreSkeleton = loadingLandingConfig;
@@ -1313,80 +648,10 @@ export default function Home() {
     getDefaultAddress,
   } = profileContext;
   const { addToCart, cart } = useCart();
-  const { location, loading, requestLocation } = useLocation();
-  const {
-    zoneId,
-    zoneStatus,
-    isInService,
-    isOutOfService,
-    loading: zoneLoading,
-    error: zoneError,
-  } = useZone(location);
+  const { location, loading: effectiveZoneLoading, requestLocation, zoneId: effectiveZoneId, zoneStatus: effectiveZoneStatus, isOutOfService: isEffectiveLocationOutOfService } = useAppLocation();
   const [showToast, setShowToast] = useState(false);
   const [showManageCollections, setShowManageCollections] = useState(false);
   const [selectedRestaurantSlug, setSelectedRestaurantSlug] = useState(null);
-
-  // Fetch categories (zone-aware) for the homepage category rail.
-  useEffect(() => {
-    let cancelled = false
-    const run = async () => {
-      const zoneKey = String(zoneId || "global")
-      try {
-        // Dedupe repeated calls (StrictMode + zone settling). Cache per zoneKey and share in-flight request.
-        const cached = publicCategoriesCacheRef.current.get(zoneKey)
-        if (cached) {
-          if (!cancelled) setRealCategories(cached)
-          return
-        }
-
-        const inFlight = publicCategoriesInFlightRef.current.get(zoneKey)
-        if (inFlight) {
-          const categories = await inFlight
-          if (!cancelled) setRealCategories(categories)
-          return
-        }
-
-        setLoadingRealCategories(true)
-        const promise = (async () => {
-          const res = await adminAPI.getPublicCategories(zoneId ? { zoneId } : {})
-          const list =
-            res?.data?.data?.categories ||
-            res?.data?.categories ||
-            []
-          const categories = Array.isArray(list)
-            ? list.map((cat, idx) => ({
-              id: String(cat?.id || cat?._id || cat?.slug || idx),
-              name: cat?.name || "",
-              slug: cat?.slug || String(cat?.name || "").toLowerCase().replace(/\s+/g, "-"),
-              image:
-                normalizeImageUrl(cat?.image || cat?.imageUrl) ||
-                foodImages[idx % foodImages.length] ||
-                foodImages[0],
-              type: cat?.type || "",
-            }))
-            : []
-
-          publicCategoriesCacheRef.current.set(zoneKey, categories)
-          return categories
-        })()
-
-        publicCategoriesInFlightRef.current.set(zoneKey, promise)
-        const categories = await promise
-        publicCategoriesInFlightRef.current.delete(zoneKey)
-
-        if (!cancelled) setRealCategories(categories)
-      } catch (err) {
-        debugWarn("Failed to fetch categories:", err)
-        if (!cancelled) setRealCategories([])
-      } finally {
-        if (!cancelled) setLoadingRealCategories(false)
-      }
-    }
-    run()
-    return () => {
-      cancelled = true
-    }
-  }, [zoneId, normalizeImageUrl])
 
   // Memoize cartCount to prevent recalculation on every render - use cart directly
   const cartCount = useMemo(
@@ -1527,31 +792,65 @@ export default function Home() {
     location,
   ]);
 
-  const {
-    zoneId: effectiveZoneId,
-    zoneStatus: effectiveZoneStatus,
-    isOutOfService: isEffectiveLocationOutOfService,
-    loading: effectiveZoneLoading,
-    error: effectiveZoneError,
-  } = useZone(effectiveLocation);
+  // Fetch categories (zone-aware) for the homepage category rail.
+  useEffect(() => {
+    if (effectiveZoneLoading) return;
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        setLoadingRealCategories(true);
+        const data = await getPublicCategories(effectiveZoneId || null);
+        if (cancelled) return;
+
+        const list = data?.categories || (Array.isArray(data) ? data : []);
+        const categories = Array.isArray(list)
+          ? list.map((cat, idx) => ({
+              id: String(cat?.id || cat?._id || cat?.slug || idx),
+              name: cat?.name || "",
+              slug:
+                cat?.slug ||
+                String(cat?.name || "")
+                  .toLowerCase()
+                  .replace(/\s+/g, "-"),
+              image:
+                normalizeImageUrl(cat?.image || cat?.imageUrl) ||
+                foodImages[idx % foodImages.length] ||
+                foodImages[0],
+              type: cat?.type || "",
+            }))
+          : [];
+
+        setRealCategories(categories);
+      } catch (err) {
+        debugWarn("Failed to fetch categories:", err);
+        if (!cancelled) setRealCategories([]);
+      } finally {
+        if (!cancelled) setLoadingRealCategories(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveZoneId, effectiveZoneLoading, normalizeImageUrl]);
 
   // Fetch explore icons and landing settings from public APIs
   useEffect(() => {
-    if (homePageCache.landingExploreMore && homePageCache.effectiveZoneId === effectiveZoneId) {
+    if (effectiveZoneLoading) return;
+
+    if (homePageCache.landingExploreFetched && homePageCache.effectiveZoneId === effectiveZoneId) {
       setLoadingLandingConfig(false);
       return;
     }
     let cancelled = false;
     setLoadingLandingConfig(true);
     Promise.all([
-      publicGetOnce("/food/explore-icons/public", { params: { zoneId: effectiveZoneId } })
-        .catch(() => ({ data: { data: {} } })),
-      publicGetOnce("/food/landing/settings/public", { params: { zoneId: effectiveZoneId } })
-        .catch(() => ({ data: { data: {} } })),
+      getPublicExploreIcons(effectiveZoneId).catch(() => ({})),
+      getPublicLandingSettings(effectiveZoneId).catch(() => ({})),
     ])
-      .then(([exploreRes, settingsRes]) => {
+      .then(([exploreData, settings]) => {
         if (cancelled) return;
-        const exploreData = exploreRes?.data?.data;
         const items = Array.isArray(exploreData?.items)
           ? exploreData.items
           : Array.isArray(exploreData)
@@ -1564,25 +863,26 @@ export default function Home() {
         }));
         setLandingExploreMore(exploreMoreData);
 
-        const settings = settingsRes?.data?.data || {};
-        const heading = settings.exploreMoreHeading || "Explore More";
+        const settingsData = settings || {};
+        const heading = settingsData.exploreMoreHeading || "Explore More";
         setExploreMoreHeading(heading);
-        setRecommendedRestaurantIds(settings.recommendedRestaurantIds || []);
-        setUnder250PriceLimit(Number(settings.under250PriceLimit) || 250);
+        setRecommendedRestaurantIds(settingsData.recommendedRestaurantIds || []);
+        setUnder250PriceLimit(Number(settingsData.under250PriceLimit) || 250);
 
-        const recRest = settings.recommendedRestaurants || [];
+        const recRest = settingsData.recommendedRestaurants || [];
         setRecommendedRestaurantsFromSettings(recRest);
 
-        const images = Array.isArray(settings.festBannerImages) ? settings.festBannerImages : [];
+        const images = Array.isArray(settingsData.festBannerImages) ? settingsData.festBannerImages : [];
         setFestBannerImages(images);
 
         // Update cache
         homePageCache.landingExploreMore = exploreMoreData;
         homePageCache.exploreMoreHeading = heading;
-        homePageCache.recommendedRestaurantIds = settings.recommendedRestaurantIds || [];
-        homePageCache.under250PriceLimit = Number(settings.under250PriceLimit) || 250;
+        homePageCache.recommendedRestaurantIds = settingsData.recommendedRestaurantIds || [];
+        homePageCache.under250PriceLimit = Number(settingsData.under250PriceLimit) || 250;
         homePageCache.recommendedRestaurantsFromSettings = recRest;
         homePageCache.festBannerImages = images;
+        homePageCache.landingExploreFetched = true;
         homePageCache.effectiveZoneId = effectiveZoneId;
       })
       .catch(() => {
@@ -1592,6 +892,8 @@ export default function Home() {
           setRecommendedRestaurantsFromSettings([]);
           setFestBannerImages([]);
         }
+        homePageCache.landingExploreFetched = true;
+        homePageCache.effectiveZoneId = effectiveZoneId;
       })
       .finally(() => {
         if (!cancelled) setLoadingLandingConfig(false);
@@ -1599,11 +901,13 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [effectiveZoneId]);
+  }, [effectiveZoneId, effectiveZoneLoading]);
 
   // Fetch hero banners from public API (no auth required)
   useEffect(() => {
-    if (homePageCache.heroBannerImages && homePageCache.effectiveZoneId === effectiveZoneId) {
+    if (effectiveZoneLoading) return;
+
+    if (homePageCache.heroBannersFetched && homePageCache.effectiveZoneId === effectiveZoneId) {
       setLoadingBanners(false);
       return;
     }
@@ -1623,10 +927,10 @@ export default function Home() {
           .filter(Boolean);
         setHeroBannerImages(images);
         setHeroBannersData(list);
-        setCurrentBannerIndex(0);
 
         homePageCache.heroBannerImages = images;
         homePageCache.heroBannersData = list;
+        homePageCache.heroBannersFetched = true;
         homePageCache.effectiveZoneId = effectiveZoneId;
       })
       .catch((err) => {
@@ -1634,6 +938,10 @@ export default function Home() {
         debugError("Failed to fetch hero banners", err);
         setHeroBannerImages([]);
         setHeroBannersData([]);
+        homePageCache.heroBannerImages = [];
+        homePageCache.heroBannersData = [];
+        homePageCache.heroBannersFetched = true;
+        homePageCache.effectiveZoneId = effectiveZoneId;
       })
       .finally(() => {
         if (!cancelled) setLoadingBanners(false);
@@ -1641,11 +949,13 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [effectiveZoneId]);
+  }, [effectiveZoneId, effectiveZoneLoading]);
 
   // Fetch ads banners from public API (no auth required)
   useEffect(() => {
-    if (homePageCache.adsBannerImages && homePageCache.effectiveZoneId === effectiveZoneId) {
+    if (effectiveZoneLoading) return;
+
+    if (homePageCache.adsBannersFetched && homePageCache.effectiveZoneId === effectiveZoneId) {
       setLoadingAdsBanners(false);
       return;
     }
@@ -1668,6 +978,7 @@ export default function Home() {
 
         homePageCache.adsBannerImages = images;
         homePageCache.adsBannersData = list;
+        homePageCache.adsBannersFetched = true;
         homePageCache.effectiveZoneId = effectiveZoneId;
       })
       .catch((err) => {
@@ -1675,6 +986,10 @@ export default function Home() {
         debugError("Failed to fetch ads banners", err);
         setAdsBannerImages([]);
         setAdsBannersData([]);
+        homePageCache.adsBannerImages = [];
+        homePageCache.adsBannersData = [];
+        homePageCache.adsBannersFetched = true;
+        homePageCache.effectiveZoneId = effectiveZoneId;
       })
       .finally(() => {
         if (!cancelled) setLoadingAdsBanners(false);
@@ -1682,11 +997,10 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [effectiveZoneId]);
+  }, [effectiveZoneId, effectiveZoneLoading]);
 
   const shouldShowOutOfZoneHome =
     !effectiveZoneLoading &&
-    !effectiveZoneError &&
     isEffectiveLocationOutOfService;
 
   // Mock points value - replace with actual points from context/store
@@ -1751,8 +1065,6 @@ export default function Home() {
       clearTimeout(timeout2);
     };
   }, [activeTab]);
-  const lastScrollY = useRef(0);
-
 
   // Simple filter toggle function
   const toggleFilter = (filterId) => {
@@ -1811,8 +1123,13 @@ export default function Home() {
       const isDefaultFetch = Object.keys(filters).length === 0 ||
         (!filters.sortBy && !filters.selectedCuisine && (!filters.activeFilters || filters.activeFilters.size === 0));
 
-      const isLocationSame = homePageCache.lat === effectiveLocation?.latitude && 
-                             homePageCache.lng === effectiveLocation?.longitude;
+      if (isDefaultFetch && effectiveZoneLoading) {
+        return;
+      }
+
+      const isLocationSame =
+        homePageCache.lat === roundCoord(effectiveLocation?.latitude) &&
+        homePageCache.lng === roundCoord(effectiveLocation?.longitude);
 
       if (isDefaultFetch && homePageCache.restaurantsData && homePageCache.effectiveZoneId === effectiveZoneId && isLocationSame) {
         setLoadingRestaurants(false);
@@ -1899,7 +1216,7 @@ export default function Home() {
         // Removed city filtering to allow zoneId & polygon to accurately fetch all zone restaurants.
 
         debugLog("Fetching restaurants with params:", params);
-        const response = await restaurantAPI.getRestaurants(params, { noCache: true });
+        const response = await restaurantAPI.getRestaurants(params);
         debugLog("Restaurants API response:", response.data);
 
         // If a newer request started, ignore this response to avoid races/flicker.
@@ -2154,6 +1471,11 @@ export default function Home() {
             "Transformed and sorted restaurants:",
             transformedRestaurants,
           );
+          transformedRestaurants.forEach((restaurant) => {
+            if (restaurant?.mongoId && restaurant?.outletTimings) {
+              primeOutletTimingsCache(restaurant.mongoId, restaurant.outletTimings);
+            }
+          });
           startTransition(() => {
             const finalSorted = sortRestaurantsForDisplay(transformedRestaurants);
             setRestaurantsData(finalSorted);
@@ -2164,66 +1486,11 @@ export default function Home() {
             if (isDefaultFetch) {
               homePageCache.restaurantsData = finalSorted;
               homePageCache.effectiveZoneId = effectiveZoneId;
-              homePageCache.lat = effectiveLocation?.latitude;
-              homePageCache.lng = effectiveLocation?.longitude;
+              homePageCache.lat = roundCoord(effectiveLocation?.latitude);
+              homePageCache.lng = roundCoord(effectiveLocation?.longitude);
             }
           });
 
-          const restaurantsNeedingOutletTimings = transformedRestaurants.filter(
-            (restaurant) => restaurant.mongoId && !restaurant.outletTimings,
-          );
-
-          if (restaurantsNeedingOutletTimings.length > 0) {
-            void (async () => {
-              const resolvedOutletTimings = new Map();
-
-              for (const restaurant of restaurantsNeedingOutletTimings) {
-                try {
-                  const outletResponse =
-                    await restaurantAPI.getOutletTimingsByRestaurantId(
-                      restaurant.mongoId,
-                      { noCache: true },
-                    );
-                  const outletTimings =
-                    outletResponse?.data?.data?.outletTimings ||
-                    outletResponse?.data?.outletTimings ||
-                    null;
-
-                  if (outletTimings) {
-                    resolvedOutletTimings.set(restaurant.mongoId, outletTimings);
-                  }
-                } catch (_) {
-                  // Keep the existing restaurant data if enrichment fails.
-                }
-              }
-
-              if (
-                requestSeq !== restaurantsRequestSeqRef.current ||
-                resolvedOutletTimings.size === 0
-              ) {
-                return;
-              }
-
-              startTransition(() => {
-                setRestaurantsData((currentRestaurants) => {
-                  let hasChanges = false;
-                  const nextRestaurants = currentRestaurants.map((restaurant) => {
-                    if (!restaurant.mongoId) return restaurant;
-                    const outletTimings = resolvedOutletTimings.get(
-                      restaurant.mongoId,
-                    );
-                    if (!outletTimings) return restaurant;
-                    hasChanges = true;
-                    return { ...restaurant, outletTimings };
-                  });
-
-                  return hasChanges
-                    ? sortRestaurantsForDisplay(nextRestaurants)
-                    : currentRestaurants;
-                });
-              });
-            })();
-          }
         } else {
           debugWarn("Invalid API response structure:", response.data);
           setRestaurantsData([]);
@@ -2246,6 +1513,7 @@ export default function Home() {
       effectiveLocation?.latitude,
       effectiveLocation?.longitude,
       effectiveZoneId,
+      effectiveZoneLoading,
     ],
   );
 
@@ -2407,14 +1675,13 @@ export default function Home() {
     const restaurantIds = menuUnionRestaurantIdsKey
       ? menuUnionRestaurantIdsKey.split(",").filter(Boolean)
       : [];
-    const shouldFetchMenuMeta = vegMode || realCategories.length === 0;
+    const shouldFetchMenuMeta = realCategories.length === 0;
 
     const fetchMenuCategories = async () => {
       const requestSeq = ++menuUnionRequestSeqRef.current;
 
       if (!menuUnionRestaurantIdsKey || !shouldFetchMenuMeta) {
         setMenuCategories([]);
-        setRestaurantDietMeta({});
         setLoadingMenuCategories(false);
         return;
       }
@@ -2453,50 +1720,9 @@ export default function Home() {
 
         if (requestSeq !== menuUnionRequestSeqRef.current) return;
 
-        const nextDietMeta = {};
-
-        menuResponses.forEach(({ id, menu }) => {
-          let hasVeg = false;
-          let hasNonVeg = false;
+        menuResponses.forEach(({ menu }) => {
           const sections = Array.isArray(menu?.sections) ? menu.sections : [];
           sections.forEach((section) => {
-            const sectionItems = Array.isArray(section?.items)
-              ? section.items
-              : [];
-            sectionItems.forEach((item) => {
-              const foodType = String(item?.foodType || "")
-                .trim()
-                .toLowerCase();
-              if (foodType === "veg") hasVeg = true;
-              if (
-                foodType === "non-veg" ||
-                foodType === "non veg" ||
-                foodType === "nonveg"
-              )
-                hasNonVeg = true;
-            });
-
-            const subsections = Array.isArray(section?.subsections)
-              ? section.subsections
-              : [];
-            subsections.forEach((subsection) => {
-              const subsectionItems = Array.isArray(subsection?.items)
-                ? subsection.items
-                : [];
-              subsectionItems.forEach((item) => {
-                const foodType = String(item?.foodType || "")
-                  .trim()
-                  .toLowerCase();
-                if (foodType === "veg") hasVeg = true;
-                if (
-                  foodType === "non-veg" ||
-                  foodType === "non veg" ||
-                  foodType === "nonveg"
-                )
-                  hasNonVeg = true;
-              });
-            });
-
             const categoryName = String(section?.name || "").trim();
             if (!categoryName) return;
 
@@ -2531,14 +1757,6 @@ export default function Home() {
               categoryMap.get(slug).image = image;
             }
           });
-
-          if (id) {
-            nextDietMeta[id] = {
-              hasVeg,
-              hasNonVeg,
-              isPureVeg: hasVeg && !hasNonVeg,
-            };
-          }
         });
 
         const categories = Array.from(categoryMap.values())
@@ -2552,7 +1770,6 @@ export default function Home() {
           }));
 
         setMenuCategories(categories);
-        setRestaurantDietMeta(nextDietMeta);
       } finally {
         if (requestSeq === menuUnionRequestSeqRef.current) {
           setLoadingMenuCategories(false);
@@ -2566,7 +1783,6 @@ export default function Home() {
     normalizeImageUrl,
     realCategories.length,
     slugifyCategory,
-    vegMode,
   ]);
 
   const matchesVegMode = useCallback(
@@ -2588,67 +1804,6 @@ export default function Home() {
     // We only apply client-side Veg Mode filtering here.
     return (restaurantsData || []).filter(matchesVegMode);
   }, [restaurantsData, matchesVegMode]);
-
-  const restaurantLazyLoadResetKey = useMemo(() => {
-    const activeFilterKey = Array.from(activeFilters).sort().join("|");
-    return `${restaurantsData.length}:${activeFilterKey}:${selectedCuisine || ""}:${sortBy || ""}:${vegMode ? "1" : "0"}`;
-  }, [activeFilters, restaurantsData.length, selectedCuisine, sortBy, vegMode]);
-
-  const visibleRestaurants = useMemo(
-    () => filteredRestaurants.slice(0, visibleRestaurantCount),
-    [filteredRestaurants, visibleRestaurantCount],
-  );
-
-  const hasMoreRestaurants =
-    visibleRestaurantCount < filteredRestaurants.length;
-
-  const loadMoreRestaurants = useCallback(() => {
-    setVisibleRestaurantCount((previous) =>
-      Math.min(previous + RESTAURANTS_BATCH_SIZE, filteredRestaurants.length),
-    );
-  }, [filteredRestaurants.length, RESTAURANTS_BATCH_SIZE]);
-
-  useEffect(() => {
-    setVisibleRestaurantCount(
-      Math.min(RESTAURANTS_BATCH_SIZE, filteredRestaurants.length),
-    );
-  }, [restaurantLazyLoadResetKey, filteredRestaurants.length, RESTAURANTS_BATCH_SIZE]);
-
-  useEffect(() => {
-    if (visibleRestaurantCount <= filteredRestaurants.length) return;
-    setVisibleRestaurantCount(filteredRestaurants.length);
-  }, [filteredRestaurants.length, visibleRestaurantCount]);
-
-  useEffect(() => {
-    if (!hasMoreRestaurants) return;
-    if (showRestaurantSkeleton || loadingRestaurants || isLoadingFilterResults) return;
-    const target = restaurantLoadMoreRef.current;
-    if (!target || typeof window === "undefined") return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (!entry?.isIntersecting) return;
-        startTransition(() => {
-          loadMoreRestaurants();
-        });
-      },
-      {
-        root: null,
-        rootMargin: "240px 0px",
-        threshold: 0.01,
-      },
-    );
-
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [
-    hasMoreRestaurants,
-    showRestaurantSkeleton,
-    loadingRestaurants,
-    isLoadingFilterResults,
-    loadMoreRestaurants,
-  ]);
 
   const recommendedForYouRestaurants = useMemo(() => {
     const idsInOrder = (recommendedRestaurantIds || []).map((id) => String(id));
@@ -2763,154 +1918,30 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []); // placeholders is a constant, no need for dependency
 
-  // Memoized Hero Banner Component for better perf
-  const HeroBannerSection = useMemo(() => {
-    if (showBannerSkeleton) {
-      return (
-        <div className="px-4 py-2">
-          <HeroBannerSkeleton className="w-full aspect-[21/9] rounded-2xl" />
-        </div>
-      );
-    }
-
-    if (heroBannerImages.length === 0) return null;
-
-    return (
-      <div className="px-4 py-2">
-        <div
-          ref={heroShellRef}
-          data-home-hero-shell="true"
-          className="relative w-full overflow-hidden rounded-2xl shadow-sm group cursor-pointer bg-white"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-        >
-          <div className="relative z-0 w-full flex items-center justify-center bg-gray-50 dark:bg-[#111]">
-            {/* Shining Glint Effect */}
-            <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
-              <motion.div
-                animate={{
-                  x: ['-200%', '200%'],
-                }}
-                transition={{
-                  duration: 2.5,
-                  repeat: Infinity,
-                  repeatDelay: 5,
-                  ease: "easeInOut"
-                }}
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] w-[150%] h-full"
-              />
-            </div>
-            {heroBannerImages.map((image, index) => (
-              <div
-                key={`${index}-${image}`}
-                className={`${index === 0 ? "relative" : "absolute inset-0"} w-full h-full flex items-center justify-center transition-opacity duration-700 ease-in-out`}
-                style={{
-                  opacity: currentBannerIndex === index ? 1 : 0,
-                  zIndex: currentBannerIndex === index ? 2 : 1,
-                  pointerEvents: "none",
-                }}>
-                <img
-                  src={image}
-                  alt={`Hero Banner ${index + 1}`}
-                  className="w-full h-auto max-h-[250px] sm:max-h-[300px] lg:max-h-[350px] object-contain"
-                  loading={index === currentBannerIndex ? "eager" : "lazy"}
-                  fetchPriority={index === currentBannerIndex ? "high" : "low"}
-                  draggable={false}
-                />
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            className="absolute inset-0 z-20 h-full w-full border-0 p-0 bg-transparent text-left"
-            onClick={() => {
-              const bannerData = heroBannersData[currentBannerIndex];
-              const linkedRestaurants = bannerData?.linkedRestaurants || [];
-              if (linkedRestaurants.length > 0) {
-                const firstRestaurant = linkedRestaurants[0];
-                const restaurantSlug = firstRestaurant.slug || firstRestaurant.restaurantId || firstRestaurant._id;
-                navigate(`/restaurants/${restaurantSlug}`);
-              }
-            }}
-            aria-label={`Open hero banner ${currentBannerIndex + 1}`}
-          />
-
-          {/* Indicators removed as requested */}
-        </div>
-      </div>
-    );
-  }, [heroBannerImages, currentBannerIndex, showBannerSkeleton, heroBannersData, navigate]);
-
-  // Memoized Category Rail Component
-  const CategoryRailSection = useMemo(() => {
-    return (
-      <section className="space-y-1 sm:space-y-1.5 lg:space-y-2 min-h-[108px] sm:min-h-[120px]">
-        <div
-          ref={categoryScrollRef}
-          className="flex gap-3 sm:gap-4 lg:gap-5 overflow-x-auto overflow-y-visible scrollbar-hide scroll-smooth px-2 sm:px-3 py-2 sm:py-3"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {/* Meals Under 200 Card */}
-          <div
-            className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer transition-transform hover:scale-105 active:scale-95"
-            onClick={() => navigate("/user/under-250")}
-          >
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-b-full rounded-t-sm shadow-md border-t-4 border-orange-200 flex flex-col items-center justify-center p-1">
-              <span className="text-[10px] sm:text-xs font-bold text-white text-center leading-tight">UNDER</span>
-              <span className="text-sm sm:text-base font-extrabold text-white">₹200</span>
-              <div className="w-10 h-3.5 bg-white rounded-full mt-1 flex items-center justify-center">
-                <span className="text-[8px] font-bold text-primary">Explore</span>
-              </div>
-            </div>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Offers</span>
-          </div>
-
-          {showCategorySkeleton ? (
-            <CategoryChipRowSkeleton className="py-1" />
-          ) : (
-            displayCategories.slice(0, 12).map((category, index) => (
-              <Link
-                key={category.id || index}
-                to={`/food/user/category/${category.slug || category.name.toLowerCase().replace(/\s+/g, "-")}`}
-                className="flex-shrink-0 flex flex-col items-center gap-2 group transition-all duration-300 hover:-translate-y-1"
-                style={{ animation: `fade-in-up 0.5s ease-out forwards ${index * 0.05}s`, opacity: 0 }}
-              >
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 group-hover:border-primary transition-colors">
-                  <OptimizedImage
-                    src={category.image}
-                    alt={category.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    sizes="80px"
-                  />
-                </div>
-                <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 text-center truncate max-w-[72px]">
-                  {category.name}
-                </span>
-              </Link>
-            ))
-          )}
-
-          {displayCategories.length > 12 && !showCategorySkeleton && (
-            <div
-              className="flex-shrink-0 flex flex-col items-center gap-2 cursor-pointer group"
-              onClick={() => navigate("/food/user/categories")}
-            >
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-orange-50 dark:bg-orange-950 flex items-center justify-center border border-orange-100 group-hover:border-primary transition-all">
-                <Plus className="w-6 h-6 text-primary" />
-              </div>
-              <span className="text-xs font-medium text-gray-700">See All</span>
-            </div>
-          )}
-        </div>
-      </section>
-    );
-  }, [displayCategories, showCategorySkeleton, navigate]);
+  const handleRestaurantFavoriteToggle = useCallback(
+    (event, restaurant, restaurantSlug, favorite) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (favorite) {
+        setSelectedRestaurantSlug(restaurantSlug);
+        setShowManageCollections(true);
+      } else {
+        addFavorite({
+          slug: restaurantSlug,
+          name: restaurant.name,
+          cuisine: restaurant.cuisine,
+          rating: restaurant.rating,
+          deliveryTime: restaurant.deliveryTime,
+          distance: restaurant.distance,
+          priceRange: restaurant.priceRange,
+          image: restaurant.image,
+        });
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      }
+    },
+    [addFavorite],
+  );
 
   if (shouldShowOutOfZoneHome) {
     return (
@@ -3075,19 +2106,21 @@ export default function Home() {
           >
             {festVideoActive && (
               <div className="absolute inset-0 z-0 overflow-hidden rounded-b-[2rem] bg-slate-900 pointer-events-auto">
-                <AnimatePresence initial={false}>
-                  <motion.img
-                    key={`hero-bg-${bgIndex}`}
-                    src={festBannerImages[bgIndex]}
-                    initial={{ x: "100%" }}
-                    animate={{ x: 0 }}
-                    exit={{ x: "-100%" }}
-                    transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }}
-                    className="absolute inset-0 w-full h-full object-cover"
+                {festBannerImages.map((image, index) => (
+                  <img
+                    key={`hero-bg-${index}-${image}`}
+                    src={image}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
+                    style={{
+                      opacity: bgIndex === index ? 1 : 0,
+                      zIndex: bgIndex === index ? 2 : 1,
+                    }}
+                    loading={index === 0 ? "eager" : "lazy"}
+                    draggable={false}
                   />
-                </AnimatePresence>
-                <div className="absolute inset-0 bg-black/20" />
-                
+                ))}
+                <div className="absolute inset-0 bg-black/20 z-[3]" />
               </div>
             )}
           </div>
@@ -3193,7 +2226,12 @@ export default function Home() {
                 {/* Removed Dynamic Sticky Header (Search + Slider + Filters) */}
 
                 {/* Admin Hero Banners Section - Now below categories */}
-                {HeroBannerSection}
+                <HeroBanner
+                  images={heroBannerImages}
+                  bannersData={heroBannersData}
+                  loading={showBannerSkeleton}
+                  shellRef={heroShellRef}
+                />
 
 
                 {/* Filters Sticky Sidebar Header */}
@@ -3278,12 +2316,17 @@ export default function Home() {
                   restaurant.slug ||
                   restaurant.name.toLowerCase().replace(/\s+/g, "-");
                 return (
-                  <motion.div
+                  <div
                     key={`recommended-${restaurant.mongoId || restaurant.id || restaurantSlug}`}
-                    initial={{ opacity: 0, y: 12 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.35, delay: index * 0.05 }}>
+                    className="transform transition-all duration-300 hover:-translate-y-1"
+                    style={
+                      index < 6
+                        ? {
+                            animation: `fade-in-up 0.35s ease-out ${index * 0.05}s backwards`,
+                          }
+                        : undefined
+                    }
+                  >
                     <Link
                       to={`/user/restaurants/${restaurantSlug}`}
                       className="block rounded-[20px] overflow-hidden border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] shadow-sm hover:shadow-md transition-shadow">
@@ -3308,7 +2351,7 @@ export default function Home() {
                         </p>
                       </div>
                     </Link>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
@@ -3320,83 +2363,18 @@ export default function Home() {
           <AdsBannerCarousel banners={adsBannerImages} data={adsBannersData} />
         </div>
 
-        {/* Explore More Section */}
-        <motion.section
-          className="content-auto pt-2 sm:pt-3 lg:pt-4"
-          initial={false}
-          animate={{ opacity: 1, y: 0 }}>
-          <div className="px-4 mb-6 flex items-center gap-2">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-tight">
-              {exploreMoreHeading}
-            </h2>
-            <div className="h-[1px] bg-gray-100 dark:bg-gray-800 flex-1"></div>
-          </div>
-          <div className="px-4 pb-4 lg:pb-6">
-            <div className="flex overflow-x-auto no-scrollbar gap-10 sm:gap-12 md:gap-16 items-start justify-center py-2">
-              {showExploreSkeleton ? (
-                Array(6).fill(0).map((_, i) => (
-                  <div key={i} className="flex-shrink-0 w-20 sm:w-24 md:w-28">
-                    <ExploreGridSkeleton count={1} />
-                  </div>
-                ))
-              ) : (
-                finalExploreItems.map((item, index) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{
-                      duration: 0.4,
-                      delay: index * 0.08,
-                    }}
-                    whileHover={{ y: -8 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex-shrink-0 w-20 sm:w-24 md:w-28">
-                    <Link
-                      to={item.href}
-                      className="block w-full">
-                      <div className="flex flex-col items-center gap-2 w-full group">
-                        <div className="relative w-full aspect-square rounded-[1.25rem] bg-white dark:bg-[#1a1a1a] flex items-center justify-center shadow-[0_4px_12px_-4px_rgba(0,0,0,0.1)] group-hover:shadow-[0_12px_24px_-6px_rgba(0,0,0,0.15)] transition-all duration-500 overflow-hidden border border-gray-100 dark:border-gray-800 group-hover:border-primary/40">
-                          {/* Colorful Glow Background */}
-                          <div className={`absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br ${index % 3 === 0 ? 'from-primary to-rose-500' : index % 3 === 1 ? 'from-indigo-500 to-purple-500' : 'from-teal-500 to-emerald-500'} z-20 pointer-events-none`} />
-
-                          {/* Shine Effect */}
-                          <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
-                            <motion.div
-                              animate={{ x: ['-200%', '200%'] }}
-                              transition={{ duration: 3, repeat: Infinity, repeatDelay: 5 + index * 0.5 }}
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-[-25deg] w-[150%]"
-                            />
-                          </div>
-
-                          <OptimizedImage
-                            src={item.image}
-                            alt={item.label}
-                            className="w-full h-full object-cover relative z-10 transition-transform duration-500 group-hover:scale-110"
-                            width={200}
-                            height={200}
-                          />
-                        </div>
-                        <span className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 group-hover:text-primary dark:group-hover:text-white transition-colors text-center tracking-tight leading-tight uppercase px-1">
-                          {item.label}
-                        </span>
-                      </div>
-                    </Link>
-                  </motion.div>
-                ))
-              )}
-            </div>
-          </div>
-        </motion.section>
+        <ExploreMoreSection
+          heading={exploreMoreHeading}
+          items={finalExploreItems}
+          showSkeleton={showExploreSkeleton}
+        />
 
         {/* Featured Foods - Horizontal Scroll */}
 
         {/* Restaurants - Enhanced with Animations */}
-        <motion.section
+        <section
           className="content-auto space-y-0 pt-3 sm:pt-4 lg:pt-6 pb-8 md:pb-10"
-          initial={false}
-          animate={{ opacity: 1 }}>
+        >
           {!shouldShowOutOfZoneHome && (
             <div className="px-4 mb-3 lg:mb-4">
               <div className="flex flex-col gap-0.5 lg:gap-1">
@@ -3519,240 +2497,17 @@ export default function Home() {
               </motion.div>
             </div>
           ) : (
-            <>
-              <div
-                className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-4 lg:gap-5 xl:gap-6 px-4 pt-1 sm:pt-1.5 lg:pt-2 items-stretch ${isLoadingFilterResults || loadingRestaurants ? "opacity-50" : "opacity-100"} transition-opacity duration-300`}>
-                {showRestaurantSkeleton && visibleRestaurants.length === 0 ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <div key={`skel-card-${i}`} className="h-full">
-                      <div className="overflow-hidden gap-0 border-0 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] rounded-[28px] flex flex-col h-full w-full relative shadow-sm border border-orange-50 dark:border-orange-900/10 shadow-[0_4px_20px_rgba(249,115,22,0.04)]">
-                        {/* Image Skeleton */}
-                        <div className="relative h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72 bg-[#f7f5f2] dark:bg-zinc-800 animate-pulse flex flex-col items-center justify-center">
-                          <ShopPlaceholder />
-                        </div>
-                        {/* Content Skeleton */}
-                        <div className="p-3 sm:p-4 lg:p-5 pt-3 sm:pt-4 lg:pt-5 flex flex-col flex-grow">
-                          <div className="flex items-start justify-between gap-2 mb-2 lg:mb-3">
-                            <div className="h-6 lg:h-8 w-48 lg:w-64 bg-orange-100 dark:bg-orange-900/30 rounded-md animate-pulse"></div>
-                            <div className="h-6 lg:h-8 w-16 bg-orange-200 dark:bg-orange-800/40 rounded-3xl animate-pulse"></div>
-                          </div>
-                          <div className="flex items-center gap-2 mb-2 lg:mb-3">
-                            <div className="h-4 lg:h-5 w-24 bg-orange-50 dark:bg-orange-900/20 rounded animate-pulse"></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  visibleRestaurants.map((restaurant, index) => {
-                    const nameStr =
-                      typeof restaurant?.name === "string"
-                        ? restaurant.name.trim()
-                        : "";
-                    const fallbackSlugSource =
-                      nameStr ||
-                      (typeof restaurant?.restaurantName === "string"
-                        ? restaurant.restaurantName.trim()
-                        : "") ||
-                      String(
-                        restaurant?.slug ||
-                        restaurant?.id ||
-                        restaurant?._id ||
-                        `restaurant-${index}`,
-                      );
-
-                    const restaurantSlug =
-                      typeof restaurant?.slug === "string" &&
-                        restaurant.slug.trim()
-                        ? restaurant.slug.trim()
-                        : fallbackSlugSource.toLowerCase().replace(/\s+/g, "-");
-                    const availability = getRestaurantAvailabilityStatus(
-                      restaurant,
-                      new Date(availabilityTick),
-                      { ignoreOperationalStatus: true },
-                    );
-                    // Direct favorite check - isFavorite is already memoized in context
-                    const favorite = isFavorite(restaurantSlug);
-
-                    const handleToggleFavorite = (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (favorite) {
-                        // If already bookmarked, show Manage Collections modal
-                        setSelectedRestaurantSlug(restaurantSlug);
-                        setShowManageCollections(true);
-                      } else {
-                        // Add to favorites and show toast
-                        addFavorite({
-                          slug: restaurantSlug,
-                          name: restaurant.name,
-                          cuisine: restaurant.cuisine,
-                          rating: restaurant.rating,
-                          deliveryTime: restaurant.deliveryTime,
-                          distance: restaurant.distance,
-                          priceRange: restaurant.priceRange,
-                          image: restaurant.image,
-                        });
-                        setShowToast(true);
-                        setTimeout(() => {
-                          setShowToast(false);
-                        }, 3000);
-                      }
-                    };
-
-                    return (
-                      <div
-                        key={
-                          restaurant?.id ||
-                          restaurant?._id ||
-                          restaurantSlug ||
-                          index
-                        }
-                        className="h-full transform transition-all duration-300 hover:-translate-y-3 hover:scale-[1.02]"
-                        style={{
-                          perspective: 1000,
-                          animation:
-                            index < 10
-                              ? `fade-in-up 0.5s ease-out ${index * 0.05}s backwards`
-                              : "none",
-                        }}>
-                        <div className="h-full group">
-                          <Link
-                            to={`/user/restaurants/${restaurantSlug}`}
-                            className="h-full flex">
-                            <Card
-                              className={`overflow-hidden gap-0 cursor-pointer border-0 dark:border-gray-800 group bg-white dark:bg-[#1a1a1a] border-background transition-all duration-500 py-0 rounded-[28px] flex flex-col h-full w-full relative shadow-sm hover:shadow-xl ${isOutOfService || !availability.isOpen
-                                ? "grayscale opacity-75"
-                                : ""
-                                }`}>
-                              {/* Image Section with Carousel */}
-                              <div className="relative">
-                                <RestaurantImageCarousel
-                                  restaurant={restaurant}
-                                  priority={index < 3}
-                                  backendOrigin={BACKEND_ORIGIN}
-                                />
-
-
-
-                                {/* Bookmark Icon - Top Right */}
-                                <div className="absolute top-4 right-4 z-10 transform transition-transform duration-300 group-hover:scale-110">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={handleToggleFavorite}
-                                    aria-label={
-                                      favorite
-                                        ? "Remove from favorites"
-                                        : "Add to favorites"
-                                    }
-                                    className={`h-11 w-11 rounded-[20px] shadow-xl flex items-center justify-center transition-all duration-300 ${favorite
-                                      ? "bg-red-500 text-white"
-                                      : "bg-white/90 backdrop-blur-sm text-gray-800 hover:bg-white"
-                                      }`}>
-                                    <Bookmark
-                                      className={`h-5 w-5 transition-all duration-300 ${favorite ? "fill-white" : ""
-                                        }`}
-                                    />
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {/* Content Section */}
-                              <div className="transform transition-transform duration-300 group-hover:-translate-y-1">
-                                <CardContent className="p-3 sm:p-4 lg:p-5 pt-3 sm:pt-4 lg:pt-5 flex flex-col flex-grow">
-                                  {/* Restaurant Name & Rating */}
-                                  <div className="flex items-start justify-between gap-2 mb-2 lg:mb-3">
-                                    <div className="flex-1 min-w-0">
-                                      <h3 className="text-lg lg:text-2xl font-bold text-gray-950 dark:text-white line-clamp-1 leading-tight tracking-tight transition-colors duration-300 group-hover:text-primary">
-                                        {restaurant.name}
-                                      </h3>
-                                      <div className="flex flex-wrap items-center gap-2 mt-2">
-                                        <span
-                                          className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-sm ${availability.isOpen ? "bg-primary text-white" : "bg-gray-400 text-white"}`}>
-                                          {availability.isOpen
-                                            ? "Open now"
-                                            : "Offline"}
-                                        </span>
-                                        {availability.isOpen &&
-                                          availability.closingCountdownLabel &&
-                                          availability.openingTime &&
-                                          availability.closingTime && (
-                                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] font-black uppercase tracking-widest">
-                                              <Timer
-                                                className="h-3 w-3 flex-shrink-0"
-                                                strokeWidth={3}
-                                              />
-                                              <span>
-                                                {availability.closingCountdownLabel}
-                                              </span>
-                                            </div>
-                                          )}
-                                      </div>
-                                    </div>
-                                    <div className="flex-shrink-0 bg-green-600 text-white px-3 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-md transform transition-transform duration-300 group-hover:scale-110">
-                                      <span className="text-sm lg:text-lg font-black tracking-tight">
-                                        {Number(restaurant.rating) > 0 ? Number(restaurant.rating).toFixed(1) : "NEW"}
-                                      </span>
-                                      {Number(restaurant.rating) > 0 && <Star className="h-3.5 w-3.5 lg:h-4.5 lg:w-4.5 fill-white text-white" strokeWidth={0} />}
-                                    </div>
-                                  </div>
-
-                                  {/* Delivery Time & Distance */}
-                                  <div className="flex items-center gap-1 text-sm lg:text-base text-gray-500 mb-2 lg:mb-3 transition-opacity duration-300 opacity-70 group-hover:opacity-100">
-                                    <Clock
-                                      className="h-4 w-4 lg:h-5 lg:w-5 text-gray-500 dark:text-gray-400"
-                                      strokeWidth={1.5}
-                                    />
-                                    <span className="font-medium dark:text-gray-300 text-gray-700">
-                                      {restaurant.deliveryTime}
-                                    </span>
-                                    <span className="mx-1">|</span>
-                                    <span className="font-medium dark:text-gray-300 text-gray-700">
-                                      {restaurant.distance}
-                                    </span>
-                                  </div>
-
-                                  {/* Offer Badge */}
-                                  {restaurant.offer && (
-                                    <div className="flex items-center gap-2 text-sm lg:text-base mt-auto transform transition-transform duration-300 group-hover:translate-x-1">
-                                      <BadgePercent
-                                        className="h-4 w-4 lg:h-5 lg:w-5 text-primary"
-                                        strokeWidth={3}
-                                      />
-                                      <span className="text-primary dark:text-[#a05485] font-black uppercase text-[10px] tracking-wider">
-                                        {restaurant.offer}
-                                      </span>
-                                    </div>
-                                  )}
-                                </CardContent>
-                              </div>
-
-                              {/* Border Glow Effect */}
-                              <div className="absolute inset-0 rounded-md pointer-events-none z-0 transition-all duration-300 border border-transparent group-hover:border-primary/30 group-hover:shadow-[inset_0_0_0_1px_rgba(235,89,14,0.2)]" />
-                            </Card>
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  }))}
-              </div>
-
-              <div className="flex flex-col items-center pt-2 sm:pt-3 gap-2 px-4">
-                {hasMoreRestaurants && (
-                  <div className="flex justify-center my-2">
-                    <div className="w-6 h-6 rounded-full border-[3px] border-gray-200 border-t-primary animate-spin" />
-                  </div>
-                )}
-                <div
-                  ref={restaurantLoadMoreRef}
-                  className="h-1 w-full"
-                  aria-hidden="true"
-                />
-              </div>
-            </>
+            <RestaurantGrid
+              restaurants={filteredRestaurants}
+              backendOrigin={BACKEND_ORIGIN}
+              isOutOfService={isEffectiveLocationOutOfService}
+              showSkeleton={showRestaurantSkeleton}
+              isLoading={isLoadingFilterResults || loadingRestaurants}
+              isFavorite={isFavorite}
+              onToggleFavorite={handleRestaurantFavoriteToggle}
+            />
           )}
-        </motion.section>
+        </section>
               </motion.div>
             ) : (
               <motion.div
@@ -4049,7 +2804,7 @@ export default function Home() {
                           }`}>
                         <span
                           className={`text-sm font-medium ${activeFilters.has("price-under-200") ? "text-primary" : "text-gray-700 dark:text-gray-300"}`}>
-                          Under ₹200
+                          Under â‚¹200
                         </span>
                       </button>
                       <button
@@ -4060,7 +2815,7 @@ export default function Home() {
                           }`}>
                         <span
                           className={`text-sm font-medium ${activeFilters.has("price-under-500") ? "text-primary" : "text-gray-700 dark:text-gray-300"}`}>
-                          Under ₹500
+                          Under â‚¹500
                         </span>
                       </button>
                     </div>

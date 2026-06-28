@@ -1,3 +1,4 @@
+import { listPublicApprovedFoods } from '../services/restaurantFood.service.js';
 import {
     registerRestaurant,
     listApprovedRestaurants,
@@ -53,6 +54,15 @@ export const listApprovedRestaurantsController = async (req, res, next) => {
     try {
         const data = await listApprovedRestaurants(req.query);
         return sendResponse(res, 200, 'Restaurants fetched successfully', data);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const listPublicApprovedFoodsController = async (req, res, next) => {
+    try {
+        const data = await listPublicApprovedFoods(req.query || {});
+        return sendResponse(res, 200, 'Foods fetched successfully', data);
     } catch (error) {
         next(error);
     }
