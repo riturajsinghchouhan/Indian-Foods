@@ -468,6 +468,7 @@ export default function ProfessionalSearch() {
         )}
       </div>
       {typeof window !== "undefined" && createPortal(
+        <>
         <AnimatePresence>
           {selectedDish && (
             <>
@@ -547,9 +548,107 @@ export default function ProfessionalSearch() {
               </motion.div>
             </>
           )}
-        </AnimatePresence>,
-        document.body
-      )}
-    </div>
-  )
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isListening && (
+            <motion.div 
+              className="fixed inset-0 z-[10000] bg-[#050505] flex flex-col items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {/* Back Button */}
+              <button 
+                onClick={stopListening}
+                className="absolute top-6 left-6 p-3 rounded-full bg-white/5 text-white/50 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+
+              {/* Central Animation Area */}
+              <div className="relative flex items-center justify-center w-full max-w-[280px] aspect-square mb-12 mt-10">
+                
+                {/* Thin dashed outer circle */}
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 rounded-full border border-red-600/30 border-dashed"
+                />
+                
+                {/* Solid inner circle */}
+                <motion.div 
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute inset-8 rounded-full border-[1px] border-red-600/80"
+                />
+
+                {/* Soundwaves - Left (Butterfly Wing) */}
+                <div className="absolute left-[-40px] flex items-center justify-end gap-1.5 h-24 w-20 opacity-90">
+                  {[6, 12, 20, 32, 48, 36, 24, 14, 8].map((h, i) => (
+                    <motion.div 
+                      key={`l-${i}`}
+                      animate={{ height: [h, h*1.5, h] }}
+                      transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.1 }}
+                      className="w-1.5 bg-red-600 rounded-full shadow-[0_0_8px_rgba(220,38,38,0.6)]"
+                    />
+                  ))}
+                </div>
+
+                {/* Soundwaves - Right (Butterfly Wing) */}
+                <div className="absolute right-[-40px] flex items-center justify-start gap-1.5 h-24 w-20 opacity-90">
+                  {[6, 12, 20, 32, 48, 36, 24, 14, 8].map((h, i) => (
+                    <motion.div 
+                      key={`r-${i}`}
+                      animate={{ height: [h, h*1.5, h] }}
+                      transition={{ duration: 1.2, repeat: Infinity, delay: (8-i) * 0.1 }}
+                      className="w-1.5 bg-red-600 rounded-full shadow-[0_0_8px_rgba(220,38,38,0.6)]"
+                    />
+                  ))}
+                </div>
+
+                {/* Center Button */}
+                <div className="relative z-10 w-36 h-36 rounded-full bg-gradient-to-b from-[#2a2a2a] to-[#0a0a0a] border-[4px] border-[#111] shadow-[0_0_0_2px_rgba(220,38,38,0.8),0_0_60px_rgba(220,38,38,0.3)] flex items-center justify-center">
+                  <motion.div
+                    animate={{ scale: [1, 1.15, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <Mic className="w-14 h-14 text-red-500 fill-red-500" strokeWidth={1} />
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Text */}
+              <div className="text-center space-y-4 px-6 mt-4">
+                <motion.h2 
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-[22px] font-bold text-red-500 tracking-wide"
+                >
+                  Listening...
+                </motion.h2>
+                <p className="text-gray-400 text-[15px] font-medium leading-relaxed max-w-[200px] mx-auto">
+                  How can we help<br/>you with your order?
+                </p>
+              </div>
+
+              {/* Loading Dots */}
+              <div className="flex gap-3 mt-10">
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1, 0.8] }}
+                    transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+                    className={`rounded-full ${i === 1 ? 'bg-red-500 w-2.5 h-2.5' : 'bg-[#441111] w-2 h-2 mt-[1px]'}`}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>,
+      document.body
+    )}
+  </div>
+)
 }
