@@ -152,12 +152,29 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   const mapRef = useRef(null);
   const simInitializedRef = useRef(false);
 
+  const resolveActiveOrderMeta = useCallback(() => {
+    if (!activeOrder) return null;
+    return {
+      orderId: getOrderMongoId(activeOrder) || getOrderAcceptId(activeOrder),
+      userId:
+        activeOrder.userId?._id?.toString?.() ||
+        activeOrder.userId?.toString?.() ||
+        activeOrder.user?._id?.toString?.() ||
+        activeOrder.user?.id ||
+        activeOrder.userId,
+      restaurantId:
+        activeOrder.restaurantId?._id?.toString?.() ||
+        activeOrder.restaurantId?.toString?.() ||
+        activeOrder.restaurantId,
+    };
+  }, [activeOrder]);
+
   const pushRoutePolylineToCustomer = useCallback((polyline) => {
     const encoded = typeof polyline === 'string' ? polyline : polyline?.points || '';
     if (!encoded) return;
 
-    const orderId = activeOrder?.orderId || activeOrder?._id;
-    if (!orderId) return;
+    const meta = resolveActiveOrderMeta();
+    if (!meta?.orderId) return;
 
     if (encoded === lastEmittedPolylineRef.current) return;
     lastEmittedPolylineRef.current = encoded;
@@ -166,7 +183,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     if (!coords || coords.lat == null || coords.lng == null) return;
 
     emitLocation({
-      orderId,
+      ...meta,
       lat: coords.lat,
       lng: coords.lng,
       heading: coords.heading || 0,
@@ -174,7 +191,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
       status: tripStatus,
       eta,
     });
-  }, [activeOrder?.orderId, activeOrder?._id, riderLocation, emitLocation, tripStatus, eta]);
+  }, [resolveActiveOrderMeta, riderLocation, emitLocation, tripStatus, eta]);
 
   useEffect(() => {
     lastEmittedPolylineRef.current = '';
@@ -252,7 +269,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
                 lat, 
                 lng, 
                 heading, 
-                orderId: activeOrder?.orderId || activeOrder?._id,
+                ...(resolveActiveOrderMeta() || {}),
                 status: 'on_the_way',
                 polyline: activePolyline,
                 eta,
@@ -265,7 +282,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
       }, 50); // 20 FPS movement
     }
     return () => clearInterval(interval);
-  }, [isSimMode, simPath, simIndex, activeOrder, emitLocation, activePolyline, eta, tripStatus]);
+  }, [isSimMode, simPath, simIndex, activeOrder, emitLocation, activePolyline, eta, tripStatus, resolveActiveOrderMeta]);
 
   // Fetch Emergency numbers and Profile (Restored logic)
   useEffect(() => {
@@ -512,7 +529,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
           heading: heading || 0,
           speed: speed || 0,
           accuracy: pos.coords.accuracy,
-          orderId: activeOrder?.orderId || activeOrder?._id,
+          ...(resolveActiveOrderMeta() || {}),
           status: 'on_the_way',
           polyline:
             typeof activePolyline === 'string'
@@ -564,6 +581,31 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   // - If no popup is currently showing â†’ display it immediately.
   // - If a popup IS already showing (lock is set) â†’ queue it as pending. DO NOT overwrite the visible popup.
   //   This ensures the rider always accepts the order whose details are physically visible on screen.
+  useEffect(() => {
+    const onPendingOffers = (event) => {
+      const offers = event.detail?.offers || [];
+      if (!offers.length) return;
+
+      setIncomingOrders((prev) => {
+        let next = prev;
+        offers.forEach((offer) => {
+          next = upsertIncomingOrderInQueue(next, offer);
+        });
+        return next;
+      });
+
+      setSelectedIncomingId((prev) => {
+        if (prev) return prev;
+        const firstId = getOrderMongoId(offers[0]);
+        lockedIncomingOrderIdRef.current = firstId || null;
+        return firstId;
+      });
+    };
+
+    window.addEventListener('deliveryPendingOffers', onPendingOffers);
+    return () => window.removeEventListener('deliveryPendingOffers', onPendingOffers);
+  }, []);
+
   useEffect(() => {
     if (newOrder === undefined || newOrder === null) return;
 
@@ -829,14 +871,43 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   }, [activeOrder, currentTab, isOnline, isSocketConnected, setActiveOrder, tripStatus, updateTripStatus]);
 
   useEffect(() => {
-    if (orderStatusUpdate) {
-      if (orderStatusUpdate.status === 'cancelled') {
-        toast.error('Order cancelled');
-        resetTrip();
-      }
+    if (!orderStatusUpdate) return;
+
+    if (orderStatusUpdate.status === 'cancelled') {
+      toast.error('Order cancelled');
+      resetTrip();
       clearOrderStatusUpdate();
+      return;
     }
-  }, [orderStatusUpdate, resetTrip, clearOrderStatusUpdate]);
+
+    if (
+      orderStatusUpdate.recoverySource === 'socket_resync' ||
+      orderStatusUpdate.recoverySource === 'delivery_reconnect'
+    ) {
+      const payload = orderStatusUpdate;
+      if (payload && (payload._id || payload.orderId || payload.orderMongoId)) {
+        setActiveOrder({
+          ...payload,
+          _id: payload._id || payload.orderMongoId,
+          orderId: payload.orderId || payload.order_id || payload._id,
+        });
+        const backendStatus = String(
+          payload.deliveryStatus || payload.orderStatus || payload.status || '',
+        ).toLowerCase();
+        if (['delivered', 'completed'].includes(backendStatus)) {
+          updateTripStatus('COMPLETED');
+        } else if (['picked_up', 'delivering'].includes(backendStatus)) {
+          updateTripStatus('PICKED_UP');
+        } else if (backendStatus === 'reached_pickup' || payload.deliveryState?.currentPhase === 'at_pickup') {
+          updateTripStatus('REACHED_PICKUP');
+        } else {
+          updateTripStatus('PICKING_UP');
+        }
+      }
+    }
+
+    clearOrderStatusUpdate();
+  }, [orderStatusUpdate, resetTrip, clearOrderStatusUpdate, setActiveOrder, updateTripStatus]);
 
   // Handle auto-killed order reasoning
   useEffect(() => {

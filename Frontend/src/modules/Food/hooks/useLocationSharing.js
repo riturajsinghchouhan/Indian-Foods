@@ -1,59 +1,19 @@
 ﻿import { useEffect, useRef } from 'react';
-import io from 'socket.io-client';
-import { API_BASE_URL } from '@food/api/config';
 import { shouldSendLocationUpdate } from '@delivery/utils/trackingInterval';
-
-function getDeliveryAuthToken() {
-  return (
-    localStorage.getItem('delivery_accessToken') ||
-    localStorage.getItem('accessToken') ||
-    null
-  );
-}
+import { getOrderAcceptId, getOrderMongoId } from '@food/utils/orderDispatchId';
 
 /**
- * Food delivery rider live location sharing (socket-only).
- * Firebase / HTTP per-tick writes removed — backend persists from socket.
+ * @deprecated Prefer DeliveryNotificationContext.emitLocation from DeliveryHomeV2.
+ * Dispatches deliveryLocationShare events for the shared delivery socket to consume.
  */
 export const useLocationSharing = (orderId, enabled = false) => {
-  const socketRef = useRef(null);
   const watchIdRef = useRef(null);
   const isSharingRef = useRef(false);
   const lastSentAtRef = useRef(0);
   const lastCoordRef = useRef(null);
-  const deliveryIdRef = useRef(
-    localStorage.getItem('deliveryPartnerId') ||
-      localStorage.getItem('deliveryPartnerMongoId') ||
-      localStorage.getItem('deliveryBoyId') ||
-      '',
-  );
-
-  const backendUrl = API_BASE_URL
-    ? API_BASE_URL.replace('/api/v1', '').replace('/api', '')
-    : '';
 
   const startSharing = () => {
     if (!orderId || isSharingRef.current) return;
-    if (!API_BASE_URL || !backendUrl) return;
-
-    const token = getDeliveryAuthToken();
-
-    if (!socketRef.current) {
-      socketRef.current = io(backendUrl, {
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 5,
-        auth: token ? { token } : undefined,
-      });
-
-      socketRef.current.on('connect', () => {
-        const deliveryId = deliveryIdRef.current;
-        if (deliveryId) socketRef.current.emit('join-delivery', deliveryId);
-        socketRef.current.emit('join-tracking', orderId);
-      });
-    }
-
     if (!navigator.geolocation) return;
 
     watchIdRef.current = navigator.geolocation.watchPosition(
@@ -77,18 +37,20 @@ export const useLocationSharing = (orderId, enabled = false) => {
         lastCoordRef.current = { lat: latitude, lng: longitude };
         lastSentAtRef.current = now;
 
-        if (socketRef.current?.connected) {
-          socketRef.current.emit('update-location', {
-            orderId,
-            lat: latitude,
-            lng: longitude,
-            heading: heading || 0,
-            speed: speed || 0,
-            accuracy: accuracy || null,
-            timestamp: now,
-            status: 'on_the_way',
-          });
-        }
+        window.dispatchEvent(
+          new CustomEvent('deliveryLocationShare', {
+            detail: {
+              orderId: getOrderMongoId({ orderId, _id: orderId }) || getOrderAcceptId({ orderId }),
+              lat: latitude,
+              lng: longitude,
+              heading: heading || 0,
+              speed: speed || 0,
+              accuracy: accuracy || null,
+              timestamp: now,
+              status: 'on_the_way',
+            },
+          }),
+        );
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 },
@@ -101,10 +63,6 @@ export const useLocationSharing = (orderId, enabled = false) => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
-    }
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
     }
     isSharingRef.current = false;
   };

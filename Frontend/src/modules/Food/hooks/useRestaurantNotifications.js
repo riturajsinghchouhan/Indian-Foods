@@ -619,6 +619,15 @@ export const useRestaurantNotifications = () => {
     debugLog('?? Is Production Build:', isProductionBuild);
     debugLog('?? Is Production Deployment:', isProductionDeployment);
 
+    const restaurantToken =
+      localStorage.getItem('restaurant_accessToken') || localStorage.getItem('accessToken');
+
+    if (!restaurantToken) {
+      setIsConnected(false);
+      if (typeof window !== 'undefined') window.restaurantSocketConnected = false;
+      return;
+    }
+
     // Initialize socket connection (default namespace)
     // WebSocket-first for instant delivery; polling is the automatic fallback.
     socketRef.current = io(socketUrl, {
@@ -633,8 +642,9 @@ export const useRestaurantNotifications = () => {
       forceNew: false,
       autoConnect: true,
       auth: {
-        token: localStorage.getItem('restaurant_accessToken') || localStorage.getItem('accessToken')
-      }
+        token: restaurantToken,
+      },
+      query: { token: restaurantToken },
     });
 
     socketRef.current.on('connect', () => {
