@@ -1,7 +1,4 @@
-import { useMemo } from "react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { ShopPlaceholder } from "@food/components/OptimizedImage";
-import { useGridColumns } from "@food/hooks/user/useGridColumns";
 import HomeRestaurantCard from "@food/components/user/home/HomeRestaurantCard";
 
 function RestaurantGridSkeleton() {
@@ -36,87 +33,34 @@ export default function RestaurantGrid({
   isFavorite,
   onToggleFavorite,
 }) {
-  const columns = useGridColumns();
-
-  const rows = useMemo(() => {
-    const grouped = [];
-    for (let index = 0; index < restaurants.length; index += columns) {
-      grouped.push(restaurants.slice(index, index + columns));
-    }
-    return grouped;
-  }, [restaurants, columns]);
-
-  const virtualizer = useWindowVirtualizer({
-    count: rows.length,
-    estimateSize: () => (columns === 1 ? 430 : columns === 2 ? 400 : 390),
-    overscan: 2,
-  });
-
-  if (showSkeleton && restaurants.length === 0) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-4 lg:gap-5 xl:gap-6 px-4 pt-1 sm:pt-1.5 lg:pt-2 items-stretch">
-        <RestaurantGridSkeleton />
-      </div>
-    );
-  }
-
   if (restaurants.length === 0) {
     return null;
   }
 
   return (
     <div
-      className={`px-4 pt-1 sm:pt-1.5 lg:pt-2 ${
+      className={`px-4 pt-1 sm:pt-1.5 lg:pt-2 pb-10 ${
         isLoading ? "opacity-50" : "opacity-100"
       } transition-opacity duration-300`}
     >
-      <div
-        style={{
-          height: `${virtualizer.getTotalSize()}px`,
-          width: "100%",
-          position: "relative",
-        }}
-      >
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const row = rows[virtualRow.index] || [];
-          return (
-            <div
-              key={virtualRow.key}
-              data-index={virtualRow.index}
-              ref={virtualizer.measureElement}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-4 lg:gap-5 xl:gap-6 items-stretch pb-5 sm:pb-4 lg:pb-5 xl:pb-6">
-                {row.map((restaurant, columnIndex) => {
-                  const cardIndex = virtualRow.index * columns + columnIndex;
-                  return (
-                    <HomeRestaurantCard
-                      key={
-                        restaurant?.id ||
-                        restaurant?._id ||
-                        restaurant?.mongoId ||
-                        cardIndex
-                      }
-                      restaurant={restaurant}
-                      index={cardIndex}
-                      backendOrigin={backendOrigin}
-                      isOutOfService={isOutOfService}
-                      isFavorite={isFavorite}
-                      onToggleFavorite={onToggleFavorite}
-                      animateEntrance={cardIndex < 10}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-4 lg:gap-5 xl:gap-6 items-stretch pb-5 sm:pb-4 lg:pb-5 xl:pb-6">
+        {restaurants.map((restaurant, index) => (
+          <HomeRestaurantCard
+            key={
+              restaurant?.id ||
+              restaurant?._id ||
+              restaurant?.mongoId ||
+              index
+            }
+            restaurant={restaurant}
+            index={index}
+            backendOrigin={backendOrigin}
+            isOutOfService={isOutOfService}
+            isFavorite={isFavorite}
+            onToggleFavorite={onToggleFavorite}
+            animateEntrance={index < 10}
+          />
+        ))}
       </div>
     </div>
   );
