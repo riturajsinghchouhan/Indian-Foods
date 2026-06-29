@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDeliveryStore } from '@/modules/DeliveryV2/store/useDeliveryStore';
 import { useProximityCheck } from '@/modules/DeliveryV2/hooks/useProximityCheck';
@@ -138,6 +138,7 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   const [isModalMinimized, setIsModalMinimized] = useState(false);
   const [eta, setEta] = useState(null);
   const lastLocationSentAt = useRef(0);
+  const lastHttpSyncAt = useRef(0);
   const lastCoordRef = useRef(null);
   const rollingSpeedRef = useRef([]);
   const lastAutoArrivalRef = useRef({ PICKING_UP: false, PICKED_UP: false });
@@ -540,6 +541,11 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
 
         if (payload.orderId) emitLocation(payload);
       }
+
+      if (now - lastHttpSyncAt.current >= 45000) {
+        lastHttpSyncAt.current = now;
+        deliveryAPI.updateLocation(lat, lng, true, { heading: heading || 0, speed: speed || 0, accuracy: pos.coords.accuracy }).catch(() => {});
+      }
     }, () => {
       // IF GPS FAILS/DENIED: Use Indore as a fallback for testing
       console.warn('GPS Denied - Falling back to Indore for testing');
@@ -563,7 +569,8 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     
     const pingInterval = setInterval(() => {
       const now = Date.now();
-      if (now - lastLocationSentAt.current >= 45000 && lastCoordRef.current) {
+      if (now - lastHttpSyncAt.current >= 45000 && lastCoordRef.current) {
+        lastHttpSyncAt.current = now;
         deliveryAPI.updateLocation(
           lastCoordRef.current.lat, 
           lastCoordRef.current.lng, 

@@ -56,14 +56,13 @@ async function listNearbyOnlineDeliveryPartners(
 
   const scored = [];
   const allowedStatuses = ['approved'];
-  const STALE_GPS_MS = 10 * 60 * 1000;
 
   for (const p of allOnline) {
     if (!allowedStatuses.includes(p.status)) continue;
 
-    // Skip riders with no GPS data or stale location — they cannot be distance-verified
-    const isStale = !p.lastLocationAt || (Date.now() - new Date(p.lastLocationAt).getTime()) > STALE_GPS_MS;
-    if (p.lastLat == null || p.lastLng == null || isStale) {
+    // We no longer skip riders with stale location (as per client request, they should receive orders even if online for days).
+    // We only skip if they have absolutely no GPS data ever recorded.
+    if (p.lastLat == null || p.lastLng == null) {
       continue;
     }
 
