@@ -274,7 +274,51 @@ export default function SearchResults() {
             .map((restaurant) => {
               // Use backend data directly - filter out default values
               let deliveryTime = restaurant.estimatedDeliveryTime || null
-              let distance = restaurant.distanceText || restaurant.distance || null
+              
+              let distance = null;
+              if (restaurant.distanceText) {
+                distance = restaurant.distanceText;
+              } else {
+                // Fallback Haversine with 1.35x routing multiplier (match Home.jsx exactly)
+                const userLat = location?.latitude;
+                const userLng = location?.longitude;
+                const restaurantLocation = restaurant.location || (restaurant.profile ? restaurant.profile.location : null);
+                
+                const restaurantLat = restaurantLocation?.latitude || 
+                  (restaurantLocation?.coordinates && Array.isArray(restaurantLocation.coordinates) ? restaurantLocation.coordinates[1] : null);
+                const restaurantLng = restaurantLocation?.longitude || 
+                  (restaurantLocation?.coordinates && Array.isArray(restaurantLocation.coordinates) ? restaurantLocation.coordinates[0] : null);
+
+                if (
+                  userLat && userLng && restaurantLat && restaurantLng &&
+                  !isNaN(userLat) && !isNaN(userLng) && !isNaN(restaurantLat) && !isNaN(restaurantLng)
+                ) {
+                  const R = 6371; // Earth's radius in kilometers
+                  const dLat = ((restaurantLat - userLat) * Math.PI) / 180;
+                  const dLng = ((restaurantLng - userLng) * Math.PI) / 180;
+                  const a =
+                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos((userLat * Math.PI) / 180) *
+                    Math.cos((restaurantLat * Math.PI) / 180) *
+                    Math.sin(dLng / 2) *
+                    Math.sin(dLng / 2);
+                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                  const distanceInKm = (R * c) * 1.35; // Routing multiplier
+
+                  if (distanceInKm >= 1) {
+                    distance = `${distanceInKm.toFixed(1)} km`;
+                  } else {
+                    const distanceInMeters = Math.round(distanceInKm * 1000);
+                    distance = `${distanceInMeters} m`;
+                  }
+                }
+              }
+
+              // Ultimate fallback
+              if (!distance) {
+                distance = restaurant.distance || null;
+              }
+
               let offer = restaurant.offer || null
 
               // Filter out default values
