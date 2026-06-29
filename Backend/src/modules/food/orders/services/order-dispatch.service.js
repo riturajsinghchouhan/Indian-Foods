@@ -22,7 +22,7 @@ async function filterPartnersByCashLimit(partners = [], options = {}) {
   // Since we are removing cash limit checks, we simply map partners to ensure they have expected shape.
   // We allow all partners to bypass cash limit.
   if (!Array.isArray(partners) || partners.length === 0) return [];
-  
+
   return partners.map((p) => ({
     ...p,
     availableCashLimit: Number.MAX_SAFE_INTEGER,
@@ -95,6 +95,7 @@ async function listNearbyOnlineDeliveryPartners(
     const activeOrderDocs = await FoodOrder.find({
       'dispatch.status': 'accepted',
       orderStatus: { $in: ['confirmed', 'preparing', 'ready_for_pickup', 'picked_up'] },
+      createdAt: { $gte: new Date(Date.now() - 1 * 60 * 60 * 1000) }
     }).select('dispatch.deliveryPartnerId').lean();
 
     for (const doc of activeOrderDocs) {
@@ -183,7 +184,7 @@ export async function tryAutoAssign(orderId, options = {}) {
     const paymentMethod = String(order.payment?.method || 'cash').toLowerCase();
     const isCashOrder = paymentMethod === 'cash';
     const requiredAmount = isCashOrder ? Number(order?.pricing?.total || 0) : 0;
-    
+
     // RADIUS EXPANSION LOGIC
     const feeSettings = await FoodFeeSettings.findOne({ isActive: true }).lean();
     let radiusTiers = feeSettings?.dispatchRadiusTiers || [];
@@ -199,7 +200,7 @@ export async function tryAutoAssign(orderId, options = {}) {
       allowOverLimitFallback: true,
     };
     const { partners } = await listNearbyOnlineDeliveryPartners(order.restaurantId, searchOptions);
-    
+
     // TIERED ALERT LOGIC
     // Phase 2: Broadcast to all (Attempt 4+)
     // Phase 3: Admin Alert (Attempt 6+ or roughly 2 mins)
@@ -227,7 +228,7 @@ export async function tryAutoAssign(orderId, options = {}) {
 
     if (eligible.length === 0) {
       logger.info(`tryAutoAssign: No NEW eligible partners in ${maxKm}km for order ${order._id}. Restarting hunt...`);
-      
+
       // If we ran out of new eligible partners, we might want to re-offer to everyone (Phase 2 style)
       const io = getIO();
       if (io && partners.length > 0) {
@@ -236,7 +237,7 @@ export async function tryAutoAssign(orderId, options = {}) {
           const roomName = rooms.delivery(p.partnerId);
           io.to(roomName).emit('new_order_available', { ...payload, pickupDistanceKm: p.distanceKm });
         }
-        
+
         // Also send FCM push for riders with app in background/closed
         const reNotifyList = partners.map(p => ({
           ownerType: 'DELIVERY_PARTNER',
@@ -284,7 +285,7 @@ export async function tryAutoAssign(orderId, options = {}) {
           io.to(roomName).emit('new_order_available', eventPayload);
         }
       }
-      
+
       // Phase 2 also needs FCM push for riders with app in background/closed
       const phase2NotifyList = eligible.map(p => ({
         ownerType: 'DELIVERY_PARTNER',
@@ -388,7 +389,7 @@ export async function processDispatchTimeout(orderId, partnerId, options = {}) {
     order.dispatch.status = 'unassigned';
     order.dispatch.deliveryPartnerId = null;
     await order.save();
-    
+
     const attempt = options.attempt || (order.dispatch?.offeredTo?.length || 0) + 1;
     await tryAutoAssign(orderId, { attempt });
   } else if (order.dispatch?.status === 'unassigned') {
@@ -442,16 +443,16 @@ export async function resendDeliveryNotificationRestaurant(orderId, restaurantId
     : 0;
   const notifiedPartnerIds = Array.isArray(refreshed?.dispatch?.offeredTo)
     ? refreshed.dispatch.offeredTo
-        .filter((entry) => entry?.action === 'offered' && entry?.partnerId)
-        .map((entry) => String(entry.partnerId))
+      .filter((entry) => entry?.action === 'offered' && entry?.partnerId)
+      .map((entry) => String(entry.partnerId))
     : [];
   const io = getIO();
   const connectedSocketCount = io
     ? notifiedPartnerIds.reduce((count, pid) => {
-        const roomName = rooms.delivery(pid);
-        const roomSize = io?.sockets?.adapter?.rooms?.get(roomName)?.size || 0;
-        return count + roomSize;
-      }, 0)
+      const roomName = rooms.delivery(pid);
+      const roomSize = io?.sockets?.adapter?.rooms?.get(roomName)?.size || 0;
+      return count + roomSize;
+    }, 0)
     : 0;
 
   return {
