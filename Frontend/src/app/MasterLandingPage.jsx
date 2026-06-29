@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { useNavigate } from "react-router-dom"
+import api from "@food/api"
 import {
   UtensilsCrossed,
   MapPin,
@@ -127,12 +128,23 @@ export default function MasterLandingPage() {
   const { scrollYProgress } = useScroll()
   const yHero = useTransform(scrollYProgress, [0, 1], ["0%", "40%"])
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [landingSettings, setLandingSettings] = useState(null)
+
+  const activeSlides = landingSettings?.heroSlides?.length > 0 ? landingSettings.heroSlides : SLIDES;
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % SLIDES.length)
+      setCurrentSlide((prev) => (prev + 1) % activeSlides.length)
     }, 5000)
     return () => clearInterval(timer)
+  }, [activeSlides.length])
+
+  useEffect(() => {
+    api.get('/food/landing/settings/public').then(res => {
+      if (res.data?.success) {
+        setLandingSettings(res.data.data)
+      }
+    }).catch(err => console.error("Failed to load landing settings", err))
   }, [])
 
   // Colors
@@ -161,11 +173,21 @@ export default function MasterLandingPage() {
             className="absolute inset-0 z-0"
           >
             <div className="absolute inset-0 bg-black/60 z-10" />
-            <img
-              src={SLIDES[currentSlide].image}
-              alt="Hero Background"
-              className="w-full h-full object-cover"
-            />
+            {activeSlides[currentSlide]?.type === 'video' ? (
+              <video
+                src={activeSlides[currentSlide]?.image || activeSlides[currentSlide]?.url}
+                autoPlay
+                loop
+                muted
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img
+                src={activeSlides[currentSlide]?.image || activeSlides[currentSlide]?.url}
+                alt="Hero Background"
+                className="w-full h-full object-cover"
+              />
+            )}
 
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4">
               <motion.h1
@@ -175,7 +197,7 @@ export default function MasterLandingPage() {
                 className="text-[60px] md:text-[90px] text-white mb-4 font-cursive tracking-wider"
                 style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}
               >
-                {SLIDES[currentSlide].title}
+                {activeSlides[currentSlide]?.title}
               </motion.h1>
 
               <motion.p
@@ -185,7 +207,7 @@ export default function MasterLandingPage() {
                 className="text-lg md:text-2xl text-gray-200 font-medium tracking-wide"
                 style={{ textShadow: '1px 1px 3px rgba(0,0,0,0.8)' }}
               >
-                {SLIDES[currentSlide].subtitle}
+                {activeSlides[currentSlide]?.subtitle}
               </motion.p>
             </div>
           </motion.div>
@@ -193,7 +215,7 @@ export default function MasterLandingPage() {
 
         {/* Slide Indicators */}
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-30 flex gap-3">
-          {SLIDES.map((_, index) => (
+          {activeSlides.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
@@ -254,7 +276,7 @@ export default function MasterLandingPage() {
         >
           <div className="flex items-center gap-4 md:gap-6 flex-1 justify-center md:justify-start">
             <div className="text-center md:text-left">
-              <h3 className="text-3xl md:text-[40px] font-black text-gray-700 whitespace-nowrap">3,00,000+</h3>
+              <h3 className="text-3xl md:text-[40px] font-black text-gray-700 whitespace-nowrap">{landingSettings?.stats?.restaurants || "3,00,000+"}</h3>
               <p className="text-gray-500 text-lg font-medium whitespace-nowrap">restaurants</p>
             </div>
             <div className="w-12 h-12 md:w-14 md:h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center shrink-0">
@@ -266,7 +288,7 @@ export default function MasterLandingPage() {
 
           <div className="flex items-center gap-4 md:gap-6 flex-1 justify-center md:justify-center">
             <div className="text-center md:text-left">
-              <h3 className="text-3xl md:text-[40px] font-black text-gray-700 whitespace-nowrap">800+</h3>
+              <h3 className="text-3xl md:text-[40px] font-black text-gray-700 whitespace-nowrap">{landingSettings?.stats?.cities || "800+"}</h3>
               <p className="text-gray-500 text-lg font-medium whitespace-nowrap">cities</p>
             </div>
             <div className="w-12 h-12 md:w-14 md:h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center shrink-0">
@@ -278,7 +300,7 @@ export default function MasterLandingPage() {
 
           <div className="flex items-center gap-4 md:gap-6 flex-1 justify-center md:justify-end">
             <div className="text-center md:text-left">
-              <h3 className="text-3xl md:text-[40px] font-black text-gray-700 whitespace-nowrap">3 billion+</h3>
+              <h3 className="text-3xl md:text-[40px] font-black text-gray-700 whitespace-nowrap">{landingSettings?.stats?.orders || "3 billion+"}</h3>
               <p className="text-gray-500 text-lg font-medium whitespace-nowrap">orders delivered</p>
             </div>
             <div className="w-12 h-12 md:w-14 md:h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center shrink-0">
@@ -423,12 +445,17 @@ export default function MasterLandingPage() {
             </p>
             <div className="flex gap-4 justify-center md:justify-start">
               <img 
-                src="https://b.zmtcdn.com/data/webuikit/9f0c85a5e33adb783fa0aef667075f9e1556003622.png" 
+                src="https://b.zmtcdn.com/data/webuikit/23e930757c3df49840c482a8638bf5c31556001144.png" 
                 alt="Google Play" 
                 className="h-12 object-contain cursor-pointer" 
-                onClick={() => window.open('https://play.google.com/store/apps/details?id=com.indian.bite.user', '_blank')}
+                onClick={() => window.open(landingSettings?.appLinks?.playStore || 'https://play.google.com/store/apps/details?id=com.indian.bite.user', '_blank')}
               />
-              <img src="https://b.zmtcdn.com/data/webuikit/23e930757c3df49840c482a8638bf5c31556001144.png" alt="App Store" className="h-12 object-contain cursor-pointer" />
+              <img 
+                src="https://b.zmtcdn.com/data/webuikit/9f0c85a5e33adb783fa0aef667075f9e1556003622.png" 
+                alt="App Store" 
+                className="h-12 object-contain cursor-pointer" 
+                onClick={() => window.open(landingSettings?.appLinks?.appStore || '#', '_blank')}
+              />
             </div>
           </div>
 
@@ -470,29 +497,41 @@ export default function MasterLandingPage() {
               <div>
                 <h4 className="font-bold text-lg mb-6 uppercase tracking-wider text-gray-200">About IB</h4>
                 <ul className="space-y-3 text-gray-400 font-medium">
-                  <li><a href="#" className="hover:text-white transition-colors">Who We Are</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Work With Us</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Investor Relations</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Report Fraud</a></li>
+                  {(landingSettings?.footerLinks?.about || [
+                    { label: 'Who We Are', url: '#' },
+                    { label: 'Blog', url: '#' },
+                    { label: 'Work With Us', url: '#' },
+                    { label: 'Investor Relations', url: '#' },
+                    { label: 'Report Fraud', url: '#' }
+                  ]).map((link, i) => (
+                    <li key={i}><a href={link.url} className="hover:text-white transition-colors">{link.label}</a></li>
+                  ))}
                 </ul>
               </div>
 
               <div>
                 <h4 className="font-bold text-lg mb-6 uppercase tracking-wider text-gray-200">For Restaurants</h4>
                 <ul className="space-y-3 text-gray-400 font-medium">
-                  <li><a href="#" className="hover:text-white transition-colors">Partner With Us</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Apps For You</a></li>
+                  {(landingSettings?.footerLinks?.forRestaurants || [
+                    { label: 'Partner With Us', url: '#' },
+                    { label: 'Apps For You', url: '#' }
+                  ]).map((link, i) => (
+                    <li key={i}><a href={link.url} className="hover:text-white transition-colors">{link.label}</a></li>
+                  ))}
                 </ul>
               </div>
 
               <div>
                 <h4 className="font-bold text-lg mb-6 uppercase tracking-wider text-gray-200">Learn More</h4>
                 <ul className="space-y-3 text-gray-400 font-medium">
-                  <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Security</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Terms</a></li>
-                  <li><a href="#" className="hover:text-white transition-colors">Sitemap</a></li>
+                  {(landingSettings?.footerLinks?.learnMore || [
+                    { label: 'Privacy', url: '#' },
+                    { label: 'Security', url: '#' },
+                    { label: 'Terms', url: '#' },
+                    { label: 'Sitemap', url: '#' }
+                  ]).map((link, i) => (
+                    <li key={i}><a href={link.url} className="hover:text-white transition-colors">{link.label}</a></li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -500,37 +539,52 @@ export default function MasterLandingPage() {
 
           <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
-                <Linkedin className="w-5 h-5" />
-              </div>
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
-                <Instagram className="w-5 h-5" />
-              </div>
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
-                <Twitter className="w-5 h-5" />
-              </div>
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
-                <Youtube className="w-5 h-5" />
-              </div>
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
-                <Facebook className="w-5 h-5" />
-              </div>
+              {(!landingSettings?.socialLinks || landingSettings.socialLinks.linkedin) && (
+                <div onClick={() => window.open(landingSettings?.socialLinks?.linkedin || '#', '_blank')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
+                  <Linkedin className="w-5 h-5" />
+                </div>
+              )}
+              {(!landingSettings?.socialLinks || landingSettings.socialLinks.instagram) && (
+                <div onClick={() => window.open(landingSettings?.socialLinks?.instagram || '#', '_blank')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
+                  <Instagram className="w-5 h-5" />
+                </div>
+              )}
+              {(!landingSettings?.socialLinks || landingSettings.socialLinks.twitter) && (
+                <div onClick={() => window.open(landingSettings?.socialLinks?.twitter || '#', '_blank')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
+                  <Twitter className="w-5 h-5" />
+                </div>
+              )}
+              {(!landingSettings?.socialLinks || landingSettings.socialLinks.youtube) && (
+                <div onClick={() => window.open(landingSettings?.socialLinks?.youtube || '#', '_blank')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
+                  <Youtube className="w-5 h-5" />
+                </div>
+              )}
+              {(!landingSettings?.socialLinks || landingSettings.socialLinks.facebook) && (
+                <div onClick={() => window.open(landingSettings?.socialLinks?.facebook || '#', '_blank')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#E23744] transition-colors cursor-pointer text-white">
+                  <Facebook className="w-5 h-5" />
+                </div>
+              )}
             </div>
 
             <div className="flex gap-4">
               <img 
-                src="https://b.zmtcdn.com/data/webuikit/9f0c85a5e33adb783fa0aef667075f9e1556003622.png" 
+                src="https://b.zmtcdn.com/data/webuikit/23e930757c3df49840c482a8638bf5c31556001144.png" 
                 alt="Google Play" 
                 className="h-10 opacity-70 hover:opacity-100 transition-opacity cursor-pointer" 
-                onClick={() => window.open('https://play.google.com/store/apps/details?id=com.indian.bite.user', '_blank')}
+                onClick={() => window.open(landingSettings?.appLinks?.playStore || 'https://play.google.com/store/apps/details?id=com.indian.bite.user', '_blank')}
               />
-              <img src="https://b.zmtcdn.com/data/webuikit/23e930757c3df49840c482a8638bf5c31556001144.png" alt="App Store" className="h-10 opacity-70 hover:opacity-100 transition-opacity cursor-pointer" />
+              <img 
+                src="https://b.zmtcdn.com/data/webuikit/9f0c85a5e33adb783fa0aef667075f9e1556003622.png" 
+                alt="App Store" 
+                className="h-10 opacity-70 hover:opacity-100 transition-opacity cursor-pointer" 
+                onClick={() => window.open(landingSettings?.appLinks?.appStore || '#', '_blank')}
+              />
             </div>
           </div>
 
           <div className="text-gray-500 text-sm font-medium mt-10 text-center md:text-left leading-relaxed">
             By continuing past this page, you agree to our Terms of Service, Cookie Policy, Privacy Policy and Content Policies. All trademarks are properties of their respective owners. <br />
-            © 2026 Indian Bites™ Ltd. All rights reserved.
+            {landingSettings?.copyrightText || '© 2026 Indian Bites™ Ltd. All rights reserved.'}
           </div>
         </div>
       </footer>

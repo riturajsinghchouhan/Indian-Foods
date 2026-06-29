@@ -59,8 +59,36 @@ export default function LandingPageManagement() {
   const [diningBannersDeleting, setDiningBannersDeleting] = useState(null)
   const diningBannersFileInputRef = useRef(null)
 
-  // Settings
-  const [settings, setSettings] = useState({ exploreMoreHeading: "Explore More", recommendedRestaurantIds: [], under250PriceLimit: 250, festBannerImages: [] })
+  const [settings, setSettings] = useState({ 
+    exploreMoreHeading: "Explore More", 
+    recommendedRestaurantIds: [], 
+    under250PriceLimit: 250, 
+    festBannerImages: [],
+    stats: { restaurants: '3,00,000+', cities: '800+', orders: '3 billion+' },
+    appLinks: { playStore: 'https://play.google.com/store/apps/details?id=com.indian.bite.user', appStore: '' },
+    socialLinks: { instagram: '', twitter: '', facebook: '', linkedin: '', youtube: '' },
+    footerLinks: {
+      about: [
+          { label: 'Who We Are', url: '#' },
+          { label: 'Blog', url: '#' },
+          { label: 'Work With Us', url: '#' },
+          { label: 'Investor Relations', url: '#' },
+          { label: 'Report Fraud', url: '#' }
+      ],
+      forRestaurants: [
+          { label: 'Partner With Us', url: '#' },
+          { label: 'Apps For You', url: '#' }
+      ],
+      learnMore: [
+          { label: 'Privacy', url: '#' },
+          { label: 'Security', url: '#' },
+          { label: 'Terms', url: '#' },
+          { label: 'Sitemap', url: '#' }
+      ]
+    },
+    copyrightText: '© 2026 Indian Bites™ Ltd. All rights reserved.',
+    heroSlides: []
+  })
   const [settingsLoading, setSettingsLoading] = useState(true)
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [recommendedSearchQuery, setRecommendedSearchQuery] = useState("")
@@ -1051,18 +1079,42 @@ export default function LandingPageManagement() {
       setError(null)
       const response = await api.get('/food/hero-banners/landing/settings', getAuthConfig())
       if (response.data.success) {
-        const nextSettings = response.data.data.settings || {}
+        const nextSettings = response.data.data || {}
         setSettings({
           exploreMoreHeading: nextSettings.exploreMoreHeading || "Explore More",
           recommendedRestaurantIds: Array.isArray(nextSettings.recommendedRestaurantIds) ? nextSettings.recommendedRestaurantIds : [],
           under250PriceLimit: Number(nextSettings.under250PriceLimit) || 250,
-          festBannerImages: Array.isArray(nextSettings.festBannerImages) ? nextSettings.festBannerImages : []
+          festBannerImages: Array.isArray(nextSettings.festBannerImages) ? nextSettings.festBannerImages : [],
+          stats: nextSettings.stats || { restaurants: '3,00,000+', cities: '800+', orders: '3 billion+' },
+          appLinks: nextSettings.appLinks || { playStore: 'https://play.google.com/store/apps/details?id=com.indian.bite.user', appStore: '' },
+          socialLinks: nextSettings.socialLinks || { instagram: '', twitter: '', facebook: '', linkedin: '', youtube: '' },
+          footerLinks: nextSettings.footerLinks || {
+            about: [
+                { label: 'Who We Are', url: '#' },
+                { label: 'Blog', url: '#' },
+                { label: 'Work With Us', url: '#' },
+                { label: 'Investor Relations', url: '#' },
+                { label: 'Report Fraud', url: '#' }
+            ],
+            forRestaurants: [
+                { label: 'Partner With Us', url: '#' },
+                { label: 'Apps For You', url: '#' }
+            ],
+            learnMore: [
+                { label: 'Privacy', url: '#' },
+                { label: 'Security', url: '#' },
+                { label: 'Terms', url: '#' },
+                { label: 'Sitemap', url: '#' }
+            ]
+          },
+          copyrightText: nextSettings.copyrightText || '© 2026 Indian Bites™ Ltd. All rights reserved.',
+          heroSlides: Array.isArray(nextSettings.heroSlides) ? nextSettings.heroSlides : []
         })
       }
     } catch (err) {
       // Silently handle 401/404 errors - endpoints may not exist yet, use default settings
       if (err.response?.status === 401 || err.response?.status === 404) {
-        setSettings({ exploreMoreHeading: "Explore More", recommendedRestaurantIds: [], under250PriceLimit: 250, festBannerImages: [] }) // Use default settings
+        // Do not override with empty defaults on error, let the initial state persist
         setError(null) // Clear any previous error
       } else {
         // Filter out token-related errors
@@ -1083,10 +1135,16 @@ export default function LandingPageManagement() {
         exploreMoreHeading: settings.exploreMoreHeading,
         recommendedRestaurantIds: Array.isArray(settings.recommendedRestaurantIds) ? settings.recommendedRestaurantIds : [],
         under250PriceLimit: Number(settings.under250PriceLimit) || 250,
-        festBannerImages: settings.festBannerImages || []
+        festBannerImages: settings.festBannerImages || [],
+        stats: settings.stats,
+        appLinks: settings.appLinks,
+        socialLinks: settings.socialLinks,
+        footerLinks: settings.footerLinks,
+        copyrightText: settings.copyrightText,
+        heroSlides: settings.heroSlides
       }, getAuthConfig())
       if (response.data.success) {
-        const savedSettings = response.data.data?.settings || {}
+        const savedSettings = response.data.data || {}
         setSettings((prev) => ({
           ...prev,
           exploreMoreHeading: savedSettings.exploreMoreHeading || prev.exploreMoreHeading,
@@ -1096,7 +1154,13 @@ export default function LandingPageManagement() {
           under250PriceLimit: Number(savedSettings.under250PriceLimit) || prev.under250PriceLimit,
           festBannerImages: Array.isArray(savedSettings.festBannerImages)
             ? savedSettings.festBannerImages
-            : prev.festBannerImages
+            : prev.festBannerImages,
+          stats: savedSettings.stats || prev.stats,
+          appLinks: savedSettings.appLinks || prev.appLinks,
+          socialLinks: savedSettings.socialLinks || prev.socialLinks,
+          footerLinks: savedSettings.footerLinks || prev.footerLinks,
+          copyrightText: savedSettings.copyrightText || prev.copyrightText,
+          heroSlides: Array.isArray(savedSettings.heroSlides) ? savedSettings.heroSlides : prev.heroSlides
         }))
         setSuccess('Settings saved successfully!')
         setTimeout(() => setSuccess(null), 3000)
@@ -1315,6 +1379,7 @@ export default function LandingPageManagement() {
     { id: 'under-250', label: '250 Banner', icon: Tag },
     { id: 'dining', label: 'Ads Banner', icon: Megaphone },
     { id: 'explore-more', label: 'Explore More', icon: Layout },
+    { id: 'brand-landing', label: 'Brand Landing Page', icon: Layout },
   ]
 
   const exploreMoreTabs = [
@@ -2138,6 +2203,220 @@ export default function LandingPageManagement() {
               </>
             )}
           </>
+        )}
+
+        {/* Brand Landing Page Tab */}
+        {activeTab === 'brand-landing' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-4">Master Landing Page Settings</h2>
+              
+              <div className="mb-6 space-y-6">
+                <h3 className="text-md font-semibold text-slate-800 border-b pb-2">Hero Slider (Banners/Videos)</h3>
+                
+                <div className="space-y-4">
+                  {(settings.heroSlides || []).map((slide, idx) => (
+                    <div key={idx} className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex gap-4 items-start">
+                      <div className="w-40 h-24 bg-slate-200 rounded-md overflow-hidden shrink-0 flex items-center justify-center relative">
+                        {slide.type === 'video' ? (
+                          <video src={slide.url || slide.image} className="w-full h-full object-cover" muted />
+                        ) : slide.url || slide.image ? (
+                          <img src={slide.url || slide.image} className="w-full h-full object-cover" alt="slide" />
+                        ) : (
+                          <ImageIcon className="w-8 h-8 text-slate-400" />
+                        )}
+                        <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                          <Upload className="w-6 h-6 text-white" />
+                          <input type="file" className="hidden" accept="image/*,video/*" onChange={async (e) => {
+                            if(!e.target.files?.[0]) return;
+                            const file = e.target.files[0];
+                            const isVideo = file.type.startsWith('video/');
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            formData.append('folder', 'food/landing/hero');
+                            try {
+                              const res = await api.post(isVideo ? '/uploads/video' : '/uploads/image', formData, getAuthConfig());
+                              const url = res.data?.data?.url;
+                              if (url) {
+                                const newSlides = [...settings.heroSlides];
+                                newSlides[idx] = { ...newSlides[idx], url: url, image: url, type: isVideo ? 'video' : 'image' };
+                                setSettings({...settings, heroSlides: newSlides});
+                              }
+                            } catch(err) {
+                              console.error(err);
+                              alert("Upload failed");
+                            }
+                          }} />
+                        </label>
+                      </div>
+                      <div className="flex-1 space-y-3">
+                        <Input 
+                          placeholder="Title" 
+                          value={slide.title || ''} 
+                          onChange={(e) => {
+                            const newSlides = [...settings.heroSlides];
+                            newSlides[idx].title = e.target.value;
+                            setSettings({...settings, heroSlides: newSlides});
+                          }}
+                        />
+                        <Input 
+                          placeholder="Subtitle" 
+                          value={slide.subtitle || ''} 
+                          onChange={(e) => {
+                            const newSlides = [...settings.heroSlides];
+                            newSlides[idx].subtitle = e.target.value;
+                            setSettings({...settings, heroSlides: newSlides});
+                          }}
+                        />
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        const newSlides = [...settings.heroSlides];
+                        newSlides.splice(idx, 1);
+                        setSettings({...settings, heroSlides: newSlides});
+                      }} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const newSlides = [...(settings.heroSlides || []), { title: '', subtitle: '', type: 'image', url: '' }];
+                    setSettings({...settings, heroSlides: newSlides});
+                  }} className="text-blue-600 border-blue-200 hover:bg-blue-50">
+                    + Add Slide
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div>
+                  <Label>Restaurants Stat</Label>
+                  <Input value={settings.stats?.restaurants || ''} onChange={(e) => setSettings({...settings, stats: {...settings.stats, restaurants: e.target.value}})} placeholder="e.g. 3,00,000+" />
+                </div>
+                <div>
+                  <Label>Cities Stat</Label>
+                  <Input value={settings.stats?.cities || ''} onChange={(e) => setSettings({...settings, stats: {...settings.stats, cities: e.target.value}})} placeholder="e.g. 800+" />
+                </div>
+                <div>
+                  <Label>Orders Delivered Stat</Label>
+                  <Input value={settings.stats?.orders || ''} onChange={(e) => setSettings({...settings, stats: {...settings.stats, orders: e.target.value}})} placeholder="e.g. 3 billion+" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <Label>Play Store Link</Label>
+                  <Input value={settings.appLinks?.playStore || ''} onChange={(e) => setSettings({...settings, appLinks: {...settings.appLinks, playStore: e.target.value}})} placeholder="https://play.google.com/..." />
+                </div>
+                <div>
+                  <Label>App Store Link</Label>
+                  <Input value={settings.appLinks?.appStore || ''} onChange={(e) => setSettings({...settings, appLinks: {...settings.appLinks, appStore: e.target.value}})} placeholder="https://apps.apple.com/..." />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div>
+                  <Label>Instagram Link</Label>
+                  <Input value={settings.socialLinks?.instagram || ''} onChange={(e) => setSettings({...settings, socialLinks: {...settings.socialLinks, instagram: e.target.value}})} placeholder="https://instagram.com/..." />
+                </div>
+                <div>
+                  <Label>Facebook Link</Label>
+                  <Input value={settings.socialLinks?.facebook || ''} onChange={(e) => setSettings({...settings, socialLinks: {...settings.socialLinks, facebook: e.target.value}})} placeholder="https://facebook.com/..." />
+                </div>
+                <div>
+                  <Label>Twitter Link</Label>
+                  <Input value={settings.socialLinks?.twitter || ''} onChange={(e) => setSettings({...settings, socialLinks: {...settings.socialLinks, twitter: e.target.value}})} placeholder="https://twitter.com/..." />
+                </div>
+                <div>
+                  <Label>LinkedIn Link</Label>
+                  <Input value={settings.socialLinks?.linkedin || ''} onChange={(e) => setSettings({...settings, socialLinks: {...settings.socialLinks, linkedin: e.target.value}})} placeholder="https://linkedin.com/..." />
+                </div>
+                <div>
+                  <Label>YouTube Link</Label>
+                  <Input value={settings.socialLinks?.youtube || ''} onChange={(e) => setSettings({...settings, socialLinks: {...settings.socialLinks, youtube: e.target.value}})} placeholder="https://youtube.com/..." />
+                </div>
+              </div>
+
+              <div className="mb-6">
+                  <Label>Copyright Text</Label>
+                  <Input value={settings.copyrightText || ''} onChange={(e) => setSettings({...settings, copyrightText: e.target.value})} placeholder="© 2026 Indian Bites™ Ltd." />
+              </div>
+
+              <div className="mb-6 space-y-6 mt-8">
+                <h3 className="text-md font-semibold text-slate-800 border-b pb-2">Footer Menus</h3>
+                
+                {['about', 'forRestaurants', 'learnMore'].map(sectionKey => {
+                  const sectionLabels = {
+                    about: 'About IB',
+                    forRestaurants: 'For Restaurants',
+                    learnMore: 'Learn More'
+                  };
+                  return (
+                    <div key={sectionKey} className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                      <h4 className="font-medium text-slate-900 mb-3">{sectionLabels[sectionKey]}</h4>
+                      <div className="space-y-3 mb-4">
+                        {(settings.footerLinks?.[sectionKey] || []).map((link, idx) => (
+                          <div key={idx} className="flex items-center gap-3">
+                            <Input 
+                              value={link.label}
+                              onChange={(e) => {
+                                const newLinks = [...(settings.footerLinks[sectionKey] || [])];
+                                newLinks[idx].label = e.target.value;
+                                setSettings({...settings, footerLinks: {...settings.footerLinks, [sectionKey]: newLinks}});
+                              }}
+                              placeholder="Label" 
+                              className="flex-1"
+                            />
+                            <Input 
+                              value={link.url}
+                              onChange={(e) => {
+                                const newLinks = [...(settings.footerLinks[sectionKey] || [])];
+                                newLinks[idx].url = e.target.value;
+                                setSettings({...settings, footerLinks: {...settings.footerLinks, [sectionKey]: newLinks}});
+                              }}
+                              placeholder="URL (#)" 
+                              className="flex-1"
+                            />
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                const newLinks = [...(settings.footerLinks[sectionKey] || [])];
+                                newLinks.splice(idx, 1);
+                                setSettings({...settings, footerLinks: {...settings.footerLinks, [sectionKey]: newLinks}});
+                              }}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 px-2 shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newLinks = [...(settings.footerLinks?.[sectionKey] || []), { label: 'New Link', url: '#' }];
+                          setSettings({...settings, footerLinks: {...settings.footerLinks, [sectionKey]: newLinks}});
+                        }}
+                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                      >
+                        + Add Link
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-slate-200">
+                <Button onClick={handleSaveSettings} disabled={settingsSaving} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[120px]">
+                  {settingsSaving ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                  ) : 'Save Settings'}
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Restaurant Selection Modal */}
