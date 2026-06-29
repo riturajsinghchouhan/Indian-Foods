@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo, Fragment } from "react"
+import { useState, useEffect, useRef, useMemo, Fragment } from "react"
 import { createPortal } from "react-dom"
 import { Link, useNavigate } from "react-router-dom"
 import { Plus, Minus, ArrowLeft, ChevronRight, Clock, MapPin, Phone, FileText, Utensils, Tag, Percent, Share2, ChevronUp, ChevronDown, X, Check, Settings, CreditCard, Wallet, Building2, Sparkles, Banknote, Zap, CheckCircle2, MessageCircle, Send, Mail, Copy } from "lucide-react"
@@ -1070,11 +1070,7 @@ export default function Cart() {
         if (inRange) return fee
       }
 
-      return 0
-    }
-
-    if (subtotal >= feeSettings.freeDeliveryThreshold) {
-      return 0
+      return Number(feeSettings.deliveryFee || 0)
     }
 
     return Number(feeSettings.deliveryFee || 0)
