@@ -222,6 +222,20 @@ export const useRestaurantNotifications = () => {
     alertLoopStartedAtRef.current = 0;
   };
 
+  const removeOrderFromQueue = useCallback((orderIdToRemove) => {
+    const keyToRemove = String(orderIdToRemove).trim();
+    if (!keyToRemove) return;
+    
+    setOrderQueue(prev => {
+      const filtered = prev.filter(o => getOrderAlertKey(o) !== keyToRemove);
+      if (activeOrderRef.current && getOrderAlertKey(activeOrderRef.current) === keyToRemove) {
+         stopAlertLoop();
+         activeOrderRef.current = null;
+      }
+      return filtered;
+    });
+  }, []);
+
   const startAlertLoop = () => {
     stopAlertLoop();
     alertLoopStartedAtRef.current = Date.now();
@@ -365,6 +379,7 @@ export const useRestaurantNotifications = () => {
             const statusRaw = String(matchingOrderInPoll.status || matchingOrderInPoll.orderStatus || '').toLowerCase().trim().replace(/\s+/g, '_');
             if (statusRaw === 'cancelled_by_user' || statusRaw === 'cancelled_by_restaurant' || statusRaw === 'cancelled_by_admin' || statusRaw === 'cancelled') {
               debugLog('?? Fallback: Active order cancelled detected via REST poll:', matchingOrderInPoll);
+              removeOrderFromQueue(activeId);
               if (typeof window !== 'undefined') {
                 window.dispatchEvent(
                   new CustomEvent('restaurantOrderStatusUpdate', {
@@ -487,6 +502,7 @@ export const useRestaurantNotifications = () => {
                   const statusRaw = String(matchingOrderInPoll.status || matchingOrderInPoll.orderStatus || '').toLowerCase().trim().replace(/\s+/g, '_');
                   if (statusRaw === 'cancelled_by_user' || statusRaw === 'cancelled_by_restaurant' || statusRaw === 'cancelled_by_admin' || statusRaw === 'cancelled') {
                     debugLog('?? Fallback: Active order cancelled detected via REST poll on visibility change:', matchingOrderInPoll);
+                    removeOrderFromQueue(activeId);
                     if (typeof window !== 'undefined') {
                       window.dispatchEvent(
                         new CustomEvent('restaurantOrderStatusUpdate', {
@@ -788,7 +804,10 @@ export const useRestaurantNotifications = () => {
         const ids = [data?.orderMongoId, data?.orderId, data?._id, data?.id]
           .map(v => v == null ? '' : String(v).trim())
           .filter(Boolean);
-        for (const id of ids) cancelledOrderIdsRef.current.add(id);
+        for (const id of ids) {
+          cancelledOrderIdsRef.current.add(id);
+          removeOrderFromQueue(id);
+        }
       }
 
       if (typeof window !== 'undefined') {

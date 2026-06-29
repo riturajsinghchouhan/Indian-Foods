@@ -201,6 +201,10 @@ export default function SearchResults() {
         if (zoneId) {
           params.zoneId = zoneId
         }
+        if (location?.latitude && location?.longitude) {
+          params.lat = location.latitude
+          params.lng = location.longitude
+        }
         const response = await restaurantAPI.getRestaurants(params)
 
         if (!isSubscribed) return;
@@ -505,7 +509,7 @@ export default function SearchResults() {
     return () => {
       isSubscribed = false;
     }
-  }, [zoneId, isOutOfService, zoneStatus])
+  }, [zoneId, isOutOfService, zoneStatus, location?.latitude, location?.longitude])
 
   // Update search query when URL changes
   useEffect(() => {
