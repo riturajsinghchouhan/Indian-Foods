@@ -18,6 +18,26 @@ import {
   notifyOwnersSafely,
 } from './order.helpers.js';
 
+// ── Batched Notification Helper ──
+// Splits large target arrays into chunks of BATCH_SIZE and yields
+// the event loop between each batch (via setImmediate) so the server
+// doesn't freeze when notifying hundreds of riders at once.
+const NOTIFICATION_BATCH_SIZE = 50;
+
+async function batchedNotifyOwnersSafely(targets, payload) {
+  if (!Array.isArray(targets) || targets.length === 0) return;
+
+  for (let i = 0; i < targets.length; i += NOTIFICATION_BATCH_SIZE) {
+    const chunk = targets.slice(i, i + NOTIFICATION_BATCH_SIZE);
+    await notifyOwnersSafely(chunk, payload);
+
+    // Yield the event loop between batches so other requests can be processed
+    if (i + NOTIFICATION_BATCH_SIZE < targets.length) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+  }
+}
+
 async function filterPartnersByCashLimit(partners = [], options = {}) {
   // Since we are removing cash limit checks, we simply map partners to ensure they have expected shape.
   // We allow all partners to bypass cash limit.
@@ -41,54 +61,73 @@ async function listNearbyOnlineDeliveryPartners(
     .lean();
 
   if (!restaurant?.location?.coordinates?.length) {
-    // Restaurant has no GPS coordinates — cannot calculate distance to riders.
-    // Return empty so no one gets notified until restaurant sets their location.
     logger.warn(`listNearbyOnlineDeliveryPartners: Restaurant ${rId} has no location coordinates. Skipping dispatch.`);
     return { restaurant: null, partners: [] };
   }
 
   const [rLng, rLat] = restaurant.location.coordinates;
-  const allOnline = await FoodDeliveryPartner.find({
-    availabilityStatus: "online",
-  })
-    .select("_id status lastLat lastLng lastLocationAt name")
-    .lean();
 
-  const scored = [];
-  const allowedStatuses = ['approved'];
+  // ── $geoNear aggregation: offload distance math to MongoDB C++ engine ──
+  // Uses the existing `lastLocation: '2dsphere'` index on FoodDeliveryPartner.
+  // maxDistance is in meters, so convert km → m.
+  const geoNearPipeline = [
+    {
+      $geoNear: {
+        near: { type: 'Point', coordinates: [rLng, rLat] },
+        distanceField: 'distanceMeters',
+        maxDistance: maxKm * 1000,
+        spherical: true,
+        query: {
+          availabilityStatus: 'online',
+          status: 'approved',
+          'lastLocation.coordinates': { $exists: true },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        status: 1,
+        distanceMeters: 1,
+      },
+    },
+    { $sort: { distanceMeters: 1 } },
+    { $limit: Math.max(1, limit) },
+  ];
 
-  for (const p of allOnline) {
-    if (!allowedStatuses.includes(p.status)) continue;
-
-    // We no longer skip riders with stale location (as per client request, they should receive orders even if online for days).
-    // We only skip if they have absolutely no GPS data ever recorded.
-    if (p.lastLat == null || p.lastLng == null) {
-      continue;
+  let picked;
+  try {
+    const geoResults = await FoodDeliveryPartner.aggregate(geoNearPipeline);
+    picked = geoResults.map((p) => ({
+      partnerId: p._id,
+      distanceKm: Number((p.distanceMeters / 1000).toFixed(2)),
+      status: p.status,
+    }));
+  } catch (geoErr) {
+    // Fallback: if $geoNear fails (e.g. missing index, corrupt data), use legacy JS loop
+    logger.warn(`[Dispatch] $geoNear failed, using JS fallback: ${geoErr.message}`);
+    const allOnline = await FoodDeliveryPartner.find({ availabilityStatus: 'online' })
+      .select('_id status lastLat lastLng')
+      .lean();
+    const scored = [];
+    for (const p of allOnline) {
+      if (p.status !== 'approved') continue;
+      if (p.lastLat == null || p.lastLng == null) continue;
+      const d = haversineKm(rLat, rLng, p.lastLat, p.lastLng);
+      if (Number.isFinite(d) && d <= maxKm) {
+        scored.push({ partnerId: p._id, distanceKm: d, status: p.status });
+      }
     }
-
-    const d = haversineKm(rLat, rLng, p.lastLat, p.lastLng);
-    if (Number.isFinite(d) && d <= maxKm) {
-      scored.push({ partnerId: p._id, distanceKm: d, status: p.status });
-    }
+    scored.sort((a, b) => a.distanceKm - b.distanceKm);
+    picked = scored.slice(0, Math.max(1, limit));
   }
 
-  scored.sort((a, b) => a.distanceKm - b.distanceKm);
-  const picked = scored.slice(0, Math.max(1, limit));
-
-  // No fallback — if no riders found in radius, return empty.
-  // The tiered dispatch will expand radius on next attempt automatically.
   if (picked.length === 0) {
     return { partners: [] };
   }
 
-  const preFiltered = picked.filter(p => p.status === 'approved');
-
   // GHOST-ASSIGNMENT FIX (Backend):
   // Exclude riders who currently have an ACTIVE accepted order.
-  // These riders are already on a delivery trip and must not receive
-  // new order notifications. This prevents the FCM-triggered race condition
-  // where a rider "accepts" an FCM notification for Order B while their screen
-  // still shows Order A's acceptance timer.
   let busyPartnerIds = new Set();
   try {
     const activeOrderDocs = await FoodOrder.find({
@@ -107,12 +146,11 @@ async function listNearbyOnlineDeliveryPartners(
       logger.info(`[Dispatch] Excluding ${busyPartnerIds.size} busy rider(s) from new order notification.`);
     }
   } catch (err) {
-    // Non-critical: if the busy-check fails, proceed without filtering
     logger.warn(`[Dispatch] Could not fetch busy riders: ${err.message}. Proceeding without exclusion.`);
     busyPartnerIds = new Set();
   }
 
-  const final = preFiltered.filter(p => !busyPartnerIds.has(p.partnerId.toString()));
+  const final = picked.filter(p => !busyPartnerIds.has(p.partnerId.toString()));
 
   const cashEligibleFinal = await filterPartnersByCashLimit(final, {
     requiredAmount,
@@ -243,7 +281,7 @@ export async function tryAutoAssign(orderId, options = {}) {
           ownerId: p.partnerId,
         }));
         try {
-          await notifyOwnersSafely(
+          await batchedNotifyOwnersSafely(
             reNotifyList,
             {
               title: '🚴 Order Still Waiting!',
@@ -291,7 +329,7 @@ export async function tryAutoAssign(orderId, options = {}) {
         ownerId: p.partnerId,
       }));
       try {
-        await notifyOwnersSafely(
+        await batchedNotifyOwnersSafely(
           phase2NotifyList,
           {
             title: '🚴 New Order Nearby!',
@@ -325,7 +363,7 @@ export async function tryAutoAssign(orderId, options = {}) {
         ownerId: p.partnerId,
       }));
       try {
-        await notifyOwnersSafely(
+        await batchedNotifyOwnersSafely(
           notifyList,
           {
             title: '🚴 New Order Nearby!',

@@ -1,4 +1,4 @@
-﻿import { Server } from 'socket.io';
+import { Server } from 'socket.io';
 import { config } from './env.js';
 import { logger } from '../utils/logger.js';
 import { haversineMeters, shouldBroadcastLocation } from '../utils/geo.js';
@@ -196,6 +196,7 @@ export const initSocket = async (server) => {
         // Delivery partner emits live GPS location for an active order.
         // Broadcasts to the tracking room so users see the bike move in real time.
         const _lastLocationBroadcast = {};
+        const _lastPolylineBroadcast = {}; // Separate throttle for heavy polyline data
         socket.on('update-location', async (data) => {
             if (socket.user?.role !== 'DELIVERY_PARTNER') return;
             if (!data || !data.orderId) return;
@@ -209,28 +210,34 @@ export const initSocket = async (server) => {
             const speed = Number.isFinite(Number(data.speed)) ? Number(data.speed) : 0;
             const accuracy = Number.isFinite(Number(data.accuracy)) ? Number(data.accuracy) : null;
 
-            // Throttle: max one broadcast per 2s per orderId
+            // Throttle: max one broadcast per 5s per orderId
+            // (aligned with frontend 10s emit — reduces server→client events by ~60%)
             const now = Date.now();
             const lastTS = _lastLocationBroadcast[data.orderId] || 0;
-            if (now - lastTS < 2000) return;
+            if (now - lastTS < 5000) return;
             _lastLocationBroadcast[data.orderId] = now;
 
-            const payload = {
+            // ── MINIFIED tracking payload (sent to users watching the map) ──
+            // Only essential fields for 60fps client-side interpolation.
+            // Polyline/ETA are large strings that rarely change — sent on 30s cadence.
+            const trackingPayload = {
                 orderId: String(data.orderId),
                 deliveryPartnerId: String(userId),
                 lat,
                 lng,
-                boy_lat: lat,
-                boy_lng: lng,
-                riderLocation: [lat, lng],
                 heading,
                 speed,
-                accuracy,
                 timestamp: now,
                 status: data.status || 'on_the_way',
-                ...(data.polyline ? { polyline: data.polyline } : {}),
-                ...(data.eta != null && data.eta !== '' ? { eta: data.eta } : {}),
             };
+
+            // Send polyline/eta only every 30 seconds (they're large and change rarely)
+            const lastPolyTS = _lastPolylineBroadcast[data.orderId] || 0;
+            if (now - lastPolyTS >= 30000) {
+                _lastPolylineBroadcast[data.orderId] = now;
+                if (data.polyline) trackingPayload.polyline = data.polyline;
+                if (data.eta != null && data.eta !== '') trackingPayload.eta = data.eta;
+            }
 
             logDeliverySocket('Location update received', {
                 socketId: socket.id,
@@ -243,15 +250,15 @@ export const initSocket = async (server) => {
 
             // Broadcast to tracking room (all users watching this order)
             const trackingRoom = roomNames.tracking(data.orderId);
-            socket.to(trackingRoom).emit('location-update', payload);
+            socket.to(trackingRoom).emit('location-update', trackingPayload);
 
             // Also emit to the specific user room if userId is provided
             if (data.userId) {
-                socket.to(roomNames.user(data.userId)).emit('location-update', payload);
+                socket.to(roomNames.user(data.userId)).emit('location-update', trackingPayload);
             }
 
             if (data.restaurantId) {
-                socket.to(roomNames.restaurant(data.restaurantId)).emit('location-update', payload);
+                socket.to(roomNames.restaurant(data.restaurantId)).emit('location-update', trackingPayload);
             }
 
             // â”€â”€â”€ Scalable Persistence (BullMQ + Redis "Hot" Buffering) â”€â”€â”€
@@ -292,8 +299,6 @@ export const initSocket = async (server) => {
                     orderRef.update({
                         lat,
                         lng,
-                        boy_lat: lat,
-                        boy_lng: lng,
                         heading,
                         speed,
                         accuracy,

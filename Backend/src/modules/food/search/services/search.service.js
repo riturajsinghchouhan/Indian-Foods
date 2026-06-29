@@ -191,23 +191,54 @@ export const searchUnified = async (query = {}, options = {}) => {
 
     // Simple distance sorting if lat/lng are provided
     if (lat && lng && results.length > 0) {
+        const userLat = parseFloat(lat);
+        const userLng = parseFloat(lng);
+        const maxRadius = parseFloat(radiusKm) || 20;
+
+        // Use MongoDB $geoNear to compute distances in C++ engine instead of JS loops
+        let geoDistanceMap = null;
+        try {
+            const geoResults = await FoodRestaurant.aggregate([
+                {
+                    $geoNear: {
+                        near: { type: 'Point', coordinates: [userLng, userLat] },
+                        distanceField: 'distanceMeters',
+                        maxDistance: maxRadius * 1000,
+                        spherical: true,
+                        query: { status: 'approved' },
+                    },
+                },
+                { $project: { _id: 1, distanceMeters: 1 } },
+            ]);
+            geoDistanceMap = new Map();
+            geoResults.forEach(r => geoDistanceMap.set(r._id.toString(), r.distanceMeters / 1000));
+        } catch (geoErr) {
+            // Fallback: $geoNear might fail if index is missing or coordinates are invalid
+            console.warn('[Search-Service] $geoNear failed, using JS fallback:', geoErr.message);
+            geoDistanceMap = null;
+        }
+
         results.forEach(res => {
-            if (res.location && res.location.latitude && res.location.longitude) {
-                const dLat = (res.location.latitude - lat) * Math.PI / 180;
-                const dLon = (res.location.longitude - lng) * Math.PI / 180;
+            const resId = (res.originalRestaurantId || res._id)?.toString();
+
+            // Try precomputed distance from $geoNear first
+            if (geoDistanceMap && resId && geoDistanceMap.has(resId)) {
+                res.distanceScore = geoDistanceMap.get(resId);
+            } else if (res.location && res.location.latitude && res.location.longitude) {
+                // JS fallback for individual results not in geoNear map
+                const dLat = (res.location.latitude - userLat) * Math.PI / 180;
+                const dLon = (res.location.longitude - userLng) * Math.PI / 180;
                 const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                          Math.cos(lat * Math.PI / 180) * Math.cos(res.location.latitude * Math.PI / 180) *
+                          Math.cos(userLat * Math.PI / 180) * Math.cos(res.location.latitude * Math.PI / 180) *
                           Math.sin(dLon/2) * Math.sin(dLon/2);
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                res.distanceScore = 6371 * c; // Km
+                res.distanceScore = 6371 * c;
             } else {
                 res.distanceScore = 999;
             }
         });
         results.sort((a, b) => (a.distanceScore || 999) - (b.distanceScore || 999));
         
-        // Filter out results that are too far away
-        const maxRadius = parseFloat(radiusKm) || 20;
         if (maxRadius > 0) {
             results = results.filter(res => (res.distanceScore || 999) <= maxRadius);
         }

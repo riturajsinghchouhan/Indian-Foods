@@ -515,12 +515,14 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
         lastAutoArrivalRef.current[tripStatus] = false;
       }
 
-      // Check threshold for Sync (distance-based or 7s time-based)
+      // Check threshold for Socket Sync (distance-based or 10s time-based)
+      // NOTE: Customer tracking UI uses 60 FPS interpolation (Glide), so 10s intervals
+      // still appear perfectly smooth on the map. This reduces server load by ~70%.
       const distMoved = lastCoordRef.current 
         ? getHaversineDistance(lat, lng, lastCoordRef.current.lat, lastCoordRef.current.lng) 
         : 1000;
 
-      if (distMoved >= 25 || (now - lastLocationSentAt.current >= 7000)) {
+      if (distMoved >= 50 || (now - lastLocationSentAt.current >= 10000)) {
         lastLocationSentAt.current = now;
         lastCoordRef.current = { lat, lng };
         

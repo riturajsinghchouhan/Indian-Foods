@@ -5,6 +5,7 @@ import { orderAPI } from "@food/api"
 import { useCart } from "@food/context/CartContext"
 import { toast } from "sonner"
 import { getCompanyNameAsync } from "@food/utils/businessSettings"
+import { useAuthStore } from "@food/core/auth/auth.store"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -13,6 +14,7 @@ const debugError = (...args) => {}
 export default function Orders() {
   const navigate = useNavigate()
   const { replaceCart } = useCart()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -370,16 +372,21 @@ export default function Orders() {
       }
     }
 
+    if (!isAuthenticated) {
+      setLoading(false)
+      return
+    }
+
     fetchOrders()
 
     const pollMs = 60000
     const pollInterval = setInterval(() => {
-      if (document.hidden) return
+      if (document.hidden || !isAuthenticated) return
       fetchOrders()
     }, pollMs)
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') fetchOrders()
+      if (document.visibilityState === 'visible' && isAuthenticated) fetchOrders()
     }
     document.addEventListener('visibilitychange', onVisible)
 
@@ -387,7 +394,7 @@ export default function Orders() {
       clearInterval(pollInterval)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [])
+  }, [isAuthenticated])
 
   // Format date helper
   const formatDate = (dateString) => {

@@ -28,6 +28,7 @@ import BottomNavOrders from "@food/components/restaurant/BottomNavOrders";
 import RestaurantNavbar from "@food/components/restaurant/RestaurantNavbar";
 import notificationSound from "@food/assets/audio/alert.mp3";
 import { restaurantAPI, diningAPI } from "@food/api";
+import { useAuthStore } from "@food/core/auth/auth.store";
 import { useRestaurantNotifications } from "@food/hooks/useRestaurantNotifications";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -1356,6 +1357,7 @@ const getInitialCountdown = (order) => {
 
 export default function OrdersMain() {
   const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [activeFilter, setActiveFilter] = useState("new");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -1433,6 +1435,7 @@ export default function OrdersMain() {
 
   // Fetch pending counts and settings
   useEffect(() => {
+    if (!isAuthenticated) return;
     const fetchCounts = async () => {
       try {
         // Fetch current restaurant data
@@ -1483,9 +1486,11 @@ export default function OrdersMain() {
     };
 
     fetchCounts();
-    const interval = setInterval(fetchCounts, 30000); // Check every 30 seconds
+    const interval = setInterval(() => {
+      if (isAuthenticated) fetchCounts();
+    }, 30000); // Check every 30 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated]);
 
   // Global search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -1607,6 +1612,7 @@ export default function OrdersMain() {
   // Fetch restaurant verification status
   useEffect(() => {
     const fetchRestaurantStatus = async () => {
+      if (!isAuthenticated) return;
       try {
         const response = await restaurantAPI.getCurrentRestaurant();
         const restaurant =
@@ -1663,7 +1669,7 @@ export default function OrdersMain() {
         handleProfileRefresh,
       );
     };
-  }, [navigate]);
+  }, [navigate, isAuthenticated]);
 
   // Handle reverify (resubmit for approval)
   const handleReverify = async () => {

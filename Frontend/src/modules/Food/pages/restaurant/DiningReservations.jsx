@@ -7,6 +7,7 @@ import { diningAPI, restaurantAPI } from "@food/api"
 import Loader from "@food/components/Loader"
 import { Badge } from "@food/components/ui/badge"
 import { toast } from "sonner"
+import { useAuthStore } from "@food/core/auth/auth.store"
 const debugError = (...args) => {}
 
 const getRestaurantFromResponse = (response) =>
@@ -74,6 +75,7 @@ const getBookerPhone = (booking) =>
 export default function DiningReservations() {
     const navigate = useNavigate()
     const goBack = useRestaurantBackNavigation()
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
     const [bookings, setBookings] = useState([])
     const [loading, setLoading] = useState(true)
     const [restaurant, setRestaurant] = useState(null)
@@ -116,6 +118,7 @@ export default function DiningReservations() {
 
     useEffect(() => {
         const fetchAll = async (isPoll = false) => {
+            if (!isAuthenticated) return;
             try {
                 if (!isPoll) setLoading(true)
 
@@ -181,11 +184,11 @@ export default function DiningReservations() {
 
         fetchAll()
         let interval
-        if (pendingRequest) {
+        if (pendingRequest && isAuthenticated) {
             interval = setInterval(() => fetchAll(true), 15000)
         }
         return () => interval && clearInterval(interval)
-    }, [pendingRequest?._id])
+    }, [pendingRequest?._id, isAuthenticated])
 
     const handleRestaurantPhotoUpload = async (event) => {
         const files = Array.from(event.target.files || [])

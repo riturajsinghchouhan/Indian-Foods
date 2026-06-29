@@ -6,6 +6,7 @@ import { ArrowLeft, Settings, ChevronRight } from "lucide-react"
 import { Switch } from "@food/components/ui/switch"
 import { Card, CardContent } from "@food/components/ui/card"
 import { restaurantAPI } from "@food/api"
+import { useAuthStore } from "@food/core/auth/auth.store"
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ const persistRestaurantOnlineStatus = (isOnline) => {
 export default function RestaurantStatus() {
   const navigate = useNavigate()
   const goBack = useRestaurantBackNavigation()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [deliveryStatus, setDeliveryStatus] = useState(false)
   const [restaurantData, setRestaurantData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -55,6 +57,7 @@ export default function RestaurantStatus() {
   // Fetch restaurant data from backend
   useEffect(() => {
     const fetchRestaurantData = async () => {
+      if (!isAuthenticated) return;
       try {
         setLoading(true)
         const response = await restaurantAPI.getCurrentRestaurant()
@@ -79,6 +82,7 @@ export default function RestaurantStatus() {
   // Load outlet timings from backend (DB)
   useEffect(() => {
     const loadOutletTimings = () => {
+      if (!isAuthenticated) return;
       restaurantAPI
         .getOutletTimings()
         .then((res) => {
@@ -172,6 +176,7 @@ export default function RestaurantStatus() {
   // Load delivery status from backend
   useEffect(() => {
     const loadDeliveryStatus = async () => {
+      if (!isAuthenticated) return;
       try {
         const response = await restaurantAPI.getCurrentRestaurant()
         const restaurant = response?.data?.data?.restaurant || response?.data?.restaurant

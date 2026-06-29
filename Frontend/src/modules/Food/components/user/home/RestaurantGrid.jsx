@@ -1,3 +1,4 @@
+import React from "react";
 import { ShopPlaceholder } from "@food/components/OptimizedImage";
 import HomeRestaurantCard from "@food/components/user/home/HomeRestaurantCard";
 
@@ -24,7 +25,7 @@ function RestaurantGridSkeleton() {
   );
 }
 
-export default function RestaurantGrid({
+function RestaurantGrid({
   restaurants = [],
   backendOrigin = "",
   isOutOfService = false,
@@ -65,3 +66,6 @@ export default function RestaurantGrid({
     </div>
   );
 }
+
+export default React.memo(RestaurantGrid);
+

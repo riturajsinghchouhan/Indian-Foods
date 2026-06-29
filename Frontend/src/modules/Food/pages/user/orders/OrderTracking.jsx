@@ -38,6 +38,7 @@ import { useLocation as useUserLocation } from "@food/hooks/useLocation"
 import DeliveryTrackingMap from "@food/components/user/DeliveryTrackingMap"
 import { orderAPI, restaurantAPI } from "@food/api"
 import { useCompanyName } from "@food/hooks/useCompanyName"
+import { useAuthStore } from "@food/core/auth/auth.store"
 import { useUserNotifications } from "@food/hooks/useUserNotifications"
 import {
   patchOrderFromSocketPayload,
@@ -488,6 +489,8 @@ export default function OrderTracking() {
   const location = useLocation()
   const { orderId } = useParams()
   const [searchParams] = useSearchParams()
+  const lookupIdFromQuery = searchParams.get("id") || searchParams.get("orderId")
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const confirmed = searchParams.get("confirmed") === "true"
   const { getOrderById } = useOrders()
   const { profile, getDefaultAddress } = useProfile()
@@ -1019,7 +1022,7 @@ export default function OrderTracking() {
     let requestInProgress = false;
 
     const poll = async (isInitial = false) => {
-      if (!isSubscribed || requestInProgress) return;
+      if (!isSubscribed || requestInProgress || !isAuthenticated) return;
       if (terminalPollStopRef.current && !isInitial) return;
 
       const now = Date.now();
@@ -1105,7 +1108,7 @@ export default function OrderTracking() {
     if (!orderId) return;
 
     const tick = () => {
-      if (terminalPollStopRef.current) return;
+      if (terminalPollStopRef.current || !isAuthenticated) return;
       if (document.hidden) return;
       // Delegate to the latest instance of our polling function capturing current state
       if (pollRef.current) pollRef.current(false);

@@ -17,8 +17,30 @@ export const cacheResponse = (ttlInSeconds = 300, prefix = 'api_cache') => {
         if (!redis || !redis.isReady) return next();
 
         // Unique key for the current request (Method + URL + Query Params)
-        // We include query params to distinguish between different filters/pagination
-        const key = `${prefix}:${req.method}:${req.originalUrl || req.url}`;
+        let normalizedUrl = req.originalUrl || req.url;
+        
+        // Normalize GPS coordinates in the cache key to prevent fragmentation.
+        // Rounding to 3 decimal places groups users within ~111 meters into the same cache bucket.
+        if (req.query.lat && req.query.lng) {
+            try {
+                const dummyHost = 'http://localhost';
+                const parsedUrl = new URL(normalizedUrl, dummyHost);
+                const lat = parseFloat(parsedUrl.searchParams.get('lat'));
+                const lng = parseFloat(parsedUrl.searchParams.get('lng'));
+                
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    parsedUrl.searchParams.set('lat', lat.toFixed(3));
+                    parsedUrl.searchParams.set('lng', lng.toFixed(3));
+                    // Reconstruct without the dummy host
+                    normalizedUrl = parsedUrl.pathname + parsedUrl.search;
+                }
+            } catch (err) {
+                // Ignore parsing errors, fallback to raw url
+                logger.debug(`Cache URL parsing error: ${err.message}`);
+            }
+        }
+        
+        const key = `${prefix}:${req.method}:${normalizedUrl}`;
 
         try {
             const cachedData = await redis.get(key);
