@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { adminAPI } from "@food/api"
 import { ArrowLeft, Loader2, DollarSign, ChevronDown, ChevronUp } from "lucide-react"
@@ -130,232 +130,245 @@ export default function AdminEarningReport() {
             <p className="text-slate-500">No successful transactions matched the selected filters.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {transactions.map((tx) => {
-              const breakdown = tx.adminEarningBreakdown || {}
-              const itemSubtotal = tx.totalItemAmount || 0
-              const discount = tx.itemDiscount || 0
-              const taxes = breakdown.gstCollectedFromUser || tx.vatTax || 0
-              const platformFee = breakdown.platformFee || tx.platformFee || 0
-              const packagingFee = breakdown.packagingFee || 0
-              const deliveryFeeUser = tx.deliveryCharge || (breakdown.deliveryProfit || 0) + (breakdown.deliveryCostToAdmin || 0) + (breakdown.deliveryGstToAdmin || 0)
-              
-              const totalAdmin = 
-                (deliveryFeeUser || 0) -
-                (breakdown.deliveryCostToAdmin || 0) -
-                (breakdown.deliveryGstToAdmin || 0) +
-                (breakdown.platformFee || 0) + 
-                (breakdown.restaurantCommission || 0) + 
-                (breakdown.gstOnItem || 0) +
-                (breakdown.gstOnCommission || 0) +
-                (breakdown.paymentGatewayFee || 0) + 
-                (breakdown.tcs || 0) +
-                (breakdown.gstCollectedFromUser || 0) +
-                (breakdown.packagingFee || 0)
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="px-6 py-4">Order ID</th>
+                    <th className="px-6 py-4">Restaurant</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Customer Paid</th>
+                    <th className="px-6 py-4 text-right">Admin Earning</th>
+                    <th className="px-6 py-4 text-right">Restaurant Payout</th>
+                    <th className="px-6 py-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {transactions.map((tx) => {
+                    const breakdown = tx.adminEarningBreakdown || {}
+                    const itemSubtotal = tx.totalItemAmount || 0
+                    const discount = tx.itemDiscount || 0
+                    const taxes = breakdown.gstCollectedFromUser || tx.vatTax || 0
+                    const platformFee = breakdown.platformFee || tx.platformFee || 0
+                    const packagingFee = breakdown.packagingFee || 0
+                    const deliveryFeeUser = tx.deliveryCharge || (breakdown.deliveryProfit || 0) + (breakdown.deliveryCostToAdmin || 0) + (breakdown.deliveryGstToAdmin || 0)
+                    
+                    const totalAdmin = 
+                      (deliveryFeeUser || 0) -
+                      (breakdown.deliveryCostToAdmin || 0) -
+                      (breakdown.deliveryGstToAdmin || 0) +
+                      (breakdown.platformFee || 0) + 
+                      (breakdown.restaurantCommission || 0) + 
+                      (breakdown.gstOnItem || 0) +
+                      (breakdown.gstOnCommission || 0) +
+                      (breakdown.paymentGatewayFee || 0) + 
+                      (breakdown.tcs || 0) +
+                      (breakdown.gstCollectedFromUser || 0) +
+                      (breakdown.packagingFee || 0)
 
-              const restaurantCommission = Number(breakdown.restaurantCommission) || 0
-              const gstOnItem = Number(breakdown.gstOnItem) || 0
-              const gstOnCommission = Number(breakdown.gstOnCommission) || 0
-              const paymentGatewayFee = Number(breakdown.paymentGatewayFee) || 0
-              const tcs = Number(breakdown.tcs) || 0
-              
-              const totalDeductions = restaurantCommission + gstOnItem + gstOnCommission + paymentGatewayFee + tcs
-              const restaurantGets = Math.max(0, itemSubtotal + packagingFee - totalDeductions)
-              const isExpanded = !!expandedCards[tx.id]
+                    const restaurantCommission = Number(breakdown.restaurantCommission) || 0
+                    const gstOnItem = Number(breakdown.gstOnItem) || 0
+                    const gstOnCommission = Number(breakdown.gstOnCommission) || 0
+                    const paymentGatewayFee = Number(breakdown.paymentGatewayFee) || 0
+                    const tcs = Number(breakdown.tcs) || 0
+                    
+                    const totalDeductions = restaurantCommission + gstOnItem + gstOnCommission + paymentGatewayFee + tcs
+                    const restaurantGets = Math.max(0, itemSubtotal + packagingFee - totalDeductions)
+                    const isExpanded = !!expandedCards[tx.id]
 
-              return (
-                <div key={tx.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                  <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                    <div>
-                      <h3 className="text-[15px] font-bold text-slate-900 tracking-wide">Order #{tx.orderId}</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">{tx.restaurant}</p>
-                    </div>
-                    <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full tracking-wide">
-                      {tx.status}
-                    </span>
-                  </div>
-
-                  <div className="px-5 py-4 space-y-4 flex-1">
-                    {/* Customer Bill */}
-                    <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100 shadow-sm">
-                      <h3 className="text-sm font-bold text-gray-900 mb-3 tracking-wide">Customer Bill</h3>
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">Item subtotal</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(itemSubtotal)}</span>
-                        </div>
-                        {discount > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] text-gray-600 font-medium">Discount</span>
-                            <span className="text-[13px] text-gray-900">{formatDiscount(discount)}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">Delivery fee (user)</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(deliveryFeeUser)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">Platform fee</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(platformFee)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">GST (user bill)</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(taxes)}</span>
-                        </div>
-                        <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between">
-                          <span className="text-sm font-bold text-gray-900">Total paid by user</span>
-                          <span className="text-sm font-bold text-gray-900">{formatMoney(tx.orderAmount)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Admin Receivable */}
-                    <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
-                      <h3 className="text-sm font-bold text-gray-900 mb-3 tracking-wide">Admin Receivable</h3>
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">Delivery cost to admin</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(breakdown.deliveryCostToAdmin)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">Delivery GST to admin (18%)</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(breakdown.deliveryGstToAdmin)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">Platform fee to admin</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(breakdown.platformFee)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">Restaurant commission</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(restaurantCommission)}</span>
-                        </div>
-                        {gstOnItem > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] text-gray-600 font-medium">GST on item</span>
-                            <span className="text-[13px] text-gray-900">{formatMoney(gstOnItem)}</span>
-                          </div>
-                        )}
-                        {gstOnCommission > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] text-gray-600 font-medium">GST on commission</span>
-                            <span className="text-[13px] text-gray-900">{formatMoney(gstOnCommission)}</span>
-                          </div>
-                        )}
-                        {paymentGatewayFee > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] text-gray-600 font-medium">Payment gateway fee</span>
-                            <span className="text-[13px] text-gray-900">{formatMoney(paymentGatewayFee)}</span>
-                          </div>
-                        )}
-                        {tcs > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] text-gray-600 font-medium">TCS</span>
-                            <span className="text-[13px] text-gray-900">{formatMoney(tcs)}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">GST collected from user</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(taxes)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">Recommended item charge</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(packagingFee)}</span>
-                        </div>
-                        <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between">
-                          <span className="text-sm font-bold text-gray-900">Total going to admin</span>
-                          <span className="text-sm font-bold text-gray-900">
-                            {formatMoney(breakdown.totalAdminReceivable || totalAdmin)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Restaurant Payout */}
-                    <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 shadow-sm">
-                      <h3 className="text-sm font-bold text-blue-900 mb-3 tracking-wide">Restaurant Payout</h3>
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[13px] text-gray-600 font-medium">Item subtotal</span>
-                          <span className="text-[13px] text-gray-900">{formatMoney(itemSubtotal)}</span>
-                        </div>
-                        {packagingFee > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13px] text-gray-600 font-medium">Packaging fee</span>
-                            <span className="text-[13px] text-gray-900">{formatMoney(packagingFee)}</span>
-                          </div>
-                        )}
-                        
-                        <div 
-                          className="flex items-center justify-between cursor-pointer group"
-                          onClick={() => toggleExpand(tx.id)}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[13px] text-gray-600 font-medium group-hover:text-blue-600 transition-colors">GST & Fees</span>
-                            {isExpanded ? (
-                              <ChevronUp className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500" />
-                            ) : (
-                              <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500" />
-                            )}
-                          </div>
-                          <span className="text-[13px] text-red-600">
-                            {formatDiscount(totalDeductions)}
-                          </span>
-                        </div>
-
-                        {/* Collapsible Breakdown */}
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
+                    return (
+                      <React.Fragment key={tx.id}>
+                        <tr className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 font-bold text-slate-900">#{tx.orderId}</td>
+                          <td className="px-6 py-4 text-slate-600 font-medium">{tx.restaurant}</td>
+                          <td className="px-6 py-4">
+                            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full tracking-wide">
+                              {tx.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right font-semibold text-slate-900">{formatMoney(tx.orderAmount)}</td>
+                          <td className="px-6 py-4 text-right font-bold text-emerald-600">{formatMoney(breakdown.totalAdminReceivable || totalAdmin)}</td>
+                          <td className="px-6 py-4 text-right font-bold text-blue-600">{formatMoney(restaurantGets)}</td>
+                          <td className="px-6 py-4 text-center">
+                            <button 
+                              onClick={() => toggleExpand(tx.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 hover:text-blue-600 transition-colors"
                             >
-                              <div className="pl-3 border-l-2 border-blue-100 space-y-2 mt-1 mb-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[12px] text-gray-500 font-medium">Restaurant commission</span>
-                                  <span className="text-[12px] text-red-500/80">{formatDiscount(restaurantCommission)}</span>
+                              Details {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan="7" className="p-0 bg-slate-50/50 border-b-2 border-slate-200">
+                              <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6"
+                              >
+                                {/* Customer Bill */}
+                                <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                                  <h3 className="text-sm font-bold text-gray-900 mb-3 tracking-wide">Customer Bill</h3>
+                                  <div className="space-y-2.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">Item subtotal</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(itemSubtotal)}</span>
+                                    </div>
+                                    {discount > 0 && (
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[13px] text-gray-600 font-medium">Discount</span>
+                                        <span className="text-[13px] text-red-600">{formatDiscount(discount)}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">Delivery fee (user)</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(deliveryFeeUser)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">Platform fee</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(platformFee)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">GST (user bill)</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(taxes)}</span>
+                                    </div>
+                                    <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between">
+                                      <span className="text-sm font-bold text-gray-900">Total paid by user</span>
+                                      <span className="text-sm font-bold text-gray-900">{formatMoney(tx.orderAmount)}</span>
+                                    </div>
+                                  </div>
                                 </div>
-                                {gstOnItem > 0 && (
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[12px] text-gray-500 font-medium">GST on item</span>
-                                    <span className="text-[12px] text-red-500/80">{formatDiscount(gstOnItem)}</span>
-                                  </div>
-                                )}
-                                {gstOnCommission > 0 && (
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[12px] text-gray-500 font-medium">GST on commission</span>
-                                    <span className="text-[12px] text-red-500/80">{formatDiscount(gstOnCommission)}</span>
-                                  </div>
-                                )}
-                                {paymentGatewayFee > 0 && (
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[12px] text-gray-500 font-medium">Payment gateway fee</span>
-                                    <span className="text-[12px] text-red-500/80">{formatDiscount(paymentGatewayFee)}</span>
-                                  </div>
-                                )}
-                                {tcs > 0 && (
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[12px] text-gray-500 font-medium">TCS</span>
-                                    <span className="text-[12px] text-red-500/80">{formatDiscount(tcs)}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
 
-                        <div className="pt-2 mt-2 border-t border-blue-200 flex items-center justify-between">
-                          <span className="text-sm font-bold text-blue-900">Restaurant gets</span>
-                          <span className="text-sm font-bold text-blue-900">{formatMoney(restaurantGets)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+                                {/* Admin Receivable */}
+                                <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100 shadow-sm">
+                                  <h3 className="text-sm font-bold text-emerald-900 mb-3 tracking-wide">Admin Receivable</h3>
+                                  <div className="space-y-2.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">Delivery cost to admin</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(breakdown.deliveryCostToAdmin)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">Delivery GST to admin (18%)</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(breakdown.deliveryGstToAdmin)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">Platform fee to admin</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(breakdown.platformFee)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">Restaurant commission</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(restaurantCommission)}</span>
+                                    </div>
+                                    {gstOnItem > 0 && (
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[13px] text-gray-600 font-medium">GST on item</span>
+                                        <span className="text-[13px] text-gray-900">{formatMoney(gstOnItem)}</span>
+                                      </div>
+                                    )}
+                                    {gstOnCommission > 0 && (
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[13px] text-gray-600 font-medium">GST on commission</span>
+                                        <span className="text-[13px] text-gray-900">{formatMoney(gstOnCommission)}</span>
+                                      </div>
+                                    )}
+                                    {paymentGatewayFee > 0 && (
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[13px] text-gray-600 font-medium">Payment gateway fee</span>
+                                        <span className="text-[13px] text-gray-900">{formatMoney(paymentGatewayFee)}</span>
+                                      </div>
+                                    )}
+                                    {tcs > 0 && (
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[13px] text-gray-600 font-medium">TCS</span>
+                                        <span className="text-[13px] text-gray-900">{formatMoney(tcs)}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">GST collected from user</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(taxes)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">Recommended item charge</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(packagingFee)}</span>
+                                    </div>
+                                    <div className="pt-2 mt-2 border-t border-emerald-200 flex items-center justify-between">
+                                      <span className="text-sm font-bold text-emerald-900">Total going to admin</span>
+                                      <span className="text-sm font-bold text-emerald-900">
+                                        {formatMoney(breakdown.totalAdminReceivable || totalAdmin)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Restaurant Payout */}
+                                <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 shadow-sm">
+                                  <h3 className="text-sm font-bold text-blue-900 mb-3 tracking-wide">Restaurant Payout</h3>
+                                  <div className="space-y-2.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[13px] text-gray-600 font-medium">Item subtotal</span>
+                                      <span className="text-[13px] text-gray-900">{formatMoney(itemSubtotal)}</span>
+                                    </div>
+                                    {packagingFee > 0 && (
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[13px] text-gray-600 font-medium">Packaging fee</span>
+                                        <span className="text-[13px] text-gray-900">{formatMoney(packagingFee)}</span>
+                                      </div>
+                                    )}
+                                    
+                                    <div className="flex items-center gap-1.5 py-1">
+                                      <span className="text-[13px] text-gray-600 font-medium">GST & Fees Deducted:</span>
+                                      <span className="text-[13px] text-red-600">{formatDiscount(totalDeductions)}</span>
+                                    </div>
+
+                                    <div className="pl-3 border-l-2 border-blue-100 space-y-2 mt-1 mb-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[12px] text-gray-500 font-medium">Restaurant commission</span>
+                                        <span className="text-[12px] text-red-500/80">{formatDiscount(restaurantCommission)}</span>
+                                      </div>
+                                      {gstOnItem > 0 && (
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[12px] text-gray-500 font-medium">GST on item</span>
+                                          <span className="text-[12px] text-red-500/80">{formatDiscount(gstOnItem)}</span>
+                                        </div>
+                                      )}
+                                      {gstOnCommission > 0 && (
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[12px] text-gray-500 font-medium">GST on commission</span>
+                                          <span className="text-[12px] text-red-500/80">{formatDiscount(gstOnCommission)}</span>
+                                        </div>
+                                      )}
+                                      {paymentGatewayFee > 0 && (
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[12px] text-gray-500 font-medium">Payment gateway fee</span>
+                                          <span className="text-[12px] text-red-500/80">{formatDiscount(paymentGatewayFee)}</span>
+                                        </div>
+                                      )}
+                                      {tcs > 0 && (
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[12px] text-gray-500 font-medium">TCS</span>
+                                          <span className="text-[12px] text-red-500/80">{formatDiscount(tcs)}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className="pt-2 mt-2 border-t border-blue-200 flex items-center justify-between">
+                                      <span className="text-sm font-bold text-blue-900">Restaurant gets</span>
+                                      <span className="text-sm font-bold text-blue-900">{formatMoney(restaurantGets)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
