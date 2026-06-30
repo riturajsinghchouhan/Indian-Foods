@@ -448,7 +448,7 @@ export default function AllOrdersPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="restaurant-page min-h-full bg-gray-100">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -693,7 +693,7 @@ export default function AllOrdersPage() {
                 damping: 30,
                 stiffness: 300
               }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-center pt-2 pb-1">
@@ -770,7 +770,7 @@ export default function AllOrdersPage() {
               className="fixed inset-0 z-[60] flex items-center justify-center p-4"
               onClick={() => setShowCalendar(false)}
             >
-              <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm">
+              <div onClick={(e) => e.stopPropagation()} className="restaurant-modal-inline max-w-sm">
                 <DateRangeCalendar
                   startDate={startDate}
                   endDate={endDate}
@@ -807,7 +807,7 @@ export default function AllOrdersPage() {
                 damping: 30,
                 stiffness: 300
               }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 flex flex-col"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 flex flex-col"
               style={{ height: '65vh' }}
               onClick={(e) => e.stopPropagation()}
             >

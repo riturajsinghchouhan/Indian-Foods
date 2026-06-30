@@ -5,7 +5,6 @@ import {
   isRestaurantOnboardingComplete,
 } from "@food/utils/onboardingUtils";
 import { motion, AnimatePresence } from "framer-motion";
-import Lenis from "lenis";
 import {
   Printer,
   Volume2,
@@ -24,12 +23,17 @@ import {
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
-import BottomNavOrders from "@food/components/restaurant/BottomNavOrders";
-import RestaurantNavbar from "@food/components/restaurant/RestaurantNavbar";
 import notificationSound from "@food/assets/audio/alert.mp3";
 import { restaurantAPI, diningAPI } from "@food/api";
 import { useAuthStore } from "@/core/auth/auth.store";
 import { useRestaurantNotifications } from "@food/hooks/useRestaurantNotifications";
+import useRestaurantLenis from "@food/hooks/useRestaurantLenis";
+import usePaginatedRestaurantOrders, {
+  RESTAURANT_ORDERS_PAGE_SIZE,
+  RESTAURANT_ORDER_TAB_STATUS,
+} from "@food/hooks/usePaginatedRestaurantOrders";
+import RestaurantOrdersPagination from "@food/components/restaurant/RestaurantOrdersPagination";
+import RestaurantBentoGrid from "@food/components/restaurant/RestaurantBentoGrid";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import ResendNotificationButton from "@food/components/restaurant/ResendNotificationButton";
@@ -109,83 +113,31 @@ const transformOrderForList = (order) => ({
 
 // Completed Orders List Component
 function CompletedOrders({ onSelectOrder, refreshToken = 0 }) {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { orders: rawOrders, meta, page, loading, setPage } = usePaginatedRestaurantOrders({
+    status: RESTAURANT_ORDER_TAB_STATUS.completed,
+    refreshToken,
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchOrders = async () => {
-      try {
-        const response = await restaurantAPI.getOrders();
-
-        if (!isMounted) return;
-
-        if (response.data?.success && response.data.data?.orders) {
-          const completedOrders = response.data.data.orders.filter(
-            (order) =>
-              order.status === "delivered" || order.status === "completed",
-          );
-
-          const transformedOrders = completedOrders.map((order) => ({
-            orderId: order.orderId || order._id,
-            mongoId: order._id,
-            status: order.status || "delivered",
-            customerName: order.userId?.name || order.customerName || "Customer",
-            type: "Home Delivery",
-            tableOrToken: null,
-            timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            deliveredAt:
-              order.deliveredAt || order.updatedAt || order.createdAt,
-            itemsSummary:
-              order.items
-                ?.map((item) => `${item.quantity}x ${item.name}`)
-                .join(", ") || "No items",
-            photoUrl: order.items?.[0]?.image || null,
-            photoAlt: order.items?.[0]?.name || "Order",
-            amount: order.pricing?.total || order.total || 0,
-            paymentMethod: order.paymentMethod || order.payment?.method || null,
-          }));
-
-          transformedOrders.sort((a, b) => {
-            const dateA = new Date(a.deliveredAt);
-            const dateB = new Date(b.deliveredAt);
-            return dateB - dateA;
-          });
-
-          if (isMounted) {
-            setOrders(transformedOrders);
-            setLoading(false);
-          }
-        } else {
-          if (isMounted) {
-            setOrders([]);
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        if (!isMounted) return;
-
-        if (error.code !== "ERR_NETWORK" && error.response?.status !== 404) {
-          debugError("Error fetching completed orders:", error);
-        }
-
-        if (isMounted) {
-          setOrders([]);
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchOrders();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshToken]);
+  const orders = rawOrders.map((order) => ({
+    orderId: order.orderId || order._id,
+    mongoId: order._id,
+    status: order.status || "delivered",
+    customerName: order.userId?.name || order.customerName || "Customer",
+    type: "Home Delivery",
+    tableOrToken: null,
+    timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    deliveredAt: order.deliveredAt || order.updatedAt || order.createdAt,
+    itemsSummary:
+      order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
+      "No items",
+    photoUrl: order.items?.[0]?.image || null,
+    photoAlt: order.items?.[0]?.name || "Order",
+    amount: order.pricing?.total || order.total || 0,
+    paymentMethod: order.paymentMethod || order.payment?.method || null,
+  }));
 
   if (loading) {
     return (
@@ -205,14 +157,14 @@ function CompletedOrders({ onSelectOrder, refreshToken = 0 }) {
     <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Completed orders</h2>
-        <span className="text-xs text-gray-500">{orders.length} total</span>
+        <span className="text-xs text-gray-500">{meta.total} total</span>
       </div>
       {orders.length === 0 ? (
         <div className="text-center py-8 text-gray-500 text-sm">
           No completed orders yet
         </div>
       ) : (
-        <div>
+        <RestaurantBentoGrid variant="orders">
           {orders.map((order) => {
             const deliveredDate = order.deliveredAt
               ? new Date(order.deliveredAt).toLocaleDateString("en-US", {
@@ -227,7 +179,7 @@ function CompletedOrders({ onSelectOrder, refreshToken = 0 }) {
             return (
               <div
                 key={order.orderId || order.mongoId}
-                className="w-full bg-white rounded-xl p-3 mb-2.5 border border-gray-100 shadow-sm transition-all">
+                className="restaurant-bento-card w-full p-3 mb-2.5 lg:mb-0 h-full transition-all">
                 <button
                   type="button"
                   onClick={() =>
@@ -307,95 +259,49 @@ function CompletedOrders({ onSelectOrder, refreshToken = 0 }) {
               </div>
             );
           })}
-        </div>
+        </RestaurantBentoGrid>
       )}
+      <RestaurantOrdersPagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit || RESTAURANT_ORDERS_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
 
 // Cancelled Orders List Component
 function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { orders: rawOrders, meta, page, loading, setPage } = usePaginatedRestaurantOrders({
+    status: RESTAURANT_ORDER_TAB_STATUS.cancelled,
+    refreshToken,
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchOrders = async () => {
-      try {
-        const response = await restaurantAPI.getOrders();
-
-        if (!isMounted) return;
-
-        if (response.data?.success && response.data.data?.orders) {
-          // Filter cancelled orders (both restaurant and user cancelled)
-          const cancelledOrders = response.data.data.orders.filter(
-            (order) => order.status === "cancelled",
-          );
-
-          const transformedOrders = cancelledOrders.map((order) => ({
-            orderId: order.orderId || order._id,
-            mongoId: order._id,
-            status: order.status || "cancelled",
-            customerName: order.userId?.name || order.customerName || "Customer",
-            type: "Home Delivery",
-            tableOrToken: null,
-            timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            cancelledAt:
-              order.cancelledAt || order.updatedAt || order.createdAt,
-            cancelledBy: order.cancelledBy || "unknown",
-            cancellationReason:
-              order.cancellationReason || "No reason provided",
-            itemsSummary:
-              order.items
-                ?.map((item) => `${item.quantity}x ${item.name}`)
-                .join(", ") || "No items",
-            photoUrl: order.items?.[0]?.image || null,
-            photoAlt: order.items?.[0]?.name || "Order",
-            amount: order.pricing?.total || order.total || 0,
-            paymentMethod: order.paymentMethod || order.payment?.method || null,
-            restaurantNote: order.restaurantNote || null,
-          }));
-
-          transformedOrders.sort((a, b) => {
-            const dateA = new Date(a.cancelledAt);
-            const dateB = new Date(b.cancelledAt);
-            return dateB - dateA;
-          });
-
-          if (isMounted) {
-            setOrders(transformedOrders);
-            setLoading(false);
-          }
-        } else {
-          if (isMounted) {
-            setOrders([]);
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        if (!isMounted) return;
-
-        if (error.code !== "ERR_NETWORK" && error.response?.status !== 404) {
-          debugError("Error fetching cancelled orders:", error);
-        }
-
-        if (isMounted) {
-          setOrders([]);
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchOrders();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshToken]);
+  const orders = rawOrders.map((order) => ({
+    orderId: order.orderId || order._id,
+    mongoId: order._id,
+    status: order.status || "cancelled",
+    customerName: order.userId?.name || order.customerName || "Customer",
+    type: "Home Delivery",
+    tableOrToken: null,
+    timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    cancelledAt: order.cancelledAt || order.updatedAt || order.createdAt,
+    cancelledBy: order.cancelledBy || "unknown",
+    cancellationReason: order.cancellationReason || "No reason provided",
+    itemsSummary:
+      order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
+      "No items",
+    photoUrl: order.items?.[0]?.image || null,
+    photoAlt: order.items?.[0]?.name || "Order",
+    amount: order.pricing?.total || order.total || 0,
+    paymentMethod: order.paymentMethod || order.payment?.method || null,
+    restaurantNote: order.restaurantNote || null,
+  }));
 
   if (loading) {
     return (
@@ -415,14 +321,14 @@ function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
     <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Cancelled orders</h2>
-        <span className="text-xs text-gray-500">{orders.length} total</span>
+        <span className="text-xs text-gray-500">{meta.total} total</span>
       </div>
       {orders.length === 0 ? (
         <div className="text-center py-8 text-gray-500 text-sm">
           No cancelled orders yet
         </div>
       ) : (
-        <div>
+        <RestaurantBentoGrid variant="orders">
           {orders.map((order) => {
             const cancelledDate = order.cancelledAt
               ? new Date(order.cancelledAt).toLocaleDateString("en-US", {
@@ -444,7 +350,7 @@ function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
             return (
               <div
                 key={order.orderId || order.mongoId}
-                className="w-full bg-white rounded-xl p-3 mb-2.5 border border-gray-100 shadow-sm transition-all">
+                className="restaurant-bento-card w-full p-3 mb-2.5 lg:mb-0 h-full transition-all">
                 <button
                   type="button"
                   onClick={() =>
@@ -540,86 +446,49 @@ function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
               </div>
             );
           })}
-        </div>
+        </RestaurantBentoGrid>
       )}
+      <RestaurantOrdersPagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit || RESTAURANT_ORDERS_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
 
 // Dead Orders List Component
 function DeadOrders({ onSelectOrder, refreshToken = 0 }) {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { orders: rawOrders, meta, page, loading, setPage } = usePaginatedRestaurantOrders({
+    status: RESTAURANT_ORDER_TAB_STATUS.dead,
+    refreshToken,
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchOrders = async () => {
-      try {
-        const response = await restaurantAPI.getOrders();
-
-        if (!isMounted) return;
-
-        if (response.data?.success && response.data.data?.orders) {
-          // Filter dead orders
-          const deadOrders = response.data.data.orders.filter(
-            (order) => order.status === "dead" || order.orderStatus === "dead",
-          );
-
-          const transformedOrders = deadOrders.map((order) => ({
-            orderId: order.orderId || order._id,
-            mongoId: order._id,
-            status: "dead",
-            customerName: order.userId?.name || order.customerName || "Customer",
-            type: "Home Delivery",
-            tableOrToken: null,
-            timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            cancelledAt: order.cancelledAt || order.updatedAt || order.createdAt,
-            cancellationReason: order.cancellationReason || "Auto-killed: Order was not delivered within 1 hour",
-            itemsSummary: order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") || "No items",
-            photoUrl: order.items?.[0]?.image || null,
-            photoAlt: order.items?.[0]?.name || "Order",
-            amount: order.pricing?.total || order.total || 0,
-            paymentMethod: order.paymentMethod || order.payment?.method || null,
-          }));
-
-          transformedOrders.sort((a, b) => {
-            const dateA = new Date(a.cancelledAt);
-            const dateB = new Date(b.cancelledAt);
-            return dateB - dateA;
-          });
-
-          if (isMounted) {
-            setOrders(transformedOrders);
-            setLoading(false);
-          }
-        } else {
-          if (isMounted) {
-            setOrders([]);
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        if (!isMounted) return;
-        if (error.code !== "ERR_NETWORK" && error.response?.status !== 404) {
-          debugError("Error fetching dead orders:", error);
-        }
-        if (isMounted) {
-          setOrders([]);
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchOrders();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshToken]);
+  const orders = rawOrders.map((order) => ({
+    orderId: order.orderId || order._id,
+    mongoId: order._id,
+    status: "dead",
+    customerName: order.userId?.name || order.customerName || "Customer",
+    type: "Home Delivery",
+    tableOrToken: null,
+    timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    cancelledAt: order.cancelledAt || order.updatedAt || order.createdAt,
+    cancellationReason:
+      order.cancellationReason ||
+      "Auto-killed: Order was not delivered within 1 hour",
+    itemsSummary:
+      order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
+      "No items",
+    photoUrl: order.items?.[0]?.image || null,
+    photoAlt: order.items?.[0]?.name || "Order",
+    amount: order.pricing?.total || order.total || 0,
+    paymentMethod: order.paymentMethod || order.payment?.method || null,
+  }));
 
   if (loading) {
     return (
@@ -639,14 +508,14 @@ function DeadOrders({ onSelectOrder, refreshToken = 0 }) {
     <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Dead orders</h2>
-        <span className="text-xs text-gray-500">{orders.length} total</span>
+        <span className="text-xs text-gray-500">{meta.total} total</span>
       </div>
       {orders.length === 0 ? (
         <div className="text-center py-8 text-gray-500 text-sm">
           No dead orders found
         </div>
       ) : (
-        <div>
+        <RestaurantBentoGrid variant="orders">
           {orders.map((order) => {
             const cancelledDate = order.cancelledAt
               ? new Date(order.cancelledAt).toLocaleDateString("en-US", {
@@ -661,7 +530,7 @@ function DeadOrders({ onSelectOrder, refreshToken = 0 }) {
             return (
               <div
                 key={order.orderId || order.mongoId}
-                className="w-full bg-white rounded-xl p-3 mb-2.5 border border-gray-100 shadow-sm transition-all">
+                className="restaurant-bento-card w-full p-3 mb-2.5 lg:mb-0 h-full transition-all">
                 <button
                   type="button"
                   onClick={() =>
@@ -746,8 +615,15 @@ function DeadOrders({ onSelectOrder, refreshToken = 0 }) {
               </div>
             );
           })}
-        </div>
+        </RestaurantBentoGrid>
       )}
+      <RestaurantOrdersPagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit || RESTAURANT_ORDERS_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
@@ -934,54 +810,20 @@ function TableBookings() {
 
 // New Orders List Component
 function NewOrders({ onSelectOrder }) {
-  const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const pollMs =
+    typeof window !== "undefined" && window.restaurantSocketConnected
+      ? 45000
+      : 15000;
+  const { orders: rawOrders, meta, page, loading, setPage } =
+    usePaginatedRestaurantOrders({
+      status: RESTAURANT_ORDER_TAB_STATUS.new,
+      enablePoll: true,
+      pollMs,
+    });
 
-  useEffect(() => {
-    let isMounted = true;
-    let intervalId = null;
-
-    const fetchOrders = async () => {
-      try {
-        const response = await restaurantAPI.getOrders();
-        if (!isMounted) return;
-
-        if (response.data?.success && response.data.data?.orders) {
-          const newOrders = response.data.data.orders.filter((order) => {
-            const status = String(order.status || order.orderStatus).toLowerCase();
-            return ["pending", "created", "confirmed"].includes(status);
-          });
-          
-          const transformedOrders = newOrders
-            .map(transformOrderForList)
-            .sort((a, b) => b.sortTimestamp - a.sortTimestamp);
-
-          setOrders(transformedOrders);
-        } else {
-          setOrders([]);
-        }
-      } catch (error) {
-        if (!isMounted) return;
-        setOrders([]);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchOrders();
-    const pollMs =
-      typeof window !== 'undefined' && window.restaurantSocketConnected ? 45000 : 15000;
-    intervalId = setInterval(() => {
-      if (document.hidden) return;
-      fetchOrders();
-    }, pollMs);
-
-    return () => {
-      isMounted = false;
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, []);
+  const orders = rawOrders
+    .map(transformOrderForList)
+    .sort((a, b) => b.sortTimestamp - a.sortTimestamp);
 
   if (loading) {
     return (
@@ -1000,7 +842,7 @@ function NewOrders({ onSelectOrder }) {
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-black">New orders</h2>
-          <span className="text-xs text-gray-500">({orders.length})</span>
+          <span className="text-xs text-gray-500">({meta.total})</span>
         </div>
       </div>
       {orders.length === 0 ? (
@@ -1008,7 +850,7 @@ function NewOrders({ onSelectOrder }) {
           No new orders found
         </div>
       ) : (
-        <div className="space-y-3">
+        <RestaurantBentoGrid variant="orders">
           {orders.map((order) => (
             <OrderCard
               key={order.orderId || order.mongoId}
@@ -1016,82 +858,55 @@ function NewOrders({ onSelectOrder }) {
               onSelect={onSelectOrder}
             />
           ))}
-        </div>
+        </RestaurantBentoGrid>
       )}
+      <RestaurantOrdersPagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit || RESTAURANT_ORDERS_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
 
 function AllOrders({ onSelectOrder, onCancel }) {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const pollMs =
+    typeof window !== "undefined" && window.restaurantSocketConnected
+      ? 45000
+      : 15000;
+  const { orders: rawOrders, meta, page, loading, setPage } =
+    usePaginatedRestaurantOrders({
+      status: RESTAURANT_ORDER_TAB_STATUS.all,
+      enablePoll: true,
+      pollMs,
+    });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [markingReadyOrderIds, setMarkingReadyOrderIds] = useState({});
+  const [orderOverrides, setOrderOverrides] = useState({});
 
   useEffect(() => {
-    let isMounted = true;
-    let intervalId = null;
-    let countdownIntervalId = null;
-
-    const fetchOrders = async () => {
-      try {
-        const response = await restaurantAPI.getOrders();
-
-        if (!isMounted) return;
-
-        if (response.data?.success && response.data.data?.orders) {
-          const transformedOrders = response.data.data.orders
-            .map(transformOrderForList)
-            .sort((a, b) => {
-              const priorityDiff =
-                (allOrdersStatusPriority[a.status] ?? 999) -
-                (allOrdersStatusPriority[b.status] ?? 999);
-              if (priorityDiff !== 0) return priorityDiff;
-              return b.sortTimestamp - a.sortTimestamp;
-            });
-
-          setOrders(transformedOrders);
-        } else {
-          setOrders([]);
-        }
-      } catch (error) {
-        if (!isMounted) return;
-
-        if (
-          error.code !== "ERR_NETWORK" &&
-          error.response?.status !== 404 &&
-          error.response?.status !== 401
-        ) {
-          debugError("Error fetching all orders:", error);
-        }
-
-        setOrders([]);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchOrders();
-    const pollMs =
-      typeof window !== 'undefined' && window.restaurantSocketConnected ? 45000 : 15000;
-    intervalId = setInterval(() => {
-      if (document.hidden) return;
-      fetchOrders();
-    }, pollMs);
-    countdownIntervalId = setInterval(() => {
-      if (isMounted) {
-        setCurrentTime(new Date());
-      }
+    const countdownIntervalId = setInterval(() => {
+      setCurrentTime(new Date());
     }, 1000);
-
-    return () => {
-      isMounted = false;
-      if (intervalId) clearInterval(intervalId);
-      if (countdownIntervalId) clearInterval(countdownIntervalId);
-    };
+    return () => clearInterval(countdownIntervalId);
   }, []);
+
+  const orders = rawOrders
+    .map(transformOrderForList)
+    .map((order) => {
+      const key = order.mongoId || order.orderId;
+      return orderOverrides[key] ? { ...order, ...orderOverrides[key] } : order;
+    })
+    .sort((a, b) => {
+      const priorityDiff =
+        (allOrdersStatusPriority[a.status] ?? 999) -
+        (allOrdersStatusPriority[b.status] ?? 999);
+      if (priorityDiff !== 0) return priorityDiff;
+      return b.sortTimestamp - a.sortTimestamp;
+    });
 
   const handleMarkReady = async ({ orderId, mongoId }) => {
     const orderKey = mongoId || orderId;
@@ -1100,18 +915,14 @@ function AllOrders({ onSelectOrder, onCancel }) {
     try {
       setMarkingReadyOrderIds((prev) => ({ ...prev, [orderKey]: true }));
       await restaurantAPI.markOrderReady(orderKey);
-      setOrders((prev) =>
-        prev.map((order) =>
-          (order.mongoId || order.orderId) === orderKey
-            ? {
-                ...order,
-                status: "ready",
-                eta: null,
-                sortTimestamp: Date.now(),
-              }
-            : order,
-        ),
-      );
+      setOrderOverrides((prev) => ({
+        ...prev,
+        [orderKey]: {
+          status: "ready",
+          eta: null,
+          sortTimestamp: Date.now(),
+        },
+      }));
       toast.success("Order marked as ready");
     } catch (error) {
       debugError("Error marking order as ready from All orders:", error);
@@ -1140,7 +951,7 @@ function AllOrders({ onSelectOrder, onCancel }) {
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-black">All orders</h2>
-          <span className="text-xs text-gray-500">({orders.length})</span>
+          <span className="text-xs text-gray-500">({meta.total})</span>
         </div>
         <button 
           onClick={() => navigate('/food/restaurant/orders/all')}
@@ -1157,7 +968,7 @@ function AllOrders({ onSelectOrder, onCancel }) {
           No orders found
         </div>
       ) : (
-        <div>
+        <RestaurantBentoGrid variant="orders">
           {orders.map((order) => {
             const normalizedStatus = String(order.status || "").toLowerCase();
             let etaDisplay = order.eta;
@@ -1200,8 +1011,15 @@ function AllOrders({ onSelectOrder, onCancel }) {
               />
             );
           })}
-        </div>
+        </RestaurantBentoGrid>
       )}
+      <RestaurantOrdersPagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit || RESTAURANT_ORDERS_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
@@ -1236,7 +1054,7 @@ function SearchResults({ query, results, isLoading, onSelectOrder }) {
           <p className="text-gray-500 text-xs">Try searching for a different order ID or customer name</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <RestaurantBentoGrid variant="orders">
           {transformedResults.map((order) => (
             <OrderCard
               key={order.orderId || order.mongoId}
@@ -1244,7 +1062,7 @@ function SearchResults({ query, results, isLoading, onSelectOrder }) {
               onSelect={onSelectOrder}
             />
           ))}
-        </div>
+        </RestaurantBentoGrid>
       )}
     </div>
   );
@@ -1253,47 +1071,19 @@ function SearchResults({ query, results, isLoading, onSelectOrder }) {
 // Scheduled Orders Component
 function ScheduledOrders({ onSelectOrder, refreshToken }) {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { orders: rawOrders, meta, page, loading, setPage } =
+    usePaginatedRestaurantOrders({
+      status: RESTAURANT_ORDER_TAB_STATUS.scheduled,
+      refreshToken,
+    });
 
-  useEffect(() => {
-    const fetchScheduledOrders = async () => {
-      try {
-        setLoading(true);
-        const response = await restaurantAPI.getOrders({ page: 1, limit: 100 });
-        const list = response?.data?.data?.orders || [];
-
-        // Filter for scheduled orders that are NOT yet out for delivery/delivered
-        // And match 'created' or 'confirmed' status with scheduledAt
-        const scheduled = list
-          .filter((o) => {
-            const hasScheduledDate = o.scheduledAt || o.isScheduled;
-            const status = String(o.orderStatus || o.status || "").toLowerCase();
-            // In Scheduled tab, show anything that is scheduled and not yet finished
-            // regardless of whether the kitchen has already started "preparing" it.
-            return (
-              hasScheduledDate &&
-              ["created", "confirmed", "preparing", "ready"].includes(status)
-            );
-          })
-          .map(transformOrderForList)
-          .sort((a, b) => {
-            // Sort by scheduled time
-            const timeA = new Date(a.scheduledAt || 0).getTime();
-            const timeB = new Date(b.scheduledAt || 0).getTime();
-            return timeA - timeB;
-          });
-
-        setOrders(scheduled);
-      } catch (error) {
-        debugError("Error fetching scheduled orders:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchScheduledOrders();
-  }, [refreshToken]);
+  const orders = rawOrders
+    .map(transformOrderForList)
+    .sort((a, b) => {
+      const timeA = new Date(a.scheduledAt || 0).getTime();
+      const timeB = new Date(b.scheduledAt || 0).getTime();
+      return timeA - timeB;
+    });
 
   if (loading) {
     return (
@@ -1308,7 +1098,7 @@ function ScheduledOrders({ onSelectOrder, refreshToken }) {
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-black">Scheduled orders</h2>
-          <span className="text-xs text-gray-500">({orders.length})</span>
+          <span className="text-xs text-gray-500">({meta.total})</span>
         </div>
         <button
           onClick={() => navigate("/food/restaurant/orders/all")}
@@ -1334,7 +1124,7 @@ function ScheduledOrders({ onSelectOrder, refreshToken }) {
           No scheduled orders found
         </div>
       ) : (
-        <div className="space-y-3">
+        <RestaurantBentoGrid variant="orders">
           {orders.map((order) => (
             <OrderCard
               key={order.orderId || order.mongoId}
@@ -1342,8 +1132,15 @@ function ScheduledOrders({ onSelectOrder, refreshToken }) {
               onSelect={onSelectOrder}
             />
           ))}
-        </div>
+        </RestaurantBentoGrid>
       )}
+      <RestaurantOrdersPagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit || RESTAURANT_ORDERS_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
@@ -1357,6 +1154,7 @@ const getInitialCountdown = (order) => {
 
 export default function OrdersMain() {
   const navigate = useNavigate();
+  useRestaurantLenis();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [activeFilter, setActiveFilter] = useState("new");
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -1731,26 +1529,6 @@ export default function OrdersMain() {
       setIsReverifying(false);
     }
   };
-
-  // Lenis smooth scrolling
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-    });
-
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-
-    requestAnimationFrame(raf);
-
-    return () => {
-      lenis.destroy();
-    };
-  }, []);
 
   // Show new order popup when real order notification arrives
   // Queue-aware: if a popup is already open, mark order as shown and let
@@ -2719,12 +2497,7 @@ export default function OrdersMain() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Restaurant Navbar - Sticky at top */}
-      <div className="sticky top-0 z-50 bg-white">
-        <RestaurantNavbar showNotifications={true} />
-      </div>
-
+    <div className="restaurant-page min-h-full bg-gray-100">
       {/* Profile Update Pending Banner */}
       <AnimatePresence>
         {!restaurantStatus.isLoading && 
@@ -2753,7 +2526,7 @@ export default function OrdersMain() {
       </AnimatePresence>
 
       {/* Top Filter Bar - Sticky below navbar */}
-      <div className="sticky top-[80px] md:top-[85px] z-40 pb-0 bg-gray-100">
+      <div className="sticky top-0 z-40 pb-0 bg-gray-100">
         <div
           ref={filterBarRef}
           className="flex gap-2 overflow-x-auto scrollbar-hide bg-transparent rounded-full px-3 py-1 mt-1"
@@ -2830,10 +2603,10 @@ export default function OrdersMain() {
         </div>
       </div>
 
-      {/* Content Area - Scrollable */}
+      {/* Content Area */}
       <div
         ref={contentRef}
-        className="flex-1 overflow-y-auto px-4 pb-24 content-scroll"
+        className="px-4 pb-24 content-scroll"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -3045,7 +2818,7 @@ export default function OrdersMain() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}>
               <motion.div
-                className="w-[95%] max-w-md max-h-full bg-white rounded-[2rem] shadow-2xl overflow-hidden p-1 flex flex-col"
+                className="restaurant-modal-panel max-w-md max-h-[85vh] bg-white rounded-[2rem] shadow-2xl overflow-hidden p-1 flex flex-col"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
@@ -3428,7 +3201,7 @@ export default function OrdersMain() {
               exit={{ opacity: 0 }}
               onClick={handleRejectCancel}>
               <motion.div
-                className="w-[95%] max-w-md max-h-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                className="restaurant-modal-panel max-w-md max-h-[85vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
@@ -3522,7 +3295,7 @@ export default function OrdersMain() {
               exit={{ opacity: 0 }}
               onClick={handleCancelPopupClose}>
               <motion.div
-                className="w-[95%] max-w-md max-h-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                className="restaurant-modal-panel max-w-md max-h-[85vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
@@ -3616,17 +3389,16 @@ export default function OrdersMain() {
       <AnimatePresence>
         {isSheetOpen && selectedOrder && (
           <motion.div
-            className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center"
+            className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsSheetOpen(false)}>
             <motion.div
-              className="w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto bg-white rounded-t-3xl p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom)+6rem)] shadow-lg"
-              initial={{ y: 80 }}
-              animate={{ y: 0 }}
-              exit={{ y: 80 }}
-              transition={{ duration: 0.25 }}
+              className="restaurant-modal-panel max-w-md max-h-[85vh] overflow-y-auto bg-white rounded-2xl p-4 shadow-lg"
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}>
               {/* Drag handle */}
               <div className="flex justify-center mb-3">
@@ -3775,7 +3547,6 @@ export default function OrdersMain() {
       </AnimatePresence>
 
       {/* Bottom Navigation - Sticky */}
-      <BottomNavOrders />
     </div>
   );
 }
@@ -3822,7 +3593,7 @@ function OrderCard({
   }
 
   return (
-    <div className="w-full bg-white rounded-xl p-3 mb-3 border border-slate-100 shadow-sm relative overflow-hidden active:bg-slate-50 transition-colors">
+    <div className="restaurant-bento-card w-full p-3 mb-3 lg:mb-0 h-full relative overflow-hidden active:bg-slate-50 transition-colors">
       <div 
         className="absolute top-0 left-0 w-1 h-full" 
         style={{ backgroundColor: brandColor }}
@@ -3996,121 +3767,65 @@ function PreparingOrders({
   refreshToken = 0,
   onStatusChanged,
 }) {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const pollMs =
+    typeof window !== "undefined" && window.restaurantSocketConnected
+      ? 45000
+      : 20000;
+  const { orders: rawOrders, meta, page, loading, setPage, refetch } =
+    usePaginatedRestaurantOrders({
+      status: RESTAURANT_ORDER_TAB_STATUS.preparing,
+      refreshToken,
+      enablePoll: true,
+      pollMs,
+    });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [markingReadyOrderIds, setMarkingReadyOrderIds] = useState({});
+  const [hiddenOrderIds, setHiddenOrderIds] = useState(() => new Set());
 
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchOrders = async () => {
-      try {
-        // Fetch all orders and filter for 'preparing' status on frontend
-        const response = await restaurantAPI.getOrders();
-
-        if (!isMounted) return;
-
-        if (response.data?.success && response.data.data?.orders) {
-          // Filter orders with 'preparing' status only
-          // 'confirmed' orders should only appear in popup notification, not in preparing list
-          // After accepting, order status changes to 'preparing' and then appears here
-          const preparingOrders = response.data.data.orders.filter(
-            (order) => order.status === "preparing",
-          );
-
-          const transformedOrders = preparingOrders.map((order) => {
-            const initialETA = order.estimatedDeliveryTime || 30; // in minutes
-            const preparingTimestamp = order.tracking?.preparing?.timestamp
-              ? new Date(order.tracking.preparing.timestamp)
-              : new Date(order.createdAt); // Fallback to createdAt if preparing timestamp not available
-
-            return {
-              orderId: order.orderId || order._id,
-              mongoId: order._id,
-              status: order.status || "preparing",
-              customerName: order.userId?.name || "Customer",
-              type:
-                order.deliveryFleet === "standard"
-                  ? "Home Delivery"
-                  : "Express Delivery",
-              tableOrToken: null,
-              timePlaced: new Date(order.createdAt).toLocaleTimeString(
-                "en-US",
-                { hour: "2-digit", minute: "2-digit" },
-              ),
-              initialETA, // Store initial ETA in minutes
-              preparingTimestamp, // Store when order started preparing
-              itemsSummary:
-                order.items
-                  ?.map((item) => `${item.quantity}x ${item.name}`)
-                  .join(", ") || "No items",
-              photoUrl: order.items?.[0]?.image || null,
-              photoAlt: order.items?.[0]?.name || "Order",
-              deliveryPartnerId: order.deliveryPartnerId || null,
-              dispatchStatus: order.dispatch?.status || null,
-              paymentMethod:
-                order.paymentMethod || order.payment?.method || null,
-              scheduledAt: order.scheduledAt || null,
-              restaurantNote: order.restaurantNote || null,
-              pickupOtp: order.pickupOtp || null,
-            };
-          });
-
-          if (isMounted) {
-            setOrders(transformedOrders);
-            setLoading(false);
-          }
-        } else {
-          if (isMounted) {
-            setOrders([]);
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        if (!isMounted) return;
-
-        // Don't log network errors, 404, or 401 errors
-        // 401 is handled by axios interceptor (token refresh/redirect)
-        // 404 means no orders found (normal)
-        // ERR_NETWORK means backend is down (expected in dev)
-        if (
-          error.code !== "ERR_NETWORK" &&
-          error.response?.status !== 404 &&
-          error.response?.status !== 401
-        ) {
-          debugError("Error fetching preparing orders:", error);
-        }
-
-        if (isMounted) {
-          setOrders([]);
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchOrders();
-
-    // Auto-refresh every 15s to pick up OTP once rider arrives
-    const pollIntervalId = setInterval(() => {
-      if (isMounted && !document.hidden) fetchOrders();
-    }, typeof window !== 'undefined' && window.restaurantSocketConnected ? 45000 : 20000);
-
-    // Update countdown every second
     const countdownIntervalId = setInterval(() => {
-      if (isMounted) {
-        setCurrentTime(new Date());
-      }
+      setCurrentTime(new Date());
     }, 1000);
+    return () => clearInterval(countdownIntervalId);
+  }, []);
 
-    return () => {
-      isMounted = false;
-      clearInterval(pollIntervalId);
-      if (countdownIntervalId) {
-        clearInterval(countdownIntervalId);
-      }
-    };
-  }, [refreshToken]); // Re-fetch only when parent requests it
+  const orders = rawOrders
+    .map((order) => {
+      const initialETA = order.estimatedDeliveryTime || 30;
+      const preparingTimestamp = order.tracking?.preparing?.timestamp
+        ? new Date(order.tracking.preparing.timestamp)
+        : new Date(order.createdAt);
+
+      return {
+        orderId: order.orderId || order._id,
+        mongoId: order._id,
+        status: order.status || "preparing",
+        customerName: order.userId?.name || "Customer",
+        type:
+          order.deliveryFleet === "standard"
+            ? "Home Delivery"
+            : "Express Delivery",
+        tableOrToken: null,
+        timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        initialETA,
+        preparingTimestamp,
+        itemsSummary:
+          order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
+          "No items",
+        photoUrl: order.items?.[0]?.image || null,
+        photoAlt: order.items?.[0]?.name || "Order",
+        deliveryPartnerId: order.deliveryPartnerId || null,
+        dispatchStatus: order.dispatch?.status || null,
+        paymentMethod: order.paymentMethod || order.payment?.method || null,
+        scheduledAt: order.scheduledAt || null,
+        restaurantNote: order.restaurantNote || null,
+        pickupOtp: order.pickupOtp || null,
+      };
+    })
+    .filter((order) => !hiddenOrderIds.has(order.mongoId || order.orderId));
 
   // Track which orders have been marked as ready to avoid duplicate API calls
   const markedReadyOrdersRef = useRef(new Set());
@@ -4150,7 +3865,7 @@ function PreparingOrders({
               );
               debugLog(`? Order ${order.orderId} marked as ready`);
               onStatusChanged?.();
-              // Order will be removed from preparing list on next fetch
+              refetch();
             } catch (error) {
               const status = error.response?.status;
               const msg = (
@@ -4206,13 +3921,12 @@ function PreparingOrders({
     try {
       setMarkingReadyOrderIds((prev) => ({ ...prev, [orderKey]: true }));
       await restaurantAPI.markOrderReady(orderKey);
-      setOrders((prev) =>
-        prev.filter((order) => (order.mongoId || order.orderId) !== orderKey),
-      );
+      setHiddenOrderIds((prev) => new Set(prev).add(orderKey));
       toast.success(
         `Order ${orderId} marked ready${customerName ? ` for ${customerName}` : ""}`,
       );
       onStatusChanged?.();
+      refetch();
     } catch (error) {
       const status = error.response?.status;
       const message =
@@ -4221,11 +3935,10 @@ function PreparingOrders({
         status === 400 &&
         String(message).toLowerCase().includes("current status")
       ) {
-        setOrders((prev) =>
-          prev.filter((order) => (order.mongoId || order.orderId) !== orderKey),
-        );
+        setHiddenOrderIds((prev) => new Set(prev).add(orderKey));
         toast.success(`Order ${orderId} is already ready`);
         onStatusChanged?.();
+        refetch();
       } else {
         toast.error(message);
       }
@@ -4256,14 +3969,14 @@ function PreparingOrders({
     <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Preparing orders</h2>
-        <span className="text-xs text-gray-500">{orders.length} active</span>
+        <span className="text-xs text-gray-500">{meta.total} active</span>
       </div>
       {orders.length === 0 ? (
         <div className="text-center py-8 text-gray-500 text-sm">
           No orders in preparation
         </div>
       ) : (
-        <div>
+        <RestaurantBentoGrid variant="orders">
           {orders.map((order) => {
             // Calculate remaining ETA (countdown)
             const elapsedMs = currentTime - order.preparingTimestamp;
@@ -4315,99 +4028,60 @@ function PreparingOrders({
               />
             );
           })}
-        </div>
+        </RestaurantBentoGrid>
       )}
+      <RestaurantOrdersPagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit || RESTAURANT_ORDERS_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
 
 // Ready Orders List
 function ReadyOrders({ onSelectOrder, refreshToken = 0 }) {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const pollMs =
+    typeof window !== "undefined" && window.restaurantSocketConnected
+      ? 45000
+      : 20000;
+  const { orders: rawOrders, meta, page, loading, setPage } =
+    usePaginatedRestaurantOrders({
+      status: RESTAURANT_ORDER_TAB_STATUS.ready,
+      refreshToken,
+      enablePoll: true,
+      pollMs,
+    });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchOrders = async () => {
-      try {
-        // Fetch all orders and filter for 'ready' status on frontend
-        const response = await restaurantAPI.getOrders();
-
-        if (!isMounted) return;
-
-        if (response.data?.success && response.data.data?.orders) {
-          // Filter orders with 'ready' status
-          const readyOrders = response.data.data.orders.filter(
-            (order) => order.status === "ready",
-          );
-
-          const transformedOrders = readyOrders.map((order) => ({
-            orderId: order.orderId || order._id,
-            mongoId: order._id,
-            status: order.status || "ready",
-            customerName: order.userId?.name || "Customer",
-            type:
-              order.deliveryFleet === "standard"
-                ? "Home Delivery"
-                : "Express Delivery",
-            tableOrToken: null,
-            timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            eta: null, // Don't show ETA for ready orders
-            itemsSummary:
-              order.items
-                ?.map((item) => `${item.quantity}x ${item.name}`)
-                .join(", ") || "No items",
-            photoUrl: order.items?.[0]?.image || null,
-            photoAlt: order.items?.[0]?.name || "Order",
-            paymentMethod: order.paymentMethod || order.payment?.method || null,
-            deliveryPartnerId: order.deliveryPartnerId || null,
-            dispatchStatus: order.dispatch?.status || null,
-            scheduledAt: order.scheduledAt || null,
-            restaurantNote: order.restaurantNote || null,
-            pickupOtp: order.pickupOtp || null,
-          }));
-
-          if (isMounted) {
-            setOrders(transformedOrders);
-            setLoading(false);
-          }
-        } else {
-          if (isMounted) {
-            setOrders([]);
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        if (!isMounted) return;
-
-        // Don't log network errors repeatedly - they're expected if backend is down
-        if (error.code !== "ERR_NETWORK" && error.response?.status !== 404) {
-          debugError("Error fetching ready orders:", error);
-        }
-
-        if (isMounted) {
-          setOrders([]);
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchOrders();
-
-    // Auto-refresh every 15s to pick up OTP once rider arrives
-    const pollIntervalId = setInterval(() => {
-      if (isMounted && !document.hidden) fetchOrders();
-    }, typeof window !== 'undefined' && window.restaurantSocketConnected ? 45000 : 20000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(pollIntervalId);
-    };
-  }, [refreshToken]); // Re-fetch only when parent requests it
+  const orders = rawOrders.map((order) => ({
+    orderId: order.orderId || order._id,
+    mongoId: order._id,
+    status: order.status || "ready",
+    customerName: order.userId?.name || "Customer",
+    type:
+      order.deliveryFleet === "standard"
+        ? "Home Delivery"
+        : "Express Delivery",
+    tableOrToken: null,
+    timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    eta: null,
+    itemsSummary:
+      order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
+      "No items",
+    photoUrl: order.items?.[0]?.image || null,
+    photoAlt: order.items?.[0]?.name || "Order",
+    paymentMethod: order.paymentMethod || order.payment?.method || null,
+    deliveryPartnerId: order.deliveryPartnerId || null,
+    dispatchStatus: order.dispatch?.status || null,
+    scheduledAt: order.scheduledAt || null,
+    restaurantNote: order.restaurantNote || null,
+    pickupOtp: order.pickupOtp || null,
+  }));
 
   if (loading) {
     return (
@@ -4427,14 +4101,14 @@ function ReadyOrders({ onSelectOrder, refreshToken = 0 }) {
     <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Ready for pickup</h2>
-        <span className="text-xs text-gray-500">{orders.length} active</span>
+        <span className="text-xs text-gray-500">{meta.total} active</span>
       </div>
       {orders.length === 0 ? (
         <div className="text-center py-8 text-gray-500 text-sm">
           No orders ready for pickup
         </div>
       ) : (
-        <div>
+        <RestaurantBentoGrid variant="orders">
           {orders.map((order) => (
             <OrderCard
               key={order.orderId || order.mongoId}
@@ -4442,92 +4116,53 @@ function ReadyOrders({ onSelectOrder, refreshToken = 0 }) {
               onSelect={onSelectOrder}
             />
           ))}
-        </div>
+        </RestaurantBentoGrid>
       )}
+      <RestaurantOrdersPagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit || RESTAURANT_ORDERS_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
 
 // Out for Delivery Orders List
 const OutForDeliveryOrders = ({ onSelectOrder, refreshToken = 0 }) => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { orders: rawOrders, meta, page, loading, setPage } =
+    usePaginatedRestaurantOrders({
+      status: RESTAURANT_ORDER_TAB_STATUS["out-for-delivery"],
+      refreshToken,
+    });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchOrders = async () => {
-      try {
-        // Fetch all orders and filter for 'out_for_delivery' status on frontend
-        const response = await restaurantAPI.getOrders();
-
-        if (!isMounted) return;
-
-        if (response.data?.success && response.data.data?.orders) {
-          // Filter orders with 'out_for_delivery' status
-          const outForDeliveryOrders = response.data.data.orders.filter(
-            (order) => order.status === "out_for_delivery",
-          );
-
-          const transformedOrders = outForDeliveryOrders.map((order) => ({
-            orderId: order.orderId || order._id,
-            mongoId: order._id,
-            status: order.status || "out_for_delivery",
-            customerName: order.userId?.name || "Customer",
-            type:
-              order.deliveryFleet === "standard"
-                ? "Home Delivery"
-                : "Express Delivery",
-            tableOrToken: null,
-            timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            eta: null,
-            itemsSummary:
-              order.items
-                ?.map((item) => `${item.quantity}x ${item.name}`)
-                .join(", ") || "No items",
-            photoUrl: order.items?.[0]?.image || null,
-            photoAlt: order.items?.[0]?.name || "Order",
-            paymentMethod: order.paymentMethod || order.payment?.method || null,
-            deliveryPartnerId: order.deliveryPartnerId || null,
-            dispatchStatus: order.dispatch?.status || null,
-            scheduledAt: order.scheduledAt || null,
-            restaurantNote: order.restaurantNote || null,
-          }));
-
-          if (isMounted) {
-            setOrders(transformedOrders);
-            setLoading(false);
-          }
-        } else {
-          if (isMounted) {
-            setOrders([]);
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        if (!isMounted) return;
-
-        // Don't log network errors repeatedly - they're expected if backend is down
-        if (error.code !== "ERR_NETWORK" && error.response?.status !== 404) {
-          debugError("Error fetching out for delivery orders:", error);
-        }
-
-        if (isMounted) {
-          setOrders([]);
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchOrders();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshToken]); // Re-fetch only when parent requests it
+  const orders = rawOrders.map((order) => ({
+    orderId: order.orderId || order._id,
+    mongoId: order._id,
+    status: order.status || "out_for_delivery",
+    customerName: order.userId?.name || "Customer",
+    type:
+      order.deliveryFleet === "standard"
+        ? "Home Delivery"
+        : "Express Delivery",
+    tableOrToken: null,
+    timePlaced: new Date(order.createdAt).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    eta: null,
+    itemsSummary:
+      order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
+      "No items",
+    photoUrl: order.items?.[0]?.image || null,
+    photoAlt: order.items?.[0]?.name || "Order",
+    paymentMethod: order.paymentMethod || order.payment?.method || null,
+    deliveryPartnerId: order.deliveryPartnerId || null,
+    dispatchStatus: order.dispatch?.status || null,
+    scheduledAt: order.scheduledAt || null,
+    restaurantNote: order.restaurantNote || null,
+  }));
 
   if (loading) {
     return (
@@ -4547,14 +4182,14 @@ const OutForDeliveryOrders = ({ onSelectOrder, refreshToken = 0 }) => {
     <div className="pt-1 pb-6">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-black">Out for delivery</h2>
-        <span className="text-xs text-gray-500">{orders.length} active</span>
+        <span className="text-xs text-gray-500">{meta.total} active</span>
       </div>
       {orders.length === 0 ? (
         <div className="text-center py-8 text-gray-500 text-sm">
           No orders out for delivery
         </div>
       ) : (
-        <div>
+        <RestaurantBentoGrid variant="orders">
           {orders.map((order) => (
             <OrderCard
               key={order.orderId || order.mongoId}
@@ -4562,8 +4197,15 @@ const OutForDeliveryOrders = ({ onSelectOrder, refreshToken = 0 }) => {
               onSelect={onSelectOrder}
             />
           ))}
-        </div>
+        </RestaurantBentoGrid>
       )}
+      <RestaurantOrdersPagination
+        page={page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        limit={meta.limit || RESTAURANT_ORDERS_PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   );
 };

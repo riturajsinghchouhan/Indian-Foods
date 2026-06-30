@@ -8,6 +8,7 @@ import {
 } from '@react-google-maps/api';
 import bikeLogo from '@food/assets/bikelogo.png';
 import useOrderLocationSubscription from '@food/hooks/useOrderLocationSubscription';
+import { useGoogleMapsApiKey } from '@food/utils/googleMapsApiKey';
 import { subscribeLocationUpdates } from '@food/utils/userSocketManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigation } from 'lucide-react';
@@ -134,10 +135,24 @@ const DeliveryTrackingMap = ({
   const lastLiveRouteAtRef = useRef(0);
   const liveRouteOriginRef = useRef(null);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries: MAP_LIBRARIES,
-  });
+  const googleMapsApiKey = useGoogleMapsApiKey();
+
+  const { isLoaded, loadError } = useJsApiLoader(
+    {
+      id: "delivery-tracking-map",
+      googleMapsApiKey: googleMapsApiKey || "__pending__",
+      libraries: MAP_LIBRARIES,
+    },
+    [googleMapsApiKey]
+  );
+
+  if (!googleMapsApiKey) {
+    return (
+      <div className="w-full h-full bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-center px-4 text-center">
+        <p className="text-sm text-gray-600">Loading map configuration...</p>
+      </div>
+    );
+  }
 
   if (loadError) {
     return (

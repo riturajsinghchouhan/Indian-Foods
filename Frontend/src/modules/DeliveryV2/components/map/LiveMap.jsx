@@ -10,6 +10,7 @@ import {
 } from '@react-google-maps/api';
 import { useDeliveryStore } from '@/modules/DeliveryV2/store/useDeliveryStore';
 import { zoneAPI } from '@food/api';
+import { useGoogleMapsApiKey } from '@food/utils/googleMapsApiKey';
 
 const mapContainerStyle = {
   width: '100%',
@@ -42,11 +43,16 @@ const LIBRARIES = ['places', 'geometry'];
 
 export const LiveMap = ({ onMapClick, onMapLoad, onPathReceived, onPolylineReceived, zoom = 12 }) => {
   const { riderLocation, activeOrder, tripStatus } = useDeliveryStore();
+  const googleMapsApiKey = useGoogleMapsApiKey();
   
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries: LIBRARIES
-  });
+  const { isLoaded, loadError } = useJsApiLoader(
+    {
+      id: 'delivery-live-map',
+      googleMapsApiKey: googleMapsApiKey || '__pending__',
+      libraries: LIBRARIES,
+    },
+    [googleMapsApiKey]
+  );
 
   const [directions, setDirections] = useState(null);
   const [baselineDirections, setBaselineDirections] = useState(null);

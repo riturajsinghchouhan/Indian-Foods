@@ -113,7 +113,7 @@ export default function Promocodes() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-full bg-gray-50 pb-20">
       {/* Header */}
       <div className="bg-primary px-4 py-4 sticky top-0 z-10 shadow-md">
         <div className="flex items-center gap-3">
@@ -241,7 +241,7 @@ export default function Promocodes() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 max-h-[90vh] overflow-hidden flex flex-col"
+              className="restaurant-modal-sheet bg-white rounded-t-3xl z-50 max-h-[90vh] overflow-hidden flex flex-col"
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
                 <h2 className="text-xl font-bold text-gray-900">New Promo Code</h2>

@@ -105,10 +105,6 @@ const resolveRestaurantBackPath = ({ pathname, state }) => {
     return explicitBackPath || "/food/restaurant/feedback"
   }
 
-  if (normalizedPath === "/reservations") {
-    return explicitBackPath || "/food/restaurant/explore"
-  }
-
   if (
     normalizedPath === "/finance-details" ||
     normalizedPath === "/download-report"

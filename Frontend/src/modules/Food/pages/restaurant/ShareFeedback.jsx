@@ -8,6 +8,7 @@ import { API_ENDPOINTS } from "@food/api/config"
 import api from "@food/api"
 import { toast } from "sonner"
 import { useCompanyName } from "@food/hooks/useCompanyName"
+import RestaurantModal from "@food/components/restaurant/RestaurantModal"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -53,7 +54,7 @@ export default function ShareFeedback() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-full bg-white flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <h1 className="text-xl font-semibold text-gray-900">
@@ -127,7 +128,7 @@ export default function ShareFeedback() {
 
         {/* Illustration placeholder */}
         <div className="mt-10 flex items-center justify-center">
-          <div className="w-full max-w-xs h-48 rounded-3xl bg-gradient-to-r from-indigo-100 via-pink-100 to-yellow-100 flex items-end justify-center px-6 pb-6">
+          <div className="restaurant-modal-inline max-w-xs h-48 rounded-3xl bg-gradient-to-r from-indigo-100 via-pink-100 to-yellow-100 flex items-end justify-center px-6 pb-6">
             <div className="flex items-end gap-2 w-full justify-between">
               <div className="w-10 h-20 rounded-full bg-indigo-300" />
               <div className="w-10 h-32 rounded-full bg-pink-300" />
@@ -156,52 +157,37 @@ export default function ShareFeedback() {
         </motion.button>
       </div>
 
-      {/* Thank you popup */}
-      <AnimatePresence>
-        {showThanks && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-6"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      <RestaurantModal
+        open={showThanks}
+        onClose={() => {
+          setShowThanks(false)
+          goBack()
+        }}
+        size="sm"
+        showClose={false}
+      >
+        <div className="flex flex-col items-center text-center -mt-2">
+          <div className="mb-3 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+            <CheckCircle2 className="w-7 h-7 text-green-600" />
+          </div>
+          <h2 className="text-base font-semibold text-gray-900 mb-1">
+            Thanks for your feedback
+          </h2>
+          <p className="text-xs text-gray-600 mb-4">
+            It helps us improve your experience with {companyName.toLowerCase()}.
+          </p>
+          <button
+            type="button"
+            className="w-full py-2.5 rounded-full bg-black text-white text-sm font-medium"
             onClick={() => {
               setShowThanks(false)
               goBack()
             }}
           >
-            <motion.div
-              initial={{ scale: 0.9, y: 10, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.9, y: 10, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="w-full max-w-sm rounded-3xl bg-white px-5 pt-5 pb-6 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="mb-3 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle2 className="w-7 h-7 text-green-600" />
-                </div>
-                <h2 className="text-base font-semibold text-gray-900 mb-1">
-                  Thanks for your feedback
-                </h2>
-                <p className="text-xs text-gray-600 mb-4">
-                  It helps us improve your experience with {companyName.toLowerCase()}.
-                </p>
-                <button
-                  type="button"
-                  className="w-full py-2.5 rounded-full bg-black text-white text-sm font-medium"
-                  onClick={() => {
-                    setShowThanks(false)
-                    goBack()
-                  }}
-                >
-                  Done
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            Done
+          </button>
+        </div>
+      </RestaurantModal>
     </div>
   )
 }

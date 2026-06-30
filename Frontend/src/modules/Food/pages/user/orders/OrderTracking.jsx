@@ -39,8 +39,6 @@ import DeliveryTrackingMap from "@food/components/user/DeliveryTrackingMap"
 import { orderAPI, restaurantAPI } from "@food/api"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 import { useUserNotifications } from "@food/hooks/useUserNotifications"
-import useGoogleMapsApiKey from "@food/hooks/useGoogleMapsApiKey"
-import { useJsApiLoader } from "@react-google-maps/api"
 import {
   patchOrderFromSocketPayload,
   socketPayloadNeedsRefetch,
@@ -484,8 +482,6 @@ function normalizeLookupId(value) {
   return raw
 }
 
-const TRACKING_MAP_LIBRARIES = ["geometry", "places"]
-
 export default function OrderTracking() {
   const companyName = useCompanyName()
   const navigate = useNavigate()
@@ -501,16 +497,6 @@ export default function OrderTracking() {
   const { isConnected: isSocketConnected } = useUserNotifications()
 
   const checkoutOrderSeedRef = useRef(location.state?.order ?? null)
-
-  const googleMapsApiKey = useGoogleMapsApiKey()
-  useJsApiLoader(
-    {
-      id: "delivery-tracking-map",
-      googleMapsApiKey: googleMapsApiKey || "__pending__",
-      libraries: TRACKING_MAP_LIBRARIES,
-    },
-    [googleMapsApiKey],
-  )
   
   // State for order data — hydrate from checkout navigation for instant map render
   const [order, setOrder] = useState(() => {

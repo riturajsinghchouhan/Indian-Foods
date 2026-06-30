@@ -2793,7 +2793,7 @@ export default function RestaurantOnboarding() {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <div className="min-h-screen bg-gray-100 flex flex-col">
+      <div className="min-h-full bg-gray-100 flex flex-col">
         <header className="px-4 py-4 sm:px-6 sm:py-5 bg-white flex items-center justify-between border-b">
           <div className="flex items-center gap-3">
             <button

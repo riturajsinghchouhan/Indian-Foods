@@ -119,7 +119,7 @@ export default function MenuOverlay({ showMenu, setShowMenu }) {
               mass: 0.8
             }}
             onClick={(e) => e.stopPropagation()}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[110] max-h-[90vh] overflow-hidden"
+            className="restaurant-modal-sheet bg-white rounded-2xl shadow-2xl z-[110] max-h-[90vh] overflow-hidden"
           >
             {/* Drag Handle */}
             <motion.div 
@@ -275,7 +275,7 @@ export default function MenuOverlay({ showMenu, setShowMenu }) {
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden"
+          className="bg-white restaurant-modal-inline max-w-sm rounded-2xl shadow-2xl overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {deleteStep === 1 && (

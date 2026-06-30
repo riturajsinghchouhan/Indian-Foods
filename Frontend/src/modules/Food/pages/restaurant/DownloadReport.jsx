@@ -55,7 +55,7 @@ export default function DownloadReport() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-full bg-white flex flex-col">
       <div className="sticky top-0 z-20 bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-200">
         <button
           className="p-2 -ml-2 rounded-full hover:bg-gray-100"
@@ -137,8 +137,8 @@ export default function DownloadReport() {
       </div>
 
       {showSuccess && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 px-6 pointer-events-none">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-lg border border-gray-200 px-4 py-4 pointer-events-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div className="bg-white restaurant-modal-inline max-w-md rounded-2xl shadow-lg border border-gray-200 px-4 py-4 pointer-events-auto">
             <div className="flex items-center gap-3">
               <CheckCircle className="w-6 h-6 text-green-600" />
               <div>

@@ -13,8 +13,6 @@ import {
   LifeBuoy,
   ChevronRight,
 } from "lucide-react"
-import BottomNavOrders from "@food/components/restaurant/BottomNavOrders"
-
 const helpTopics = [
   {
     id: 1,
@@ -64,7 +62,7 @@ export default function HelpCentre() {
   )
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="restaurant-page min-h-full bg-white">
       {/* Header */}
       <div className="sticky top-0 bg-white z-50 border-b border-gray-200">
         <div className="px-4 py-3 flex items-center justify-between">
@@ -81,7 +79,7 @@ export default function HelpCentre() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="px-4 py-4">
         {/* How can we help you section */}
         <div className="mb-6">
           <h2 className="text-base font-bold text-gray-900 mb-3">
@@ -153,7 +151,6 @@ export default function HelpCentre() {
       </div>
 
       {/* Bottom Navigation */}
-      <BottomNavOrders />
     </div>
   )
 }

@@ -6,6 +6,10 @@
   --rt-border: #f0ccd5;
   --rt-text: #1f1f24;
   --rt-muted: #6d6470;
+  --rt-modal-z: 200;
+  --rt-sidebar-z: 50;
+  --rt-header-z: 30;
+  --rt-bottom-nav-z: 60;
 }
 
 .restaurant-theme {
@@ -114,5 +118,263 @@
 /* Override inline accent colors */
 .restaurant-theme [style*="accent-color"] {
   accent-color: var(--rt-primary-strong) !important;
+}
+
+/* Shared layout shell */
+.restaurant-layout {
+  --restaurant-content-max: 1400px;
+  --restaurant-header-height: 0px;
+}
+
+.restaurant-layout-header {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.restaurant-main-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Page root inside scroll area — never use min-h-screen / h-screen on layout pages */
+.restaurant-page {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Premium card surface */
+.restaurant-surface-card {
+  background: var(--rt-surface);
+  border: 1px solid color-mix(in srgb, var(--rt-border) 80%, #ffffff);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.03);
+}
+
+/* Bento grid — mobile stacks, desktop uses asymmetric premium grid */
+.restaurant-bento-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.restaurant-bento-card {
+  background: var(--rt-surface);
+  border: 1px solid color-mix(in srgb, var(--rt-border) 65%, #ffffff);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -10px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .restaurant-bento-card {
+    border-radius: 1.5rem;
+  }
+
+  .restaurant-bento-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--rt-primary) 18%, #ffffff);
+    box-shadow:
+      0 4px 8px rgba(15, 23, 42, 0.04),
+      0 16px 40px -12px rgba(184, 11, 61, 0.12);
+  }
+}
+
+/* Orders page — 2–3 column card grid on desktop */
+@media (min-width: 1024px) {
+  .restaurant-bento-grid--orders {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  .restaurant-bento-grid--orders > * {
+    margin-bottom: 0 !important;
+    height: 100%;
+  }
+}
+
+@media (min-width: 1280px) {
+  .restaurant-bento-grid--orders {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+/* Explore — 4-column bento tiles */
+@media (min-width: 640px) {
+  .restaurant-bento-grid--explore {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .restaurant-bento-grid--explore {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  .restaurant-bento-grid--explore > *:nth-child(6n + 1),
+  .restaurant-bento-grid--explore > *:nth-child(6n + 4) {
+    grid-column: span 2;
+  }
+}
+
+/* Inventory — item / add-on cards */
+@media (min-width: 1024px) {
+  .restaurant-bento-grid--inventory {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .restaurant-bento-grid--inventory {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+/* Dashboard KPI row */
+@media (min-width: 640px) {
+  .restaurant-bento-grid--dashboard-kpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .restaurant-bento-grid--dashboard-kpi {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+/* Dashboard charts — 12-col bento */
+@media (min-width: 1024px) {
+  .restaurant-bento-grid--dashboard-charts {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1.25rem;
+    align-items: stretch;
+  }
+
+  .restaurant-bento-span-8 {
+    grid-column: span 8;
+  }
+
+  .restaurant-bento-span-4 {
+    grid-column: span 4;
+  }
+
+  .restaurant-bento-span-6 {
+    grid-column: span 6;
+  }
+
+  .restaurant-bento-span-12 {
+    grid-column: span 12;
+  }
+}
+
+/* Responsive card grids for dashboard / listing pages */
+.restaurant-card-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 640px) {
+  .restaurant-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .restaurant-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .restaurant-card-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.restaurant-card-grid-2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+  .restaurant-card-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.restaurant-card-grid-3 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+  .restaurant-card-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .restaurant-card-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.restaurant-card-grid-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 1024px) {
+  .restaurant-card-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.restaurant-sidebar {
+  z-index: var(--rt-sidebar-z);
+  height: 100vh;
+  max-height: 100dvh;
+}
+
+/* Centered content-sized modals — prevents w-full children from stretching to viewport */
+.restaurant-modal-panel {
+  box-sizing: border-box;
+  display: inline-block;
+  width: auto !important;
+  max-width: min(calc(100vw - 2rem), 28rem);
+}
+
+.restaurant-modal-panel > * {
+  max-width: 100%;
+}
+
+/* Converts full-width bottom sheets into centered content-sized dialogs */
+.restaurant-theme .restaurant-modal-sheet {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+  width: auto !important;
+  min-width: min(280px, calc(100vw - 2rem));
+  max-width: min(calc(100vw - 2rem), 28rem) !important;
+  margin: 0 !important;
+}
+
+.restaurant-theme .restaurant-modal-inline {
+  display: inline-block;
+  width: auto !important;
+  max-width: min(calc(100vw - 2rem), 28rem) !important;
 }
 

@@ -26,6 +26,7 @@ export default function RestaurantNavbar({
   showSearch = true,
   showOfflineOnlineTag = true,
   showNotifications = true,
+  onMobileMenuOpen,
 }) {
   const navigate = useNavigate()
   const [isSearchActive, setIsSearchActive] = useState(false)
@@ -354,7 +355,7 @@ export default function RestaurantNavbar({
   }
 
   return (
-    <div className="w-full bg-gradient-to-r from-[#B80B3D] to-[#66001D] rounded-b-[24px] shadow-lg px-4 pt-5 pb-5 flex items-center justify-between relative">
+    <div className="w-full bg-gradient-to-r from-[#B80B3D] to-[#66001D] rounded-b-[24px] shadow-lg px-3 pt-4 pb-4 sm:px-4 sm:pt-5 sm:pb-5 flex items-center justify-between gap-2 relative">
       {/* Search Overlay */}
       {isSearchActive && (
         <div className="absolute inset-0 bg-white z-50 flex items-center px-4 gap-3">
@@ -380,14 +381,28 @@ export default function RestaurantNavbar({
       )}
 
       {/* Left Side - Restaurant Info */}
-      <div className="flex-1 min-w-0 pr-4 flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 pr-1 sm:pr-4">
+        {onMobileMenuOpen && (
+          <button
+            type="button"
+            onClick={onMobileMenuOpen}
+            className="shrink-0 rounded-xl bg-white/15 p-2 text-white hover:bg-white/25 lg:hidden"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
         {logoUrl && (
-          <img src={logoUrl} alt="Logo" className="h-10 w-10 object-contain rounded-lg" />
+          <img
+            src={logoUrl}
+            alt="Logo"
+            className="h-9 w-9 shrink-0 rounded-lg object-contain sm:h-10 sm:w-10"
+          />
         )}
         <div className="min-w-0 flex-1">
           {/* Restaurant Name */}
           <div className="flex items-baseline min-w-0">
-            <h1 className="text-[17px] font-black text-white truncate leading-tight">
+            <h1 className="text-[15px] sm:text-[17px] font-black text-white truncate leading-tight">
               {loading ? "Loading..." : (restaurantName || "Restaurant")}
             </h1>
           </div>
@@ -409,21 +424,21 @@ export default function RestaurantNavbar({
       </div>
 
       {/* Right Side - Interactive Elements */}
-      <div className="flex items-center">
+      <div className="flex shrink-0 items-center">
         {/* Offline/Online Status Tag */}
         {showOfflineOnlineTag && (
           <button
             onClick={handleStatusClick}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all shadow-sm ${
+            className={`flex items-center gap-1 px-2 py-1 sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-full transition-all shadow-sm ${
               status === "Online" 
                 ? "bg-white/20 border border-white/20" 
                 : "bg-white/10 border border-white/10"
             }`}
           >
-            <span className={`w-2 h-2 rounded-full ${
+            <span className={`w-2 h-2 rounded-full shrink-0 ${
               status === "Online" ? "bg-[#00e676]" : "bg-gray-400"
             }`}></span>
-            <span className="text-sm font-bold text-white tracking-wide">
+            <span className="text-[11px] sm:text-sm font-bold text-white tracking-wide">
               {status}
             </span>
           </button>
@@ -480,7 +495,7 @@ export default function RestaurantNavbar({
               <button 
                 onClick={() => {
                   clearNewReservation();
-                  navigate("/food/restaurant/dining-reservations");
+                  navigate("/food/restaurant/explore");
                 }}
                 className="flex-1 h-10 bg-primary text-white text-xs font-bold rounded-xl uppercase tracking-widest shadow-lg shadow-purple-200"
               >

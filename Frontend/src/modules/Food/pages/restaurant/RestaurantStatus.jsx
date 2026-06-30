@@ -338,7 +338,7 @@ export default function RestaurantStatus() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-100 overflow-x-hidden">
+    <div className="restaurant-page min-h-full bg-gray-100 overflow-x-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -454,7 +454,7 @@ export default function RestaurantStatus() {
 
       {/* Outlet Closed Dialog */}
       <Dialog open={showOutletClosedDialog} onOpenChange={setShowOutletClosedDialog}>
-        <DialogContent className="sm:max-w-md p-4 w-[90%] gap-2 flex flex-col">
+        <DialogContent className="restaurant-modal-inline sm:max-w-md p-4 gap-2 flex flex-col">
           <DialogHeader className="text-center">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100">
               <span className="text-3xl">??</span>
@@ -483,7 +483,7 @@ export default function RestaurantStatus() {
 
       {/* Outside Timings Dialog */}
       <Dialog open={showOutsideTimingsDialog} onOpenChange={setShowOutsideTimingsDialog}>
-        <DialogContent className="sm:max-w-md p-4 w-[90%] gap-2 flex flex-col">
+        <DialogContent className="restaurant-modal-inline sm:max-w-md p-4 gap-2 flex flex-col">
           <DialogHeader className="text-center">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100">
               <span className="text-3xl">??</span>

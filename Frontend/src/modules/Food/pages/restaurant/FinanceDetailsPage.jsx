@@ -122,7 +122,7 @@ export default function FinanceDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="restaurant-page min-h-full bg-gray-100">
       {/* Header */}
       <div className="sticky bg-white top-0 z-40 px-4 py-3 border-b border-gray-200">
         <div className="flex items-center gap-3">
@@ -144,7 +144,7 @@ export default function FinanceDetailsPage() {
       </div>
 
       {/* Top Navigation Tabs */}
-      <div className="sticky top-[73px] z-30 bg-gray-100 pb-2">
+      <div className="sticky top-0 z-30 bg-gray-100 pb-2">
         <div
           ref={topTabBarRef}
           className="flex gap-2 overflow-x-auto scrollbar-hide bg-transparent rounded-full px-3 py-2 mt-2"
@@ -204,7 +204,7 @@ export default function FinanceDetailsPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="px-4 py-4">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -566,7 +566,7 @@ export default function FinanceDetailsPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 p-6"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 p-6"
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">Download Report</h2>
@@ -607,7 +607,7 @@ export default function FinanceDetailsPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 p-6"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 p-6"
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">Email Report</h2>

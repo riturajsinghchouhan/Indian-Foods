@@ -172,7 +172,7 @@ export default function EditCuisines() {
   const recommendedSet = new Set(DEFAULT_SELECTED)
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden pb-20">
+    <div className="min-h-full bg-white overflow-x-hidden pb-20">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50 flex items-center gap-3">
         <button
@@ -276,7 +276,7 @@ export default function EditCuisines() {
       )}
 
       {/* Update button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4">
+      <div className="restaurant-modal-sheet bg-white border-t border-gray-200 px-4 py-4">
         <button
           type="button"
           onClick={handleUpdate}

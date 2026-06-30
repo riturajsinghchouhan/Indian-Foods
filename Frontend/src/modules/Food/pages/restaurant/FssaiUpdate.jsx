@@ -40,7 +40,7 @@ export default function FssaiUpdate() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-full bg-white flex flex-col">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-200">
         <button

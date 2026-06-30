@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Wallet } from "lucide-react"
-import BottomNavOrders from "@food/components/restaurant/BottomNavOrders"
 import { restaurantAPI } from "@food/api"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
@@ -46,7 +45,7 @@ export default function WithdrawalHistoryPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="restaurant-page min-h-full bg-gray-100">
       {/* Header */}
       <div className="sticky bg-white top-0 z-40 px-4 py-3 border-b border-gray-200">
         <div className="flex items-center gap-3">
@@ -90,7 +89,7 @@ export default function WithdrawalHistoryPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div className="px-4 py-6">
         {loadingWithdrawalRequests ? (
           <div className="py-8 text-center text-gray-500">Loading...</div>
         ) : (
@@ -180,7 +179,6 @@ export default function WithdrawalHistoryPage() {
         )}
       </div>
 
-      <BottomNavOrders />
     </div>
   )
 }

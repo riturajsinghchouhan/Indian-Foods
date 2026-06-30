@@ -2,10 +2,9 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import useRestaurantBackNavigation from "@food/hooks/useRestaurantBackNavigation"
 import { MapPin, Search, Save, Loader2, ArrowLeft } from "lucide-react"
-import RestaurantNavbar from "@food/components/restaurant/RestaurantNavbar"
 import { restaurantAPI, zoneAPI } from "@food/api"
 import { getGoogleMapsApiKey } from "@food/utils/googleMapsApiKey"
-import { Loader } from "@googlemaps/js-api-loader"
+import { loadGoogleMaps } from "@food/utils/googleMapsLoader"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -316,13 +315,7 @@ export default function ZoneSetup() {
       // If Google Maps is not loaded yet and we have an API key, use Loader as fallback
       if (apiKey) {
         debugLog("?? Google Maps not loaded from main.jsx, loading with Loader...")
-        const loader = new Loader({
-          apiKey: apiKey,
-          version: "weekly",
-          libraries: ["places"]
-        })
-
-        const google = await loader.load()
+        const google = await loadGoogleMaps({ libraries: ["places", "geometry"] })
         debugLog("? Google Maps loaded via Loader, initializing map...")
         initializeMap(google)
       } else {
@@ -564,8 +557,7 @@ export default function ZoneSetup() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <RestaurantNavbar />
+    <div className="restaurant-page min-h-full bg-gray-50">
       <div className="p-4 md:p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">

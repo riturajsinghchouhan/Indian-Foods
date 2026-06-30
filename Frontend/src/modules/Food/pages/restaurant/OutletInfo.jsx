@@ -267,7 +267,7 @@ export default function OutletInfo() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-full bg-gray-50 pb-12">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -502,7 +502,7 @@ export default function OutletInfo() {
 
       {/* Edit Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="w-[92%] sm:max-w-md rounded-[24px] p-0 overflow-hidden bg-white shadow-2xl border-0 gap-0">
+        <DialogContent className="restaurant-modal-inline sm:max-w-md rounded-[24px] p-0 overflow-hidden bg-white shadow-2xl border-0 gap-0">
           <DialogHeader className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
             <DialogTitle className="text-[19px] font-black text-gray-900 tracking-tight text-left">
               Edit {editSection === 'restaurantName' ? 'Restaurant Name' : editSection === 'basic' ? 'Basic Details' : editSection === 'compliance' ? 'Compliance Details' : 'Bank Details'}

@@ -31,13 +31,13 @@ import {
   LogOut,
   Ticket,
 } from "lucide-react"
+import RestaurantBentoGrid from "@food/components/restaurant/RestaurantBentoGrid"
 import { Card, CardContent } from "@food/components/ui/card"
 import { DateRangeCalendar } from "@food/components/ui/date-range-calendar"
 import { clearModuleAuth, clearAuthData, getCurrentUser } from "@food/utils/auth"
 import { restaurantAPI, notificationAPI } from "@food/api"
 import { firebaseAuth, ensureFirebaseInitialized } from "@food/firebase"
 import { toast } from "sonner"
-import BottomNavOrders from "@food/components/restaurant/BottomNavOrders"
 import { registerWebPushForCurrentModule } from "@food/utils/firebaseMessaging"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
@@ -199,7 +199,7 @@ function TimePickerWheel({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="bg-white rounded-lg shadow-2xl w-full max-w-xs overflow-hidden"
+          className="bg-white rounded-lg shadow-2xl restaurant-modal-inline max-w-xs overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-center py-8 px-4 relative">
@@ -835,7 +835,7 @@ export default function ExploreMore() {
       >
         {title}
       </motion.h2>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="restaurant-bento-grid restaurant-bento-grid--explore">
         {items.map((item, index) => {
           const IconComponent = item.icon
           return (
@@ -848,7 +848,7 @@ export default function ExploreMore() {
                 delay: delay + 0.1 + (index * 0.02),
                 ease: [0.25, 0.1, 0.25, 1]
               }}
-              className="flex flex-col items-center"
+              className="flex flex-col items-stretch h-full"
             >
               <motion.button
                 whileHover={{ scale: 1.02, y: -1 }}
@@ -861,7 +861,7 @@ export default function ExploreMore() {
                     navigate(item.route)
                   }
                 }}
-                className="w-full flex items-center justify-center p-6 bg-white rounded-lg shadow-md border-2 border-gray-200 hover:shadow-md transition-shadow duration-200 min-h-[110px]"
+                className="restaurant-bento-card w-full flex flex-1 flex-col items-center justify-center p-6 min-h-[110px] lg:min-h-[130px] hover:border-primary/20 transition-all duration-200"
               >
                 <div className="relative flex items-center justify-center">
                   {item.customIcon ? (
@@ -902,7 +902,7 @@ export default function ExploreMore() {
         duration: 0.2,
         ease: [0.25, 0.1, 0.25, 1]
       }}
-      className="min-h-screen bg-white overflow-x-hidden pb-24"
+      className="restaurant-page min-h-full bg-white overflow-x-hidden pb-24"
     >
       {/* Header */}
       <motion.div
@@ -1032,7 +1032,7 @@ export default function ExploreMore() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
               transition={{ duration: 0.22 }}
-              className="fixed inset-x-4 bottom-28 z-[61] mx-auto w-auto max-w-md rounded-3xl bg-white p-5 shadow-2xl"
+              className="fixed left-1/2 top-1/2 z-[61] -translate-x-1/2 -translate-y-1/2 restaurant-modal-inline max-w-md rounded-3xl bg-white p-5 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-center">
@@ -1086,7 +1086,7 @@ export default function ExploreMore() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
               transition={{ duration: 0.22 }}
-              className="fixed inset-x-4 bottom-28 z-[61] mx-auto w-auto max-w-md rounded-3xl bg-white p-5 shadow-2xl"
+              className="fixed left-1/2 top-1/2 z-[61] -translate-x-1/2 -translate-y-1/2 restaurant-modal-inline max-w-md rounded-3xl bg-white p-5 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-center">
@@ -1144,7 +1144,7 @@ export default function ExploreMore() {
                 damping: 30,
                 stiffness: 300
               }}
-              className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50 h-screen"
+              className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50 h-dvh max-h-dvh"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Search Header */}
@@ -1268,7 +1268,7 @@ export default function ExploreMore() {
                 damping: 30,
                 stiffness: 300
               }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] shadow-[0_-15px_50px_-12px_rgba(0,0,0,0.3)] z-50 max-h-[90vh] overflow-y-auto"
+              className="restaurant-modal-sheet bg-white rounded-t-[2.5rem] shadow-[0_-15px_50px_-12px_rgba(0,0,0,0.3)] z-50 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -1451,7 +1451,7 @@ export default function ExploreMore() {
                 damping: 30,
                 stiffness: 300
               }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] overflow-y-auto"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -1507,7 +1507,7 @@ export default function ExploreMore() {
                 damping: 30,
                 stiffness: 300
               }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] overflow-y-auto"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -1655,7 +1655,7 @@ export default function ExploreMore() {
               className="fixed inset-0 flex items-center justify-center z-[10000] px-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+              <div className="bg-white rounded-2xl shadow-2xl restaurant-modal-inline max-w-sm p-6 text-center">
                 <div className="flex justify-center mb-4">
                   <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
                     <CheckCircle className="w-10 h-10 text-green-600" />
@@ -1709,7 +1709,7 @@ export default function ExploreMore() {
                 damping: 30,
                 stiffness: 300
               }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] overflow-y-auto"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -1793,7 +1793,6 @@ export default function ExploreMore() {
           </>
         )}
       </AnimatePresence>
-      <BottomNavOrders />
     </motion.div>
   )
 }

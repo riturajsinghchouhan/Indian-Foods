@@ -33,7 +33,7 @@ export default function TermsAndConditionsPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#f6e9dc] overflow-x-hidden pb-10">
+    <div className="min-h-full bg-[#f6e9dc] overflow-x-hidden pb-10">
       {/* Header */}
       <div className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 px-4 py-3 z-50 flex items-center gap-3">
         <button 

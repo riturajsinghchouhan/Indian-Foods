@@ -5,7 +5,7 @@ import { orderAPI } from "@food/api"
 import { useCart } from "@food/context/CartContext"
 import { toast } from "sonner"
 import { getCompanyNameAsync } from "@food/utils/businessSettings"
-import { useAuthStore } from "@/core/auth/auth.store"
+import { isModuleAuthenticated } from "@food/utils/auth"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -14,7 +14,7 @@ const debugError = (...args) => {}
 export default function Orders() {
   const navigate = useNavigate()
   const { replaceCart } = useCart()
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const isAuthenticated = isModuleAuthenticated("user")
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")

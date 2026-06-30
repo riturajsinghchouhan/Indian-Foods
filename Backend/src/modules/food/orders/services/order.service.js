@@ -8,7 +8,7 @@ import { FoodDeliveryPartner } from '../../delivery/models/deliveryPartner.model
 import { FoodZone } from '../../admin/models/zone.model.js';
 import { FoodFeeSettings } from '../../admin/models/feeSettings.model.js';
 import { ValidationError, ForbiddenError, NotFoundError } from '../../../../core/auth/errors.js';
-import { buildPaginationOptions, buildPaginatedResult } from '../../../../utils/helpers.js';
+import { buildPaginationOptions, buildPaginatedResult, parseQueryLimit, parseQueryPage } from '../../../../utils/helpers.js';
 import { FoodOffer } from '../../admin/models/offer.model.js';
 import { FoodOfferUsage } from '../../admin/models/offerUsage.model.js';
 import { FoodDeliveryCommissionRule } from '../../admin/models/deliveryCommissionRule.model.js';
@@ -1131,8 +1131,57 @@ export async function updateOrderInstructions(orderId, userId, instructions) {
 }
 
 // ----- Restaurant -----
+function applyRestaurantOrderStatusFilter(filter, statusRaw) {
+  const status = typeof statusRaw === "string" ? statusRaw.trim().toLowerCase() : "";
+  if (!status || status === "all") return;
+
+  switch (status) {
+    case "new":
+      filter.orderStatus = { $in: ["created", "confirmed"] };
+      break;
+    case "preparing":
+      filter.orderStatus = "preparing";
+      break;
+    case "ready":
+    case "ready_for_pickup":
+      filter.orderStatus = "ready_for_pickup";
+      break;
+    case "out_for_delivery":
+    case "picked_up":
+      filter.orderStatus = "picked_up";
+      break;
+    case "scheduled":
+      filter.scheduledAt = { $ne: null };
+      filter.orderStatus = {
+        $in: ["created", "confirmed", "preparing", "ready_for_pickup"],
+      };
+      break;
+    case "completed":
+    case "delivered":
+      filter.orderStatus = { $in: ["delivered", "completed"] };
+      break;
+    case "cancelled":
+    case "canceled":
+      filter.orderStatus = {
+        $in: [
+          "cancelled_by_user",
+          "cancelled_by_restaurant",
+          "cancelled_by_admin",
+        ],
+      };
+      break;
+    case "dead":
+      filter.orderStatus = "dead";
+      break;
+    default:
+      break;
+  }
+}
+
 export async function listOrdersRestaurant(restaurantId, query) {
-  const { page, limit, skip } = buildPaginationOptions(query);
+  const page = parseQueryPage(query.page, 1);
+  const limit = parseQueryLimit(query.limit, 30, 100);
+  const skip = (page - 1) * limit;
   const filter = {
     restaurantId: new mongoose.Types.ObjectId(restaurantId),
     $or: [
@@ -1140,6 +1189,7 @@ export async function listOrdersRestaurant(restaurantId, query) {
       { "payment.status": { $in: ["paid", "authorized", "captured", "settled", "refunded"] } },
     ],
   };
+  applyRestaurantOrderStatusFilter(filter, query.status);
   const [docs, total] = await Promise.all([
     FoodOrder.find(filter)
       .populate("userId", "name phone email profileImage")
@@ -1150,11 +1200,17 @@ export async function listOrdersRestaurant(restaurantId, query) {
       .lean(),
     FoodOrder.countDocuments(filter),
   ]);
-  return buildPaginatedResult({ docs: docs.map(d => {
-    const o = normalizeOrderForClient(d);
-    if (d.pickupOtp) o.pickupOtp = d.pickupOtp;
-    return o;
-  }), total, page, limit });
+  const paginated = buildPaginatedResult({
+    docs: docs.map((d) => {
+      const o = normalizeOrderForClient(d);
+      if (d.pickupOtp) o.pickupOtp = d.pickupOtp;
+      return o;
+    }),
+    total,
+    page,
+    limit,
+  });
+  return { ...paginated, orders: paginated.data };
 }
 
 export async function updateOrderStatusRestaurant(

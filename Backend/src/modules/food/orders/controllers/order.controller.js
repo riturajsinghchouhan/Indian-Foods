@@ -149,7 +149,13 @@ export async function listOrdersRestaurantController(req, res, next) {
     try {
         const restaurantId = req.user?.userId;
         const result = await orderService.listOrdersRestaurant(restaurantId, req.query);
-        return sendResponse(res, 200, 'Orders retrieved', result);
+        const responseData = {
+            orders: result.orders || result.data,
+            meta: result.meta,
+            pagination: result.meta,
+            total: result.meta?.total,
+        };
+        return sendResponse(res, 200, 'Orders retrieved', responseData);
     } catch (err) {
         next(err);
     }

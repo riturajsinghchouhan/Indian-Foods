@@ -7,6 +7,7 @@ import { ArrowLeft, Truck, X, CheckCircle, AlertCircle } from "lucide-react"
 import { Switch } from "@food/components/ui/switch"
 import { Card, CardContent } from "@food/components/ui/card"
 import { restaurantAPI } from "@food/api"
+import RestaurantModal from "@food/components/restaurant/RestaurantModal"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -202,7 +203,7 @@ export default function DeliverySettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="restaurant-page min-h-full bg-gray-100">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -221,7 +222,7 @@ export default function DeliverySettings() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div className="px-4 py-6">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -306,79 +307,57 @@ export default function DeliverySettings() {
         </motion.div>
       </div>
 
-      {/* Confirmation Dialog */}
-      <AnimatePresence>
-        {showConfirmDialog && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 bg-black/50 z-[100]"
+      <RestaurantModal
+        open={showConfirmDialog}
+        onClose={handleCancelStatusChange}
+        size="sm"
+        showClose={false}
+      >
+        <div className="flex flex-col items-center text-center -mt-2">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+            pendingStatus ? "bg-orange-100" : "bg-red-100"
+          }`}>
+            <AlertCircle className={`w-10 h-10 ${
+              pendingStatus ? "text-orange-600" : "text-red-600"
+            }`} />
+          </div>
+
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
+            {pendingStatus ? "Enable Delivery?" : "Disable Delivery?"}
+          </h3>
+
+          <p className="text-sm text-gray-600 mb-6">
+            {pendingStatus ? (
+              !canEnableDelivery ? (
+                <>You are currently outside your outlet timings. Are you sure you want to enable delivery?</>
+              ) : (
+                <>You will start receiving delivery orders. Make sure you're ready to accept orders.</>
+              )
+            ) : (
+              <>Customers won't be able to place delivery orders. You can turn it back on anytime.</>
+            )}
+          </p>
+
+          <div className="flex gap-3 w-full">
+            <button
               onClick={handleCancelStatusChange}
-            />
-            
-            {/* Dialog */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed inset-0 flex items-center justify-center z-[100] px-4"
-              onClick={(e) => e.stopPropagation()}
+              className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold rounded-lg transition-colors"
             >
-              <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
-                <div className="flex justify-center mb-4">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                    pendingStatus ? "bg-orange-100" : "bg-red-100"
-                  }`}>
-                    <AlertCircle className={`w-10 h-10 ${
-                      pendingStatus ? "text-orange-600" : "text-red-600"
-                    }`} />
-                  </div>
-                </div>
-                
-                <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">
-                  {pendingStatus ? "Enable Delivery?" : "Disable Delivery?"}
-                </h3>
-                
-                <p className="text-sm text-gray-600 mb-6 text-center">
-                  {pendingStatus ? (
-                    !canEnableDelivery ? (
-                      <>You are currently outside your outlet timings. Are you sure you want to enable delivery?</>
-                    ) : (
-                      <>You will start receiving delivery orders. Make sure you're ready to accept orders.</>
-                    )
-                  ) : (
-                    <>Customers won't be able to place delivery orders. You can turn it back on anytime.</>
-                  )}
-                </p>
-                
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleCancelStatusChange}
-                    className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmStatusChange}
-                    className={`flex-1 px-4 py-3 font-semibold rounded-lg transition-colors ${
-                      pendingStatus 
-                        ? "bg-green-600 hover:bg-green-700 text-white"
-                        : "bg-red-600 hover:bg-red-700 text-white"
-                    }`}
-                  >
-                    {pendingStatus ? "Enable" : "Disable"}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmStatusChange}
+              className={`flex-1 px-4 py-3 font-semibold rounded-lg transition-colors ${
+                pendingStatus
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-red-600 hover:bg-red-700 text-white"
+              }`}
+            >
+              {pendingStatus ? "Enable" : "Disable"}
+            </button>
+          </div>
+        </div>
+      </RestaurantModal>
 
       {/* Success Toast */}
       <AnimatePresence>
@@ -388,7 +367,7 @@ export default function DeliverySettings() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-4 w-full max-w-md"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-4 restaurant-modal-inline max-w-md"
           >
             <div className="bg-gray-900 text-white px-4 py-3 rounded-lg shadow-2xl flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-green-400 shrink-0" />

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
 import useRestaurantBackNavigation from "@food/hooks/useRestaurantBackNavigation"
-import Lenis from "lenis"
+import useRestaurantLenis from "@food/hooks/useRestaurantLenis"
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 import { restaurantAPI } from "@food/api"
@@ -299,25 +299,7 @@ export default function OrderDetails() {
     }
   }, [orderId])
 
-  // Lenis smooth scrolling
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-    })
-
-    function raf(time) {
-      lenis.raf(time)
-      requestAnimationFrame(raf)
-    }
-
-    requestAnimationFrame(raf)
-
-    return () => {
-      lenis.destroy()
-    }
-  }, [])
+  useRestaurantLenis()
 
   const handleCopyOrderId = () => {
     if (!orderData?.id) return
@@ -632,7 +614,7 @@ export default function OrderDetails() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-full bg-gray-50 flex flex-col">
         {/* Header Skeleton */}
         <div className="bg-white px-4 py-4 sticky top-0 z-50 border-b border-gray-100">
           <div className="flex items-center gap-3">
@@ -678,7 +660,7 @@ export default function OrderDetails() {
   // Error state
   if (error && !orderData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="min-h-full bg-gray-50 flex items-center justify-center p-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -713,7 +695,7 @@ export default function OrderDetails() {
   // No order data
   if (!orderData) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-full bg-gray-100 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4 text-center">
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Not Found</h2>
@@ -730,7 +712,7 @@ export default function OrderDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="restaurant-page min-h-full bg-gray-100 pb-8">
       {/* Header */}
       <div className="bg-white  px-4 py-3 sticky top-0 z-50">
         <div className="flex items-center gap-3">

@@ -232,7 +232,7 @@ function TimePickerWheel({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="bg-white rounded-lg shadow-2xl w-full max-w-xs overflow-hidden"
+          className="bg-white rounded-lg shadow-2xl restaurant-modal-inline max-w-xs overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Time Picker Content */}
@@ -577,7 +577,7 @@ export default function DaySlots() {
   }
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden flex flex-col">
+    <div className="restaurant-page min-h-full bg-white overflow-x-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -602,7 +602,7 @@ export default function DaySlots() {
         </div>
 
       {/* Main Content - Scrollable */}
-      <div className="flex-1 overflow-y-auto">  
+      <div className="min-h-0">  
         {/* Instructional Text */}
 
         {/* Time Slots */}

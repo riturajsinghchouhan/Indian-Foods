@@ -57,6 +57,7 @@ import { downloadRestaurantMenuPdf } from '../../admin/controllers/admin.control
 import { authMiddleware } from '../../../../core/auth/auth.middleware.js';
 import { sendError } from '../../../../utils/response.js';
 import { getRestaurantFinanceController } from '../controllers/restaurantFinance.controller.js';
+import { getRestaurantDashboardStatsController } from '../controllers/restaurantDashboard.controller.js';
 import { deleteRestaurantAccountController } from '../controllers/deleteAccount.controller.js';
 
 import { cacheResponse, invalidateCache } from '../../../../middleware/cache.js';
@@ -111,6 +112,7 @@ router.get('/dining-settings/pending', authMiddleware, requireRestaurant, getPen
 router.get('/outlet-timings', authMiddleware, requireRestaurant, getCurrentRestaurantOutletTimingsController);
 router.put('/outlet-timings', authMiddleware, requireRestaurant, upsertCurrentRestaurantOutletTimingsController);
 router.get('/finance', authMiddleware, requireRestaurant, getRestaurantFinanceController);
+router.get('/dashboard-stats', authMiddleware, requireRestaurant, getRestaurantDashboardStatsController);
 router.post('/withdraw', authMiddleware, requireRestaurant, createWithdrawalRequestController);
 router.get('/withdrawals', authMiddleware, requireRestaurant, listMyWithdrawalsController);
 router.post(

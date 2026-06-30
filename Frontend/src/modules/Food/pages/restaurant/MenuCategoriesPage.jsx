@@ -226,7 +226,7 @@ export default function MenuCategoriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-full bg-slate-50 pb-24">
       <div className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="px-4 py-3 flex items-center gap-3">
           <button onClick={goBack} className="rounded-full p-1 hover:bg-slate-100">
@@ -370,7 +370,7 @@ export default function MenuCategoriesPage() {
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              className="fixed bottom-0 left-0 right-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl"
+              className="restaurant-modal-sheet z-50 max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl"
             >
               <div className="mb-4 flex items-center justify-between">
                 <div>

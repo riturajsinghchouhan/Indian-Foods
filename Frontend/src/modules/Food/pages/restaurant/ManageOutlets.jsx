@@ -55,7 +55,7 @@ export default function ManageOutlets() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-full bg-white flex flex-col">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-gray-200">
         <button
@@ -111,7 +111,7 @@ export default function ManageOutlets() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-4 w-full max-w-md"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-4 restaurant-modal-inline max-w-md"
           >
             <div className="bg-white border border-gray-200 px-4 py-4 rounded-lg shadow-2xl">
               <div className="flex items-start gap-3">

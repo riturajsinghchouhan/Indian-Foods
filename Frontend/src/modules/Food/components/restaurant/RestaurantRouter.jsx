@@ -4,6 +4,7 @@ import ProtectedRoute from "@food/components/ProtectedRoute"
 import Loader from "@food/components/Loader"
 import GlobalPickupOtpModal from "./GlobalPickupOtpModal"
 import RestaurantBlockGuard from "./RestaurantBlockGuard"
+import RestaurantLayout from "./RestaurantLayout"
 import "./restaurantTheme.css"
 
 // Lazy Loading Components
@@ -11,6 +12,7 @@ const RestaurantNotifications = lazy(() => import("@food/pages/restaurant/Notifi
 const AllOrdersPage = lazy(() => import("@food/pages/restaurant/AllOrdersPage"))
 const OrderDetails = lazy(() => import("@food/pages/restaurant/OrderDetails"))
 const OrdersMain = lazy(() => import("@food/pages/restaurant/OrdersMain"))
+const RestaurantDashboard = lazy(() => import("@food/pages/restaurant/RestaurantDashboard"))
 const RestaurantOnboarding = lazy(() => import("@food/pages/restaurant/Onboarding"))
 const PrivacyPolicyPage = lazy(() => import("@food/pages/restaurant/PrivacyPolicyPage"))
 const TermsAndConditionsPage = lazy(() => import("@food/pages/restaurant/TermsAndConditionsPage"))
@@ -45,7 +47,6 @@ const Promocodes = lazy(() => import("@food/pages/restaurant/Promocodes"))
 const ManageOutlets = lazy(() => import("@food/pages/restaurant/ManageOutlets"))
 const UpdateBankDetails = lazy(() => import("@food/pages/restaurant/UpdateBankDetails"))
 const ZoneSetup = lazy(() => import("@food/pages/restaurant/ZoneSetup"))
-const DiningReservations = lazy(() => import("@food/pages/restaurant/DiningReservations"))
 const Welcome = lazy(() => import("@food/pages/restaurant/auth/Welcome"))
 const Login = lazy(() => import("@food/pages/restaurant/auth/Login"))
 const OTP = lazy(() => import("@food/pages/restaurant/auth/OTP"))
@@ -79,6 +80,8 @@ export default function RestaurantRouter() {
               <RestaurantBlockGuard />
             </ProtectedRoute>
           }>
+            <Route element={<RestaurantLayout />}>
+            <Route path="dashboard" element={<RestaurantDashboard />} />
             <Route path="" element={<OrdersMain />} />
             <Route path="orders/all" element={<AllOrdersPage />} />
             <Route path="orders/:id" element={<OrderDetails />} />
@@ -112,8 +115,9 @@ export default function RestaurantRouter() {
             <Route path="promocodes" element={<Promocodes />} />
             <Route path="manage-outlets" element={<ManageOutlets />} />
             <Route path="update-bank-details" element={<UpdateBankDetails />} />
-            <Route path="reservations" element={<DiningReservations />} />
+            <Route path="reservations" element={<Navigate to="/food/restaurant/explore" replace />} />
             <Route path="zone-setup" element={<ZoneSetup />} />
+            </Route>
           </Route>
         </Routes>
       </Suspense>

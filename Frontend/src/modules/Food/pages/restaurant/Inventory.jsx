@@ -18,11 +18,10 @@ import {
   Check,
   Trash2
 } from "lucide-react"
-import RestaurantNavbar from "@food/components/restaurant/RestaurantNavbar"
-import BottomNavOrders from "@food/components/restaurant/BottomNavOrders"
 import { Switch } from "@food/components/ui/switch"
 import { useNavigate } from "react-router-dom"
 import { restaurantAPI, uploadAPI } from "@food/api"
+import RestaurantBentoGrid from "@food/components/restaurant/RestaurantBentoGrid"
 import { toast } from "sonner"
 import { downloadFile } from "@/shared/utils/downloadUtils"
 const debugLog = (...args) => {}
@@ -382,7 +381,7 @@ function TimePickerWheel({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="bg-white rounded-lg shadow-2xl w-full max-w-xs overflow-hidden"
+          className="bg-white rounded-lg shadow-2xl restaurant-modal-inline max-w-xs overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-center py-8 px-4 relative">
@@ -662,7 +661,7 @@ function SimpleCalendar({ selectedDate, onDateSelect, isOpen, onClose }) {
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="bg-white rounded-lg shadow-2xl w-full max-w-sm overflow-hidden"
+          className="bg-white rounded-lg shadow-2xl restaurant-modal-inline max-w-sm overflow-hidden"
           onClick={(e) => e.stopPropagation()}
           ref={calendarRef}
         >
@@ -2026,16 +2025,8 @@ export default function Inventory() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f5f8] flex flex-col">
+    <div className="restaurant-page min-h-full bg-[#f3f5f8]">
       {/* Navbar */}
-      <div className="sticky top-0 z-50 bg-white">
-        <RestaurantNavbar
-          showSearch={false}
-          showOfflineOnlineTag={false}
-          showNotifications={false}
-        />
-      </div>
-
       {/* Tabs */}
       <div className="bg-[#f3f5f8] px-4 pt-4 pb-4">
         <div ref={tabBarRef} className="grid grid-cols-2 gap-3">
@@ -2112,7 +2103,7 @@ export default function Inventory() {
       {/* Main Content */}
       <div
         ref={contentContainerRef}
-        className="flex-1 overflow-y-auto px-4 pb-32"
+        className="px-4 pb-32"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -2403,11 +2394,11 @@ export default function Inventory() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <RestaurantBentoGrid variant="inventory">
                   {filteredAddons.map((addon) => (
                     <div
                       key={addon.id}
-                      className="rounded-[28px] border border-white/80 bg-white p-4 shadow-[0_20px_48px_-34px_rgba(15,23,42,0.45)]"
+                      className="restaurant-bento-card p-4 h-full"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -2480,7 +2471,7 @@ export default function Inventory() {
                       </div>
                     </div>
                   ))}
-                </div>
+                </RestaurantBentoGrid>
               )}
             </>
           )}
@@ -2613,14 +2604,14 @@ export default function Inventory() {
                       transition={{ duration: 0.3, ease: "circOut" }}
                       className="overflow-hidden bg-slate-50/30"
                     >
-                      <div className="space-y-4 px-6 pb-6 pt-2">
+                      <RestaurantBentoGrid variant="inventory" className="px-6 pb-6 pt-2">
                         {categoryItems.map((item) => {
                           const approvalMeta = getApprovalDisplayMeta(item.approvalStatus)
                           const isRejectedItem = item.approvalStatus === "rejected"
 
                           return (
-                          <div key={item.id} className="group px-1">
-                            <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-[28px] border border-slate-100/80 bg-white p-3 sm:p-4 shadow-[0_8px_20px_-12px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_40px_-20px_rgba(0,0,0,0.12)] hover:border-slate-200 transition-all duration-500">
+                          <div key={item.id} className="group h-full">
+                            <div className="restaurant-bento-card flex h-full flex-col justify-between gap-3 p-3 sm:p-4">
                               <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-5">
                                 {item.image && (
                                   <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 flex-shrink-0 rounded-[20px] overflow-hidden shadow-md border-2 border-white ring-1 ring-slate-100/50">
@@ -2723,7 +2714,7 @@ export default function Inventory() {
                           </div>
                           )
                         })}
-                      </div>
+                      </RestaurantBentoGrid>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -2749,7 +2740,7 @@ export default function Inventory() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6">
@@ -2834,7 +2825,7 @@ export default function Inventory() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] overflow-y-auto pb-[calc(1rem+env(safe-area-inset-bottom)+6rem)]"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] overflow-y-auto pb-[calc(1rem+env(safe-area-inset-bottom)+6rem)]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6">
@@ -3026,7 +3017,7 @@ export default function Inventory() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[71] max-h-[85vh] overflow-y-auto pb-[calc(1rem+env(safe-area-inset-bottom)+5.5rem)]"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-[71] max-h-[85vh] overflow-y-auto pb-[calc(1rem+env(safe-area-inset-bottom)+5.5rem)]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="sticky top-0 bg-white px-4 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -3187,7 +3178,7 @@ export default function Inventory() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white rounded-3xl p-6 shadow-2xl z-[81] text-center"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 restaurant-modal-inline max-w-md bg-white rounded-3xl p-6 shadow-2xl z-[81] text-center"
             >
               <div className="w-20 h-20 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4">
                 <Check className="w-10 h-10" />
@@ -3321,8 +3312,6 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* Bottom Navigation */}
-      <BottomNavOrders />
     </div>
   )
 }

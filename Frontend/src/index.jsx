@@ -79,6 +79,11 @@ function bootstrapNativeHashRoute() {
 
 bootstrapNativeHashRoute()
 
+// Preload Google Maps API key for web + mobile WebView (runtime from backend if .env empty)
+import('./modules/Food/utils/googleMapsApiKey.js')
+  .then(({ getGoogleMapsApiKey }) => getGoogleMapsApiKey())
+  .catch(() => { /* non-critical */ })
+
 // ─── Suppress known non-critical errors ──────────────────────────────────────
 
 const originalError = console.error

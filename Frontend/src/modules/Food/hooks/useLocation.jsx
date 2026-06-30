@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useLocationFromContext } from '../context/locationContext';
 import { locationAPI, userAPI } from "@food/api"
+import { getGoogleMapsApiKey } from "@food/utils/googleMapsApiKey"
 
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
@@ -32,8 +33,6 @@ let globalReverseGeocodeLastSuccess = null
 // Default behavior: only resolve an address once on initial app load,
 // then rely on localStorage/DB. Live watching is enabled only via explicit user action.
 const AUTO_START_LIVE_WATCH = false
-
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 
 const reverseGeocodeDirect = async (latitude, longitude) => {
   const now = Date.now()
@@ -84,12 +83,13 @@ const reverseGeocodeDirect = async (latitude, longitude) => {
       let formattedAddress = ""
 
       // 1. Try Google Maps Reverse Geocoding (Primary - highest precision)
-      if (GOOGLE_MAPS_API_KEY) {
+      const mapsKey = await getGoogleMapsApiKey()
+      if (mapsKey) {
         try {
           const controller = new AbortController()
           const timeout = setTimeout(() => controller.abort(), 4000)
           const response = await fetch(
-            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`,
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${mapsKey}`,
             { signal: controller.signal }
           )
           clearTimeout(timeout)

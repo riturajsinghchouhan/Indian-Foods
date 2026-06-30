@@ -50,7 +50,7 @@ export default function RushHour() {
   ]
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="restaurant-page min-h-full bg-white">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -66,7 +66,7 @@ export default function RushHour() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div className="px-4 py-6">
         {/* Informational Banner */}
         <div className="bg-blue-50 rounded-lg p-4 mb-6 flex items-start gap-4">
           <div className="w-14 h-14 rounded-full bg-black flex items-center justify-center shrink-0">

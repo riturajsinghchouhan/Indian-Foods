@@ -552,7 +552,7 @@ export default function EditOwner() {
 
   return (
     <>
-      <div className="min-h-screen bg-white overflow-x-hidden">
+      <div className="min-h-full bg-white overflow-x-hidden">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
           <div className="flex items-center gap-3">
@@ -889,7 +889,7 @@ export default function EditOwner() {
 
         {/* Delete Account Confirmation Dialog */}
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent className="sm:max-w-md p-4 w-[90%]">
+          <DialogContent className="restaurant-modal-inline sm:max-w-md p-4">
             <DialogHeader className="text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <span className="text-2xl leading-none text-red-600">!</span>

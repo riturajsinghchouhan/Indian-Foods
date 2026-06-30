@@ -144,7 +144,7 @@ export default function RestaurantDetailsPage() {
   })
 
   return (
-    <div className="min-h-screen bg-page-bg overflow-x-hidden">
+    <div className="min-h-full bg-page-bg overflow-x-hidden">
       {/* Hero Image Section */}
       <div className="relative w-full h-[250px] md:h-[300px] overflow-hidden">
         <img 

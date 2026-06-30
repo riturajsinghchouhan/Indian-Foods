@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Bell, HelpCircle, Menu, Search, SlidersHorizontal, Calendar, ChevronLeft, X, Loader2, ChevronRight, Star, RotateCcw } from "lucide-react"
 import { DateRangeCalendar } from "@food/components/ui/date-range-calendar"
-import BottomNavOrders from "@food/components/restaurant/BottomNavOrders"
 import { restaurantAPI } from "@food/api"
 
 const debugLog = (...args) => {}
@@ -387,7 +386,7 @@ export default function Feedback() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-[#0a0a0a] flex flex-col" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+    <div className="restaurant-page min-h-full bg-gray-100 dark:bg-[#0a0a0a]" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       <div className="sticky bg-white dark:bg-[#0a0a0a] top-0 z-40 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center justify-between">
           <div>
@@ -545,7 +544,7 @@ export default function Feedback() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1a1a] rounded-t-3xl shadow-2xl z-50 p-4"
+              className="restaurant-modal-sheet bg-white dark:bg-[#1a1a1a] rounded-t-3xl shadow-2xl z-50 p-4"
             >
               <div className="flex justify-center mb-4">
                 <div className="h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-700" />
@@ -587,7 +586,7 @@ export default function Feedback() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="fixed inset-0 m-auto w-[90%] max-w-sm h-fit bg-white dark:bg-[#1a1a1a] rounded-3xl shadow-2xl z-[60] p-6"
+              className="fixed left-1/2 top-1/2 z-[61] -translate-x-1/2 -translate-y-1/2 restaurant-modal-panel max-w-sm h-fit bg-white dark:bg-[#1a1a1a] rounded-3xl shadow-2xl p-6"
             >
               <DateRangeCalendar
                 startDate={customDateRange.start}
@@ -624,7 +623,7 @@ export default function Feedback() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1a1a] rounded-t-[32px] shadow-2xl z-50 overflow-hidden"
+              className="restaurant-modal-sheet bg-white dark:bg-[#1a1a1a] rounded-t-[32px] shadow-2xl z-50 overflow-hidden"
               style={{ maxHeight: "80vh" }}
             >
               <div className="p-6 flex flex-col h-full">
@@ -681,7 +680,6 @@ export default function Feedback() {
           </>
         )}
       </AnimatePresence>
-      <BottomNavOrders />
     </div>
   )
 }

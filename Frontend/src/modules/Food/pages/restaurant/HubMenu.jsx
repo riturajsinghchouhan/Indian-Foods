@@ -19,7 +19,6 @@ import {
   RefreshCw,
   Loader2
 } from "lucide-react"
-import BottomNavOrders from "@food/components/restaurant/BottomNavOrders"
 // Removed foodManagement - now using backend API directly
 import { useNavigate } from "react-router-dom"
 import { restaurantAPI, uploadAPI } from "@food/api"
@@ -1038,7 +1037,7 @@ export default function HubMenu() {
   }
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="restaurant-page min-h-full bg-gray-50">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white ">
         <div className="">
@@ -1186,7 +1185,7 @@ export default function HubMenu() {
           </button>
         </div>
       {/* Content */}
-      <div className="flex-1 space-y-4 pt-8 pb-24 overflow-y-auto">
+      <div className="space-y-4 pt-8 pb-24 px-4">
         {activeTab === "add-ons" ? (
           <div className="px-4">
             {/* Add Add-on Button */}
@@ -1464,7 +1463,7 @@ export default function HubMenu() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[85vh] flex flex-col"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[85vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
@@ -1476,7 +1475,7 @@ export default function HubMenu() {
                   <X className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="px-4 py-4">
                 <div className="space-y-1">
                   {filterOptions.map((filter, index) => (
                     <label
@@ -1540,7 +1539,7 @@ export default function HubMenu() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-4 py-4 border-b border-gray-200">
@@ -1588,7 +1587,7 @@ export default function HubMenu() {
               </div>
 
               {/* Content */}
-              <div className="flex-1 overflow-y-auto px-4 py-6">
+              <div className="px-4 py-6">
                 {/* Auto turn-on after section */}
                 <div className="mb-6">
                   <h3 className="text-base font-bold text-gray-900 mb-4">Auto turn-on after</h3>
@@ -1786,7 +1785,7 @@ export default function HubMenu() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[50vh] flex flex-col"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[50vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
@@ -1798,7 +1797,7 @@ export default function HubMenu() {
                   <X className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="px-4 py-4">
                 <div className="space-y-2">
                   <button
                     onClick={handleEditCategory}
@@ -1841,7 +1840,7 @@ export default function HubMenu() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[40vh] flex flex-col"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[40vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
@@ -1857,7 +1856,7 @@ export default function HubMenu() {
                   <X className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="px-4 py-4">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -1922,7 +1921,7 @@ export default function HubMenu() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[40vh] flex flex-col"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[40vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
@@ -1938,7 +1937,7 @@ export default function HubMenu() {
                   <X className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="px-4 py-4">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -2000,7 +1999,7 @@ export default function HubMenu() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[40vh] flex flex-col"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[40vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
@@ -2015,7 +2014,7 @@ export default function HubMenu() {
                   <X className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="px-4 py-4">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -2072,7 +2071,7 @@ export default function HubMenu() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] flex flex-col"
+              className="restaurant-modal-sheet bg-white rounded-t-2xl shadow-2xl z-50 max-h-[90vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
@@ -2108,7 +2107,7 @@ export default function HubMenu() {
                   )}
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="px-4 py-4">
                 {searchQuery.trim() ? (
                   filteredMenuGroups.length > 0 ? (
                     <div className="space-y-4">
@@ -2226,7 +2225,7 @@ export default function HubMenu() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-2xl shadow-2xl restaurant-modal-inline max-w-md max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -2369,7 +2368,6 @@ export default function HubMenu() {
         )}
       </AnimatePresence>
 
-      <BottomNavOrders />
     </div>
   )
 }

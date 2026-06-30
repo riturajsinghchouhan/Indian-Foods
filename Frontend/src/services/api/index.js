@@ -698,6 +698,9 @@ export const restaurantAPI = {
   /** Finance dashboard for `hub-finance`. */
   getFinance: (params = {}) =>
     restaurantClient.get("/food/restaurant/finance", { params: params || {} }),
+  /** Restaurant overview dashboard KPIs and charts. */
+  getDashboardStats: (params = {}) =>
+    restaurantClient.get("/food/restaurant/dashboard-stats", { params: params || {} }),
   /** Fetch restaurant by owner (stub for missing backend endpoint). */
   getRestaurantByOwner: () =>
     Promise.resolve({
@@ -853,11 +856,6 @@ export const restaurantAPI = {
   /** Menu (restaurant dashboard) */
   getMenu: (params = {}) =>
     restaurantClient.get("/food/restaurant/menu", { params }),
-  /** Orders (restaurant dashboard) */
-  getOrders: (params = {}) =>
-    restaurantClient.get("/food/restaurant/orders", {
-      params: { limit: 50, page: 1, ...params },
-    }),
   getOrderById: (orderId) =>
     restaurantClient.get(`/food/restaurant/orders/${String(orderId)}`),
   updateMenu: (body) =>
@@ -900,7 +898,7 @@ export const restaurantAPI = {
     let cacheAt = 0;
     const CACHE_MS = 800;
 
-    const buildKey = (p = {}) => JSON.stringify({ limit: 50, page: 1, ...p });
+    const buildKey = (p = {}) => JSON.stringify({ limit: 30, page: 1, ...p });
 
     return (params = {}) => {
       const key = buildKey(params);
@@ -915,13 +913,17 @@ export const restaurantAPI = {
       inFlightKey = key;
       inFlight = restaurantClient
         .get("/food/restaurant/orders", {
-          params: { limit: 50, page: 1, ...params }
+          params: { limit: 30, page: 1, ...params },
         })
         .then((res) => {
           // Backend paginated shape: { data: { data: [...], meta: {...} } }
           // Normalize to { data: { data: { orders: [...], meta } } } for restaurant UI pages.
           const payload = res?.data?.data || {};
-          const rowsRaw = Array.isArray(payload.data) ? payload.data : [];
+          const rowsRaw = Array.isArray(payload.orders)
+            ? payload.orders
+            : Array.isArray(payload.data)
+              ? payload.data
+              : [];
 
           // Normalize backend order fields to match existing restaurant UI expectations.
           // UI historically uses: order.status, order.address, order.total, order.paymentMethod
@@ -944,7 +946,7 @@ export const restaurantAPI = {
             const paymentMethod = o.payment?.method || o.paymentMethod || null;
             return { ...o, status, address, total, paymentMethod };
           });
-          const meta = payload.meta || {};
+          const meta = payload.meta || payload.pagination || {};
           const normalized = {
             ...res,
             data: {

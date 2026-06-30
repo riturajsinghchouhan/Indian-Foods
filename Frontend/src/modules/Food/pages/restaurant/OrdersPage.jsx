@@ -386,7 +386,7 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6e9dc] overflow-x-hidden">
+    <div className="min-h-full bg-[#f6e9dc] overflow-x-hidden">
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-6 pb-24 md:pb-6">
         {/* Title */}
