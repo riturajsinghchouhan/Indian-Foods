@@ -142,16 +142,37 @@ export function useLocationSimple() {
       const addressComponents = result.address_components || {}
 
       // Extract area (subLocality/neighborhood) - THIS IS THE KEY REQUIREMENT
-      const area = extractAreaFromResponse(response)
+      let area = extractAreaFromResponse(response)
 
       // Extract other location details
-      const city = Array.isArray(addressComponents) 
+      let city = Array.isArray(addressComponents) 
         ? addressComponents.find(c => c.types?.includes('locality'))?.long_name 
         : addressComponents.city || ""
       
-      const state = Array.isArray(addressComponents)
+      let state = Array.isArray(addressComponents)
         ? addressComponents.find(c => c.types?.includes('administrative_area_level_1'))?.long_name
         : addressComponents.state || ""
+
+      let formattedAddress = result.formatted_address || ""
+
+      const locationSource = backendData?.location?.source
+      if (locationSource === 'coords_only' || (!area && !city)) {
+        debugLog("?? Backend reverse geocode returned coords_only or no details, trying Nominatim fallback...")
+        try {
+          const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+          const nomRes = await fetch(nominatimUrl, { headers: { Accept: "application/json" } })
+          const nomJson = await nomRes.json()
+          if (nomJson && nomJson.display_name) {
+            formattedAddress = nomJson.display_name
+            const a = nomJson.address || {}
+            city = a.city || a.town || a.village || ""
+            state = a.state || ""
+            area = a.suburb || a.neighbourhood || ""
+          }
+        } catch (e) {
+          debugError("Nominatim fallback failed:", e)
+        }
+      }
 
       return {
         latitude,
@@ -159,7 +180,7 @@ export function useLocationSimple() {
         area: area || "", // Primary: Area/subLocality name
         city: city || "",
         state: state || "",
-        formattedAddress: result.formatted_address || "",
+        formattedAddress: formattedAddress || "",
       }
     } catch (err) {
       debugError("Reverse geocoding error:", err)
@@ -187,18 +208,25 @@ export function useLocationSimple() {
       }
 
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const { latitude, longitude } = position.coords
-          const locationData = {
-            latitude,
-            longitude,
-            area: "",
-            city: "",
-            state: "",
-            formattedAddress: "",
+          try {
+            const locationData = await reverseGeocode(latitude, longitude)
+            localStorage.setItem("userLocation", JSON.stringify(locationData))
+            resolve(locationData)
+          } catch (e) {
+            debugError("Reverse geocoding failed during getCurrentLocation:", e)
+            const locationData = {
+              latitude,
+              longitude,
+              area: "",
+              city: "",
+              state: "",
+              formattedAddress: "",
+            }
+            localStorage.setItem("userLocation", JSON.stringify(locationData))
+            resolve(locationData)
           }
-          localStorage.setItem("userLocation", JSON.stringify(locationData))
-          resolve(locationData)
         },
         (err) => {
           // Handle geolocation errors

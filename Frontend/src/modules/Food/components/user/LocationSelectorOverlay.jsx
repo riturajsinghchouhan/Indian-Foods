@@ -1616,7 +1616,8 @@ export default function LocationSelectorOverlay({ isOpen, onClose }) {
         try {
           const response = await locationAPI.reverseGeocode(roundedLat, roundedLng)
           const backendData = response?.data?.data
-          const result = backendData?.results?.[0] || backendData?.result?.[0] || null
+          const locationSource = backendData?.location?.source
+          const result = locationSource !== 'coords_only' ? (backendData?.results?.[0] || backendData?.result?.[0] || null) : null
           if (result) {
             formattedAddress = result.formatted_address || result.formattedAddress || ""
             const addressComponents = result.address_components || {}

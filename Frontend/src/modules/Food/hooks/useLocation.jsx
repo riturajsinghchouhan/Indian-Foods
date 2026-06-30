@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useLocationFromContext } from '../context/locationContext';
 import { locationAPI, userAPI } from "@food/api"
 
@@ -342,7 +342,7 @@ export function useLocationEngine() {
     try {
       const res = await locationAPI.reverseGeocode(latitude, longitude);
       const loc = res?.data?.data?.location;
-      if (loc?.formattedAddress) {
+      if (loc?.formattedAddress && loc?.source !== 'coords_only') {
         const value = {
           city: loc.city || '',
           state: loc.state || '',
