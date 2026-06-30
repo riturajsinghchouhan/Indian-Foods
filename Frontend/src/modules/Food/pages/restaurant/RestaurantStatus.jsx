@@ -6,7 +6,7 @@ import { ArrowLeft, Settings, ChevronRight } from "lucide-react"
 import { Switch } from "@food/components/ui/switch"
 import { Card, CardContent } from "@food/components/ui/card"
 import { restaurantAPI } from "@food/api"
-import { useAuthStore } from "@food/core/auth/auth.store"
+import { useAuthStore } from "@/core/auth/auth.store"
 import {
   Dialog,
   DialogContent,

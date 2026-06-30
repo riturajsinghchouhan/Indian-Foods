@@ -7,7 +7,7 @@ import { diningAPI, restaurantAPI } from "@food/api"
 import Loader from "@food/components/Loader"
 import { Badge } from "@food/components/ui/badge"
 import { toast } from "sonner"
-import { useAuthStore } from "@food/core/auth/auth.store"
+import { useAuthStore } from "@/core/auth/auth.store"
 const debugError = (...args) => {}
 
 const getRestaurantFromResponse = (response) =>

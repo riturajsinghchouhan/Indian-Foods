@@ -38,7 +38,7 @@ import { useLocation as useUserLocation } from "@food/hooks/useLocation"
 import DeliveryTrackingMap from "@food/components/user/DeliveryTrackingMap"
 import { orderAPI, restaurantAPI } from "@food/api"
 import { useCompanyName } from "@food/hooks/useCompanyName"
-import { useAuthStore } from "@food/core/auth/auth.store"
+import { useAuthStore } from "@/core/auth/auth.store"
 import { useUserNotifications } from "@food/hooks/useUserNotifications"
 import {
   patchOrderFromSocketPayload,
