@@ -158,7 +158,7 @@ export default function HomeHeader({
               
               <span className="text-[11px] font-medium text-white/80 uppercase truncate leading-tight mt-0.5">
                 {(() => {
-                  const addr = location?.address || "";
+                  const addr = location?.formattedAddress || location?.address || "";
                   if (addr && addr.length > 5 && addr !== "Select location") {
                      return addr;
                   }
