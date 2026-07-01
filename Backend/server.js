@@ -12,7 +12,6 @@ import { loadEnvFromDb } from './src/config/envLoader.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10000;
 let server = null;
-let server = null;
 
 const gracefulShutdown = async (signal) => {
     logger.info(`${signal} received, starting graceful shutdown`);
