@@ -4,6 +4,7 @@ import RestaurantNavbar from "./RestaurantNavbar"
 import RestaurantSidebar from "./RestaurantSidebar"
 import BottomNavOrders from "./BottomNavOrders"
 import { RestaurantLayoutProvider, useRestaurantLayout } from "./RestaurantLayoutContext"
+import { RestaurantNotificationProvider } from "@food/context/RestaurantNotificationContext"
 import { getRestaurantLayoutOptions, getRestaurantHeaderOptions } from "@food/utils/restaurantLayoutConfig"
 import { cn } from "@food/utils/utils"
 
@@ -57,14 +58,16 @@ export default function RestaurantLayout() {
   }
 
   return (
-    <RestaurantLayoutProvider routeDefaults={routeDefaults}>
-      <RestaurantLayoutShell
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        sidebarCollapsed={sidebarCollapsed}
-        onToggleCollapse={handleCollapse}
-      />
-    </RestaurantLayoutProvider>
+    <RestaurantNotificationProvider>
+      <RestaurantLayoutProvider routeDefaults={routeDefaults}>
+        <RestaurantLayoutShell
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleCollapse={handleCollapse}
+        />
+      </RestaurantLayoutProvider>
+    </RestaurantNotificationProvider>
   )
 }
 

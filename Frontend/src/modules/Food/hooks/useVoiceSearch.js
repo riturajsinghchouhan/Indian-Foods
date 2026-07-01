@@ -52,6 +52,8 @@ export const useVoiceSearch = (onResult) => {
                     toast.error("No speech detected. Try again.");
                 } else if (errorType === 'network') {
                     toast.error("Voice search requires an active internet connection.");
+                } else if (errorType === 'aborted') {
+                    // Ignore aborted errors
                 } else {
                     toast.error(`Voice search error: ${errorType}`);
                 }

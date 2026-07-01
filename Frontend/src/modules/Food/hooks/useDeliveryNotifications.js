@@ -536,54 +536,18 @@ export const useDeliveryNotifications = () => {
     };
   }, [playNotificationSound, showBackgroundOrderNotification, recoverDeliveryState]);
 
-  // Track user interaction for autoplay policy
+  // Track user interaction — mark gesture only; never play alert.mp3 during unlock (iOS leak)
   useEffect(() => {
     const handleUserInteraction = async () => {
       userInteractedRef.current = true;
+      audioUnlockAttemptedRef.current = true;
 
-      const soundFile = resolveAudioSource(alertSound);
-
-      if (!audioRef.current) {
-        audioRef.current = new Audio(soundFile);
-        audioRef.current.preload = 'auto';
-        audioRef.current.volume = 0.7;
-      }
-
-      if (!audioUnlockAttemptedRef.current && audioRef.current) {
-        audioUnlockAttemptedRef.current = true;
-        try {
-          audioRef.current.muted = true;
-          // Ensure src is set even if it was just initialized
-          if (!audioRef.current.src || audioRef.current.src === window.location.href) {
-             const soundFile = resolveAudioSource(alertSound);
-             audioRef.current.src = soundFile;
-          }
-          audioRef.current.load();
-          await audioRef.current.play();
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-          debugLog('?? Audio unlocked successfully');
-        } catch (error) {
-          audioUnlockAttemptedRef.current = false;
-          if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
-            debugWarn('Error unlocking notification audio:', error, 'Audio src:', audioRef.current?.src);
-          }
-        } finally {
-          // Ensure audio never remains muted after unlock attempts.
-          if (audioRef.current) {
-            audioRef.current.muted = false;
-          }
-        }
-      }
-
-      // Remove listeners after first interaction
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('touchstart', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
       window.removeEventListener('pointerdown', handleUserInteraction);
     };
     
-    // Listen for user interaction
     document.addEventListener('click', handleUserInteraction, { once: true });
     document.addEventListener('touchstart', handleUserInteraction, { once: true });
     document.addEventListener('keydown', handleUserInteraction, { once: true });
@@ -597,8 +561,10 @@ export const useDeliveryNotifications = () => {
     };
   }, []);
   
-  // Initialize audio on mount
+  // Initialize audio on mount (delivery session only — provider mounts in delivery module)
   useEffect(() => {
+    if (!deliverySessionToken) return;
+
     const soundFile = resolveAudioSource(alertSound);
     if (!audioRef.current) {
       audioRef.current = new Audio(soundFile);
@@ -612,7 +578,7 @@ export const useDeliveryNotifications = () => {
         audioRef.current = null;
       }
     };
-  }, []);
+  }, [deliverySessionToken]);
 
   // Fetch delivery partner ID (only when logged in as delivery partner)
   useEffect(() => {

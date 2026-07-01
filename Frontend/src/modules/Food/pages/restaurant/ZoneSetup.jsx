@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom"
 import useRestaurantBackNavigation from "@food/hooks/useRestaurantBackNavigation"
 import { MapPin, Search, Save, Loader2, ArrowLeft } from "lucide-react"
 import { restaurantAPI, zoneAPI } from "@food/api"
-import { getGoogleMapsApiKey } from "@food/utils/googleMapsApiKey"
-import { loadGoogleMaps } from "@food/utils/googleMapsLoader"
+import { loadGoogleMaps as loadGoogleMapsScript } from "@food/utils/googleMapsLoader"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -59,8 +58,8 @@ export default function ZoneSetup() {
   const autocompleteRef = useRef(null)
   const geocoderRef = useRef(null)
   
-  const [googleMapsApiKey, setGoogleMapsApiKey] = useState("")
   const [mapLoading, setMapLoading] = useState(true)
+  const [mapError, setMapError] = useState("")
   const [saving, setSaving] = useState(false)
   const [restaurantData, setRestaurantData] = useState(null)
   const [locationSearch, setLocationSearch] = useState("")
@@ -75,8 +74,48 @@ export default function ZoneSetup() {
   useEffect(() => {
     fetchRestaurantData()
     fetchZones()
-    loadGoogleMaps()
+    bootstrapZoneMap()
   }, [])
+
+  const waitForMapContainer = () =>
+    new Promise((resolve, reject) => {
+      let attempts = 0
+      const tick = () => {
+        if (mapRef.current) {
+          resolve(mapRef.current)
+          return
+        }
+        attempts += 1
+        if (attempts >= 50) {
+          reject(new Error("Map container not ready. Please refresh the page."))
+          return
+        }
+        setTimeout(tick, 100)
+      }
+      tick()
+    })
+
+  const bootstrapZoneMap = async () => {
+    try {
+      setMapLoading(true)
+      setMapError("")
+      await waitForMapContainer()
+
+      const google = window.google?.maps
+        ? window.google
+        : await loadGoogleMapsScript({ libraries: ["places", "geometry"] })
+
+      initializeMap(google)
+    } catch (error) {
+      debugError("Error loading Google Maps:", error)
+      setMapLoading(false)
+      const message =
+        error?.message?.includes("API key")
+          ? "Google Maps API key is not configured. Please contact your administrator."
+          : error?.message || "Failed to load Google Maps. Please refresh and try again."
+      setMapError(message)
+    }
+  }
 
   const fetchZones = async () => {
     try {
@@ -255,81 +294,6 @@ export default function ZoneSetup() {
     }
   }
 
-  const loadGoogleMaps = async () => {
-    try {
-      debugLog("?? Starting Google Maps load...")
-      
-      // Fetch API key from database
-      let apiKey = null
-      try {
-        apiKey = await getGoogleMapsApiKey()
-        debugLog("?? API Key received:", apiKey ? `Yes (${apiKey.substring(0, 10)}...)` : "No")
-        
-        if (!apiKey || apiKey.trim() === "") {
-          debugError("? API key is empty or not found in database")
-          setMapLoading(false)
-          alert("Google Maps API key not found in database. Please contact administrator to add the API key in admin panel.")
-          return
-        }
-      } catch (apiKeyError) {
-        debugError("? Error fetching API key from database:", apiKeyError)
-        setMapLoading(false)
-        alert("Failed to fetch Google Maps API key from database. Please check your connection or contact administrator.")
-        return
-      }
-      
-      setGoogleMapsApiKey(apiKey)
-      
-      // Wait for Google Maps to be loaded from main.jsx if it's loading
-      let retries = 0
-      const maxRetries = 100 // Wait up to 10 seconds
-      
-      debugLog("?? Waiting for Google Maps to load from main.jsx...")
-      while (!window.google && retries < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        retries++
-      }
-
-      // Wait for mapRef to be available (retry mechanism)
-      let refRetries = 0
-      const maxRefRetries = 50 // Wait up to 5 seconds for ref
-      while (!mapRef.current && refRetries < maxRefRetries) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        refRetries++
-      }
-
-      if (!mapRef.current) {
-        debugError("? mapRef.current is still null after waiting")
-        setMapLoading(false)
-        alert("Failed to initialize map container. Please refresh the page.")
-        return
-      }
-
-      // If Google Maps is already loaded, use it directly
-      if (window.google && window.google.maps) {
-        debugLog("? Google Maps already loaded from main.jsx, initializing map...")
-        initializeMap(window.google)
-        return
-      }
-
-      // If Google Maps is not loaded yet and we have an API key, use Loader as fallback
-      if (apiKey) {
-        debugLog("?? Google Maps not loaded from main.jsx, loading with Loader...")
-        const google = await loadGoogleMaps({ libraries: ["places", "geometry"] })
-        debugLog("? Google Maps loaded via Loader, initializing map...")
-        initializeMap(google)
-      } else {
-        debugError("? No API key available")
-        setMapLoading(false)
-        alert("Google Maps API key not found. Please contact administrator.")
-      }
-    } catch (error) {
-      debugError("? Error loading Google Maps:", error)
-      setMapLoading(false)
-      alert(`Failed to load Google Maps: ${error.message}. Please refresh the page or contact administrator.`)
-    }
-  }
-
   const initializeMap = (google) => {
     try {
       if (!mapRef.current) {
@@ -400,11 +364,12 @@ export default function ZoneSetup() {
       })
 
       setMapLoading(false)
+      setMapError("")
       debugLog("? Map loading complete")
     } catch (error) {
       debugError("? Error in initializeMap:", error)
       setMapLoading(false)
-      alert("Failed to initialize map. Please refresh the page.")
+      setMapError("Failed to initialize map. Please refresh the page.")
     }
   }
 
@@ -658,6 +623,21 @@ export default function ZoneSetup() {
                 <Loader2 className="w-8 h-8 animate-spin text-red-600 mx-auto mb-2" />
                 <p className="text-gray-600">Loading map...</p>
                 <p className="text-xs text-gray-400 mt-2">If this takes too long, please refresh the page</p>
+              </div>
+            </div>
+          )}
+          {!mapLoading && mapError && (
+            <div className="absolute inset-0 bg-white flex items-center justify-center z-10 p-6">
+              <div className="text-center max-w-md">
+                <p className="text-red-600 font-semibold mb-2">Unable to load map</p>
+                <p className="text-sm text-gray-600 mb-4">{mapError}</p>
+                <button
+                  type="button"
+                  onClick={() => bootstrapZoneMap()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Retry
+                </button>
               </div>
             </div>
           )}

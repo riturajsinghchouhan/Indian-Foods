@@ -22,6 +22,7 @@ const MESSAGING_APP_NAME = "web-push-app";
 const recentForegroundNotifications = new Map();
 let pushSoundAudio = null;
 let pushSoundUnlocked = false;
+let gestureAudioPrimed = false;
 let pushSoundContext = null;
 const PUSH_DEBUG_PREFIX = "[push-debug]";
 const notificationDedupWindowMs = 8000;
@@ -208,6 +209,34 @@ export function isPushSoundEnabled() {
   return localStorage.getItem(pushSoundEnabledStorageKey) === "true";
 }
 
+function isPushSoundActive() {
+  return pushSoundUnlocked || isPushSoundEnabled();
+}
+
+/** Prime Web Audio on a user gesture without playing notification MP3 (iOS-safe). */
+async function primeAudioGesture() {
+  if (gestureAudioPrimed) return true;
+
+  const ctx = getAudioContext();
+  if (!ctx) return false;
+
+  if (ctx.state === "suspended") {
+    await ctx.resume();
+  }
+
+  const now = ctx.currentTime;
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, now);
+  oscillator.connect(gain);
+  gain.connect(ctx.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.01);
+
+  gestureAudioPrimed = true;
+  return true;
+}
+
 async function triggerWebViewNativeNotification(payload = {}) {
   if (typeof window === "undefined") return false;
 
@@ -250,6 +279,11 @@ async function triggerWebViewNativeNotification(payload = {}) {
 
 async function playPushSound(payload = {}) {
   try {
+    if (!isPushSoundActive()) {
+      pushDebugLog(PUSH_DEBUG_PREFIX, "Push sound skipped — not explicitly enabled");
+      return;
+    }
+
     pushDebugLog(PUSH_DEBUG_PREFIX, "playPushSound called", {
       notificationKey: getNotificationKey(payload),
       pushSoundUnlocked,
@@ -258,7 +292,11 @@ async function playPushSound(payload = {}) {
     });
     const usedNativeBridge = await triggerWebViewNativeNotification(payload);
 
-    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.vibrate === "function" &&
+      isPushSoundActive()
+    ) {
       pushDebugLog(PUSH_DEBUG_PREFIX, "Triggering vibration");
       navigator.vibrate([200, 100, 200, 100, 300]);
     }
@@ -268,7 +306,7 @@ async function playPushSound(payload = {}) {
       return;
     }
 
-    if (!pushSoundUnlocked) {
+    if (!pushSoundUnlocked && !isPushSoundEnabled()) {
       pushDebugWarn(PUSH_DEBUG_PREFIX, "Push sound blocked because sound is not enabled/unlocked");
       return;
     }
@@ -296,40 +334,19 @@ async function playPushSound(payload = {}) {
 }
 
 function setupPushSoundUnlock() {
-  if (typeof window === "undefined" || pushSoundUnlocked) return;
+  if (typeof window === "undefined" || gestureAudioPrimed) return;
 
   const unlock = async () => {
-    let audio = null;
     try {
-      audio = ensurePushSoundAudio();
-      if (!audio) return;
-      pushDebugLog(PUSH_DEBUG_PREFIX, "Attempting passive push sound unlock");
-      audio.muted = true;
-      audio.volume = 0; // Extra protection for iOS WebView glitch
-      
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        await playPromise;
-      }
-      
-      audio.pause();
-      audio.currentTime = 0;
-      pushSoundUnlocked = true;
-      localStorage.setItem(pushSoundEnabledStorageKey, "true");
-      pushDebugLog(PUSH_DEBUG_PREFIX, "Passive push sound unlock succeeded");
-      window.dispatchEvent(new CustomEvent("push-sound-enabled"));
+      await primeAudioGesture();
+      pushDebugLog(PUSH_DEBUG_PREFIX, "Silent audio gesture primed (no notification MP3)");
     } catch (error) {
-      pushDebugWarn(PUSH_DEBUG_PREFIX, "Passive push sound unlock failed", {
+      pushDebugWarn(PUSH_DEBUG_PREFIX, "Silent audio gesture prime failed", {
         error: error?.message || error,
       });
-    } finally {
-      if (audio) {
-        audio.muted = false;
-        audio.volume = 1; // Restore volume
-      }
     }
 
-    if (pushSoundUnlocked) {
+    if (gestureAudioPrimed) {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
       window.removeEventListener("touchstart", unlock);
@@ -344,15 +361,9 @@ function setupPushSoundUnlock() {
 export async function enablePushNotificationSound() {
   if (typeof window === "undefined") return false;
 
-  let audio = null;
   try {
-    audio = ensurePushSoundAudio();
-    if (!audio) return false;
     pushDebugLog(PUSH_DEBUG_PREFIX, "Manual push sound enable started");
-    audio.muted = true;
-    await audio.play();
-    audio.pause();
-    audio.currentTime = 0;
+    await primeAudioGesture();
     pushSoundUnlocked = true;
     localStorage.setItem(pushSoundEnabledStorageKey, "true");
     window.dispatchEvent(new CustomEvent("push-sound-enabled"));
@@ -369,7 +380,6 @@ export async function enablePushNotificationSound() {
           source: previewAudio.src,
           error: error?.message || error,
         });
-        // Try next preview source.
       }
     }
 
@@ -384,18 +394,13 @@ export async function enablePushNotificationSound() {
       pushSoundUnlocked = true;
       localStorage.setItem(pushSoundEnabledStorageKey, "true");
       window.dispatchEvent(new CustomEvent("push-sound-enabled"));
-      }
-    catch (beepError) {
+    } catch (beepError) {
       pushDebugWarn(PUSH_DEBUG_PREFIX, "Synth beep fallback failed", {
         error: beepError?.message || beepError,
       });
       return false;
     }
     return true;
-  } finally {
-    if (audio) {
-      audio.muted = false;
-    }
   }
 }
 
@@ -748,10 +753,11 @@ async function attachForegroundListener(firebaseAppInstance) {
 export async function registerWebPushForCurrentModule(pathname = window.location.pathname) {
   const moduleName = normalizeModuleFromPath(pathname);
   if (moduleName === "admin") return;
-  initPushNotificationClient();
 
   const accessToken = localStorage.getItem(`${moduleName}_accessToken`);
   if (!accessToken) return;
+
+  initPushNotificationClient();
 
   const supportsBrowserPush = isSupportedBrowser() && isSecureContextForPush();
 

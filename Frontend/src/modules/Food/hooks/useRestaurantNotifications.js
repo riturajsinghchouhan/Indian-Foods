@@ -5,6 +5,7 @@ import { restaurantAPI } from '@food/api';
 import alertSound from '@food/assets/audio/alert.mp3';
 import { dispatchNotificationInboxRefresh } from '@food/hooks/useNotificationInbox';
 import { RestaurantNotificationContext } from '../context/RestaurantNotificationContext';
+import { isModuleAuthenticated } from '@food/utils/auth';
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -298,8 +299,10 @@ export const useRestaurantNotifications = () => {
     }
   };
 
-  // Get restaurant ID from API
+  // Get restaurant ID from API (restaurant session only)
   useEffect(() => {
+    if (!isModuleAuthenticated('restaurant')) return;
+
     const fetchRestaurantId = async () => {
       try {
         const response = await restaurantAPI.getCurrentRestaurant();
@@ -853,45 +856,18 @@ export const useRestaurantNotifications = () => {
     };
   }, [restaurantId]);
 
-  // Track user interaction for autoplay policy
+  // Prime audio gesture silently on first interaction (no alert.mp3 on iOS unlock)
   useEffect(() => {
     const handleUserInteraction = async () => {
       userInteractedRef.current = true;
+      audioUnlockAttemptedRef.current = true;
 
-      if (!audioRef.current) {
-        audioRef.current = new Audio(resolveAudioSource(alertSound));
-        audioRef.current.preload = 'auto';
-        audioRef.current.volume = 1;
-      }
-
-      if (!audioUnlockAttemptedRef.current && audioRef.current) {
-        audioUnlockAttemptedRef.current = true;
-        try {
-          audioRef.current.muted = true;
-          await audioRef.current.play();
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-        } catch (error) {
-          audioUnlockAttemptedRef.current = false;
-          if (!error.message?.includes('user didn\'t interact') && !error.name?.includes('NotAllowedError')) {
-            debugWarn('Error unlocking notification sound:', error);
-          }
-        } finally {
-          // Ensure audio never remains muted after unlock attempts.
-          if (audioRef.current) {
-            audioRef.current.muted = false;
-          }
-        }
-      }
-
-      // Remove listeners after first interaction
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('touchstart', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
       window.removeEventListener('pointerdown', handleUserInteraction);
     };
     
-    // Listen for user interaction
     document.addEventListener('click', handleUserInteraction, { once: true });
     document.addEventListener('touchstart', handleUserInteraction, { once: true });
     document.addEventListener('keydown', handleUserInteraction, { once: true });
