@@ -469,6 +469,8 @@ export const adminAPI = {
     adminClient.patch(`/food/admin/customers/${String(id)}/status`, { isActive: isActive !== false }),
   topupCustomerWallet: (id, amount, description) =>
     adminClient.post(`/food/admin/customers/${String(id)}/wallet-topup`, { amount: Number(amount), description }),
+  deductCustomerWallet: (id, amount, description) =>
+    adminClient.post(`/food/admin/customers/${String(id)}/wallet-deduct`, { amount: Number(amount), description }),
   /** Orders (admin) â€“ list, get by id, assign delivery partner */
   getOrders: (params = {}) =>
     adminClient.get("/food/admin/orders", { params: { limit: 50, page: 1, ...params } }),

@@ -9,7 +9,7 @@ import { validateDeliveryCommissionRuleDto, validateOptionalStatusDto, validateR
 import { validateFeeSettingsUpsertDto } from '../validators/feeSettings.validator.js';
 import { validateDeliveryEmergencyHelpUpsertDto } from '../validators/deliveryEmergencyHelp.validator.js';
 import { validateReferralSettingsUpsertDto } from '../validators/referralSettings.validator.js';
-import { topupUserWalletByAdmin } from '../../user/services/userWallet.service.js';
+import { topupUserWalletByAdmin, deductUserWalletByAdmin } from '../../user/services/userWallet.service.js';
 import { invalidateCache } from '../../../../middleware/cache.js';
 import { FoodBusinessSettings } from '../models/businessSettings.model.js';
 import { sendRestaurantOnboardingEmail } from '../../../../utils/email.js';
@@ -70,6 +70,27 @@ export async function topupCustomerWallet(req, res, next) {
         
         const result = await topupUserWalletByAdmin(id, amount, adminId, description);
         res.status(200).json({ success: true, message: 'Wallet topped up successfully', data: result });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function deductCustomerWallet(req, res, next) {
+    try {
+        const { id } = req.params;
+        const { amount, description } = req.body;
+        
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid customer id' });
+        }
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ success: false, message: 'Invalid amount' });
+        }
+
+        const adminId = req.user ? req.user.id : null;
+        
+        const result = await deductUserWalletByAdmin(id, amount, adminId, description);
+        res.status(200).json({ success: true, message: 'Wallet deducted successfully', data: result });
     } catch (error) {
         next(error);
     }

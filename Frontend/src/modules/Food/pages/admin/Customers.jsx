@@ -21,11 +21,12 @@ export default function Customers() {
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [showUserDetails, setShowUserDetails] = useState(false)
   
-  const [showTopupDialog, setShowTopupDialog] = useState(false)
-  const [topupAmount, setTopupAmount] = useState("")
-  const [topupDescription, setTopupDescription] = useState("")
-  const [isToppingUp, setIsToppingUp] = useState(false)
-  const [customerToTopup, setCustomerToTopup] = useState(null)
+  const [showWalletDialog, setShowWalletDialog] = useState(false)
+  const [walletAmount, setWalletAmount] = useState("")
+  const [walletDescription, setWalletDescription] = useState("")
+  const [isWalletAction, setIsWalletAction] = useState(false)
+  const [customerToManage, setCustomerToManage] = useState(null)
+  const [walletActionType, setWalletActionType] = useState("topup") // "topup" | "deduct"
 
   const [filters, setFilters] = useState({
     orderDate: "",
@@ -177,28 +178,39 @@ export default function Customers() {
     }
   }
 
-  const submitTopup = async () => {
-    if (!topupAmount || isNaN(topupAmount) || Number(topupAmount) <= 0) {
+  const submitWalletAction = async () => {
+    if (!walletAmount || isNaN(walletAmount) || Number(walletAmount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
     try {
-      setIsToppingUp(true);
-      await adminAPI.topupCustomerWallet(customerToTopup, topupAmount, topupDescription);
-      toast.success("Wallet topped up successfully");
-      setShowTopupDialog(false);
-      setTopupAmount("");
-      setTopupDescription("");
+      setIsWalletAction(true);
+      if (walletActionType === "topup") {
+        await adminAPI.topupCustomerWallet(customerToManage, walletAmount, walletDescription);
+        toast.success("Wallet topped up successfully");
+      } else {
+        await adminAPI.deductCustomerWallet(customerToManage, walletAmount, walletDescription);
+        toast.success("Wallet deducted successfully");
+      }
+      setShowWalletDialog(false);
+      setWalletAmount("");
+      setWalletDescription("");
       
+      setCustomers(prev => prev.map(c => 
+        (c._id || c.id || c.sl) === customerToManage 
+          ? { ...c, walletBalance: (c.walletBalance || 0) + (walletActionType === "topup" ? Number(walletAmount) : -Number(walletAmount)) } 
+          : c
+      ));
+
       // refresh user details if they are currently viewing the same user
-      if (showUserDetails && selectedCustomer === customerToTopup) {
-        handleViewDetails(customerToTopup);
+      if (showUserDetails && selectedCustomer === customerToManage) {
+        handleViewDetails(customerToManage);
       }
     } catch (error) {
-      debugError('Error topping up wallet:', error);
-      toast.error('Failed to top up wallet');
+      debugError(`Error ${walletActionType} wallet:`, error);
+      toast.error(error?.response?.data?.message || `Failed to ${walletActionType} wallet`);
     } finally {
-      setIsToppingUp(false);
+      setIsWalletAction(false);
     }
   }
 
@@ -515,10 +527,22 @@ export default function Customers() {
                           <button
                             title="Top-up Wallet"
                             onClick={() => {
-                              setCustomerToTopup(customer._id || customer.id || customer.sl);
-                              setShowTopupDialog(true);
+                              setCustomerToManage(customer._id || customer.id || customer.sl);
+                              setWalletActionType("topup");
+                              setShowWalletDialog(true);
                             }}
                             className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors"
+                          >
+                            <Wallet className="w-4 h-4" />
+                          </button>
+                          <button
+                            title="Deduct Wallet"
+                            onClick={() => {
+                              setCustomerToManage(customer._id || customer.id || customer.sl);
+                              setWalletActionType("deduct");
+                              setShowWalletDialog(true);
+                            }}
+                            className="p-1.5 rounded text-red-600 hover:bg-red-50 transition-colors"
                           >
                             <Wallet className="w-4 h-4" />
                           </button>
@@ -628,7 +652,7 @@ export default function Customers() {
               </div>
 
               {/* Statistics Section */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="bg-blue-50 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <Package className="w-4 h-4 text-blue-600" />
@@ -643,6 +667,15 @@ export default function Customers() {
                   </div>
                   <p className="text-xl font-bold text-green-600">
                     {"\u20B9"}{(userDetails.totalOrderAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Wallet className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-semibold text-slate-700">Wallet Balance</span>
+                  </div>
+                  <p className="text-xl font-bold text-amber-600">
+                    {"\u20B9"}{(userDetails.walletBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className="bg-purple-50 rounded-lg p-3">
@@ -739,13 +772,13 @@ export default function Customers() {
         </DialogContent>
       </Dialog>
 
-      {/* Wallet Top-up Dialog */}
-      <Dialog open={showTopupDialog} onOpenChange={setShowTopupDialog}>
+      {/* Manage Wallet Dialog */}
+      <Dialog open={showWalletDialog} onOpenChange={setShowWalletDialog}>
         <DialogContent className="max-w-md mx-auto p-0 gap-0">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-200 bg-slate-50">
             <DialogTitle className="pr-12 text-xl font-bold text-slate-900 flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-blue-600" />
-              Wallet Top-up
+              <Wallet className={`w-5 h-5 ${walletActionType === 'topup' ? 'text-green-600' : 'text-red-600'}`} />
+              {walletActionType === "topup" ? "Wallet Top-up" : "Deduct Wallet Balance"}
             </DialogTitle>
           </DialogHeader>
 
@@ -756,9 +789,9 @@ export default function Customers() {
               </label>
               <input
                 type="number"
-                value={topupAmount}
-                onChange={(e) => setTopupAmount(e.target.value)}
-                placeholder="Enter amount to add"
+                value={walletAmount}
+                onChange={(e) => setWalletAmount(e.target.value)}
+                placeholder={walletActionType === "topup" ? "Enter amount to add" : "Enter amount to deduct"}
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all"
               />
             </div>
@@ -768,9 +801,9 @@ export default function Customers() {
               </label>
               <input
                 type="text"
-                value={topupDescription}
-                onChange={(e) => setTopupDescription(e.target.value)}
-                placeholder="Ex: Promotional bonus"
+                value={walletDescription}
+                onChange={(e) => setWalletDescription(e.target.value)}
+                placeholder={walletActionType === "topup" ? "Ex: Promotional bonus" : "Ex: Order adjustment"}
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all"
               />
             </div>
@@ -778,23 +811,23 @@ export default function Customers() {
 
           <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3 rounded-b-lg">
             <button
-              onClick={() => setShowTopupDialog(false)}
+              onClick={() => setShowWalletDialog(false)}
               className="px-4 py-2.5 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-all"
-              disabled={isToppingUp}
+              disabled={isWalletAction}
             >
               Cancel
             </button>
             <button
-              onClick={submitTopup}
-              disabled={isToppingUp}
-              className="px-4 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+              onClick={submitWalletAction}
+              disabled={isWalletAction}
+              className={`px-4 py-2.5 text-sm font-medium rounded-lg text-white transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${walletActionType === 'topup' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
             >
-              {isToppingUp ? (
+              {isWalletAction ? (
                 "Processing..."
               ) : (
                 <>
                   <Wallet className="w-4 h-4" />
-                  Top-up Wallet
+                  {walletActionType === "topup" ? "Top-up Wallet" : "Deduct Balance"}
                 </>
               )}
             </button>
