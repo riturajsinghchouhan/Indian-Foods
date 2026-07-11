@@ -1386,6 +1386,18 @@ export async function getCustomerById(id) {
         }
     ]);
     const stats = orderStats?.[0] || {};
+
+    let walletBalance = 0;
+    try {
+        const { FoodUserWallet } = await import('../../user/models/userWallet.model.js');
+        const wallet = await FoodUserWallet.findOne({ userId: customerObjectId }).select('balance').lean();
+        if (wallet) {
+            walletBalance = Number(wallet.balance || 0);
+        }
+    } catch (err) {
+        // Fallback gracefully
+    }
+
     const sanitizeUrl = (s) => {
         if (!s) return '';
         const str = String(s).trim();
@@ -1405,6 +1417,7 @@ export async function getCustomerById(id) {
         totalOrders: Number(stats.totalOrders || 0),
         totalOrder: Number(stats.totalOrders || 0),
         totalOrderAmount: Number(stats.totalOrderAmount || 0),
+        walletBalance: walletBalance,
         joiningDate: u.createdAt,
         createdAt: u.createdAt,
         updatedAt: u.updatedAt,

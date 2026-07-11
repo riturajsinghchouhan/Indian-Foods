@@ -44,6 +44,7 @@ router.get('/customers', adminController.getCustomers);
 router.get('/customers/:id', adminController.getCustomerById);
 router.patch('/customers/:id/status', adminController.updateCustomerStatus);
 router.post('/customers/:id/wallet-topup', adminController.topupCustomerWallet);
+router.post('/customers/:id/wallet-deduct', adminController.deductCustomerWallet);
 
 // ----- Safety / Emergency Reports -----
 router.get('/safety-emergency-reports', adminController.getSafetyEmergencyReports);

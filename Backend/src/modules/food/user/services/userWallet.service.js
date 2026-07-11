@@ -208,3 +208,28 @@ export const topupUserWalletByAdmin = async (userId, amountInr, adminId, descrip
 
     return { wallet: await getUserWallet(userId) };
 };
+
+export const deductUserWalletByAdmin = async (userId, amountInr, adminId, description = 'Admin Deduction') => {
+    const amount = Number(amountInr);
+    if (!Number.isFinite(amount) || amount <= 0) {
+        throw new ValidationError('Invalid deduction amount');
+    }
+
+    const wallet = await ensureWallet(userId);
+    if (wallet.balance < amount) {
+        throw new ValidationError('Insufficient wallet balance');
+    }
+
+    wallet.transactions.unshift({
+        type: 'deduction',
+        amount,
+        status: 'Completed',
+        description,
+        metadata: { source: 'admin_deduction', adminId: String(adminId) }
+    });
+
+    wallet.balance = Number(wallet.balance) - amount;
+    await wallet.save();
+
+    return { wallet: await getUserWallet(userId) };
+};
