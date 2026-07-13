@@ -59,7 +59,7 @@ export default function AdsBannerCarousel({ banners = [], data = [] }) {
       </div>
 
       <div 
-        className="relative w-full overflow-hidden h-[130px] sm:h-[160px] rounded-2xl shadow-md cursor-pointer group"
+        className="relative w-full overflow-hidden h-[180px] sm:h-[220px] rounded-2xl shadow-md cursor-pointer group"
         onClick={handleBannerClick}
       >
         {/* Shimmer effect overlay */}

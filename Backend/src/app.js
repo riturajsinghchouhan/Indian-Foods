@@ -12,6 +12,7 @@ import { requestIdMiddleware } from './middleware/requestId.js';
 import { healthCheck } from './config/health.js';
 import { config } from './config/env.js';
 import compression from 'compression';
+import path from 'path';
 
 const app = express();
 
@@ -78,7 +79,8 @@ app.use(helmet({
     hsts: config.nodeEnv === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
     xssFilter: true,
     noSniff: true,
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(cors());
 app.use(morgan('dev'));
@@ -110,6 +112,10 @@ app.use('/api', responseTimeLogger);
 
 // API Routes
 app.use('/api', routes);
+
+// Static Uploads Serving
+app.use('/uploads', express.static(path.join(process.cwd(), 'src', 'uploads')));
+app.use('/api/v1/uploads', express.static(path.join(process.cwd(), 'src', 'uploads')));
 
 // Error Handling
 app.use(errorHandler);

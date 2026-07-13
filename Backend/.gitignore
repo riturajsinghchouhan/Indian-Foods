@@ -1,6 +1,11 @@
 # dependencies
 node_modules/
 
+# uploads
+uploads/
+src/uploads/
+uploads.zip
+
 # environment variables
 .env
 .env.*

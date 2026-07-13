@@ -1,233 +1,100 @@
-import { v2 as cloudinary } from 'cloudinary';
-import { config } from '../config/env.js';
+import fs from 'fs';
+import path from 'path';
+import sharp from 'sharp';
+import { v4 as uuidv4 } from 'uuid';
 
-cloudinary.config({
-    cloud_name: config.cloudinaryCloudName,
-    api_key: config.cloudinaryApiKey,
-    api_secret: config.cloudinaryApiSecret
-});
+// Map UPLOAD_DIR to project root /src/uploads for local or /var/www/uploads for VPS
+const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'src', 'uploads');
+
+const ensureDirectoryExists = (dirPath) => {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+};
+
+const getProcessingOptions = (folder) => {
+    // defaults
+    let width = 800;
+    let height = 800;
+    let quality = 80;
+    let prefix = 'img';
+
+    if (folder.includes('food/items')) {
+        width = 800; height = 800; quality = 85; prefix = 'food';
+    } else if (folder.includes('food/restaurants/profile') || folder.includes('users/profiles')) {
+        width = 400; height = 400; quality = 80; prefix = 'user';
+    } else if (folder.includes('food/restaurants') || folder.includes('restaurants')) { 
+        // cover, menu, pan, gst, fssai
+        width = 1200; height = 800; quality = 80; prefix = 'restaurant';
+    } else if (folder.includes('landing/banners') || folder.includes('banners')) {
+        width = 1600; height = 600; quality = 85; prefix = 'banner';
+    }
+
+    return { width, height, quality, prefix };
+};
 
 export const uploadImageBuffer = async (buffer, folder = 'uploads') => {
     if (!buffer) {
         throw new Error('File buffer is required');
     }
 
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { folder, resource_type: 'image', type: 'upload', access_mode: 'public' },
-            (error, result) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve(result.secure_url);
-            }
-        );
+    const { width, height, quality, prefix } = getProcessingOptions(folder);
+    const fileName = `${prefix}_${uuidv4().replace(/-/g, '').substring(0, 8)}.webp`;
+    
+    const targetDir = path.join(UPLOAD_BASE_DIR, folder);
+    ensureDirectoryExists(targetDir);
 
-        stream.end(buffer);
-    });
+    const filePath = path.join(targetDir, fileName);
+
+    await sharp(buffer)
+        .resize({ width, height, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality })
+        .toFile(filePath);
+
+    // Return the relative URL starting with /uploads/
+    return `/uploads/${folder}/${fileName}`;
 };
 
 export const uploadImageBufferDetailed = async (buffer, folder = 'uploads') => {
-    if (!buffer) {
-        throw new Error('File buffer is required');
-    }
-
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { folder, resource_type: 'image', type: 'upload', access_mode: 'public' },
-            (error, result) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve(result);
-            }
-        );
-
-        stream.end(buffer);
-    });
+    const secure_url = await uploadImageBuffer(buffer, folder);
+    return { secure_url };
 };
 
 export const uploadVideoBuffer = async (buffer, folder = 'uploads') => {
-    if (!buffer) {
-        throw new Error('File buffer is required');
-    }
-
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { folder, resource_type: 'video', type: 'upload', access_mode: 'public' },
-            (error, result) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve(result.secure_url);
-            }
-        );
-
-        stream.end(buffer);
-    });
+    // For now, just save it directly if it's a video (sharp doesn't support video)
+    if (!buffer) throw new Error('File buffer is required');
+    const targetDir = path.join(UPLOAD_BASE_DIR, folder);
+    ensureDirectoryExists(targetDir);
+    const fileName = `video_${uuidv4().replace(/-/g, '').substring(0, 8)}.mp4`;
+    const filePath = path.join(targetDir, fileName);
+    fs.writeFileSync(filePath, buffer);
+    return `/uploads/${folder}/${fileName}`;
 };
 
 export const uploadFileBuffer = async (buffer, folder = 'uploads', options = {}) => {
-    if (!buffer) {
-        throw new Error('File buffer is required');
+    if (!buffer) throw new Error('File buffer is required');
+    
+    const targetDir = path.join(UPLOAD_BASE_DIR, folder);
+    ensureDirectoryExists(targetDir);
+
+    let fileName = options.fileName ? options.fileName.replace(/\s+/g, '_') : `file_${uuidv4().replace(/-/g, '').substring(0, 8)}`;
+    // ensure extension if format provided
+    if (options.format && !fileName.endsWith(`.${options.format}`)) {
+        fileName += `.${options.format}`;
     }
 
-    const fileName = typeof options.fileName === 'string' ? options.fileName.trim() : '';
-    const rawBaseName = fileName ? fileName.replace(/\.[^/.]+$/, '') : '';
-    // Prevent malformed public_ids like "name..pdf" caused by trailing dots in uploaded file names.
-    const baseName = rawBaseName.replace(/[.\s]+$/g, '');
-    const format = typeof options.format === 'string' && options.format.trim()
-        ? options.format.trim().toLowerCase()
-        : '';
+    const filePath = path.join(targetDir, fileName);
+    fs.writeFileSync(filePath, buffer);
 
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            {
-                folder,
-                resource_type: 'raw',
-                type: 'upload',
-                access_mode: 'public',
-                format: format || undefined,
-                use_filename: Boolean(baseName),
-                unique_filename: !baseName,
-                filename_override: baseName || undefined
-            },
-            (error, result) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve(result.secure_url);
-            }
-        );
-
-        stream.end(buffer);
-    });
+    return `/uploads/${folder}/${fileName}`;
 };
 
 export const uploadFileBufferDetailed = async (buffer, folder = 'uploads', options = {}) => {
-    if (!buffer) {
-        throw new Error('File buffer is required');
-    }
-
-    const fileName = typeof options.fileName === 'string' ? options.fileName.trim() : '';
-    const rawBaseName = fileName ? fileName.replace(/\.[^/.]+$/, '') : '';
-    const baseName = rawBaseName.replace(/[.\s]+$/g, '');
-    const format = typeof options.format === 'string' && options.format.trim()
-        ? options.format.trim().toLowerCase()
-        : '';
-
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            {
-                folder,
-                resource_type: 'raw',
-                type: 'upload',
-                access_mode: 'public',
-                format: format || undefined,
-                use_filename: Boolean(baseName),
-                unique_filename: !baseName,
-                filename_override: baseName || undefined
-            },
-            (error, result) => {
-                if (error) {
-                    return reject(error);
-                }
-                return resolve(result);
-            }
-        );
-
-        stream.end(buffer);
-    });
-};
-
-
-const stripTrailingExtension = (value) => {
-    if (!value) return '';
-    return value.replace(/\.[a-z0-9]{1,10}$/i, '');
-};
-
-const extractRawPublicIdFromUrl = (fileUrl, options = {}) => {
-    const preserveExtension = Boolean(options.preserveExtension);
-    try {
-        const url = new URL(String(fileUrl));
-        const path = url.pathname || '';
-
-        // Fast-path: common Cloudinary raw URL pattern
-        const directMatch = preserveExtension
-            ? path.match(/\/raw\/(?:upload|private|authenticated)\/(?:v\d+\/)?(.+?)\/?$/i)
-            : path.match(/\/raw\/(?:upload|private|authenticated)\/(?:v\d+\/)?(.+?)(?:\.[^/.]+)?\/?$/i);
-        if (directMatch?.[1]) {
-            const decoded = decodeURIComponent(directMatch[1]);
-            return preserveExtension ? decoded : stripTrailingExtension(decoded);
-        }
-
-        // Fallback parser for uncommon path variants
-        const parts = path.split('/').filter(Boolean);
-        const rawIndex = parts.findIndex((part) => part.toLowerCase() === 'raw');
-        if (rawIndex === -1 || rawIndex + 2 >= parts.length) return null;
-
-        // Skip "raw/<type>/"
-        let start = rawIndex + 2;
-
-        // Skip optional version segment like v1775911065
-        if (/^v\d+$/i.test(parts[start])) {
-            start += 1;
-        }
-
-        const publicPath = parts.slice(start).join('/').replace(/\/+$/, '');
-        if (!publicPath) return null;
-
-        const decoded = decodeURIComponent(publicPath);
-        return preserveExtension ? decoded : stripTrailingExtension(decoded);
-    } catch {
-        return null;
-    }
-};
-
-const extractRawFormatFromUrl = (fileUrl) => {
-    try {
-        const url = new URL(String(fileUrl));
-        const path = url.pathname || '';
-        const match = path.match(/\.([a-z0-9]+)$/i);
-        return match ? match[1].toLowerCase() : '';
-    } catch {
-        return '';
-    }
+    const secure_url = await uploadFileBuffer(buffer, folder, options);
+    return { secure_url };
 };
 
 export const buildRawDownloadUrlFromFileUrl = (fileUrl, options = {}) => {
-    if (!fileUrl) return '';
-    const normalizedPublicId = extractRawPublicIdFromUrl(fileUrl);
-    const exactPublicId = extractRawPublicIdFromUrl(fileUrl, { preserveExtension: true });
-    if (!normalizedPublicId && !exactPublicId) return String(fileUrl);
-
-    // Some legacy uploads keep a trailing dot/extension inside public_id (e.g. "name..pdf").
-    // Those only resolve when we preserve the exact public_id from URL.
-    const publicId = exactPublicId && /\.\.[a-z0-9]{1,10}$/i.test(exactPublicId)
-        ? exactPublicId
-        : (normalizedPublicId || exactPublicId);
-
-    const format = options.format || extractRawFormatFromUrl(fileUrl) || 'pdf';
-    const attachmentName = typeof options.fileName === 'string' && options.fileName.trim()
-        ? options.fileName.trim()
-        : 'menu.pdf';
-
-    if (typeof cloudinary.utils?.private_download_url === 'function') {
-        return cloudinary.utils.private_download_url(publicId, format, {
-            resource_type: 'raw',
-            type: 'upload',
-            attachment: attachmentName
-        });
-    }
-
-    return cloudinary.url(publicId, {
-        resource_type: 'raw',
-        type: 'upload',
-        sign_url: true,
-        secure: true,
-        format,
-        flags: 'attachment'
-    });
+    // Already a local URL, just return it
+    return fileUrl;
 };
-
-

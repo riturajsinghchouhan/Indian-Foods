@@ -1269,11 +1269,11 @@ const getPublicRestaurantsOnce = (params = {}, config = {}) => {
   const { noCache, ...axiosConfig } = config || {};
   if (noCache) {
     return userClient.get("/food/restaurant/restaurants", {
-      params: { limit: 1000, ...params },
+      params: { limit: 15, ...params },
       ...axiosConfig,
     });
   }
-  const keyParams = { limit: 1000, ...params };
+  const keyParams = { limit: 15, ...params };
   // `_ts` is an explicit cache-buster in many call sites; ignore it for dedupe purposes.
   if (keyParams && typeof keyParams === "object") {
     delete keyParams._ts;
@@ -1288,7 +1288,7 @@ const getPublicRestaurantsOnce = (params = {}, config = {}) => {
   const key = `restaurants:${stableStringify(keyParams)}`;
   return publicRestaurantsCache.getOrCreate(key, () =>
     userClient.get("/food/restaurant/restaurants", {
-      params: { limit: 1000, ...params },
+      params: { limit: 15, ...params },
       ...axiosConfig,
     }),
   );
