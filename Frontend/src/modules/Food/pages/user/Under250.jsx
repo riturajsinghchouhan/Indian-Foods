@@ -674,6 +674,10 @@ export default function Under250() {
           params.lat = location.latitude
           params.lng = location.longitude
         }
+        // Increase limit to 1000 to ensure we fetch all available restaurants 
+        // in the zone before filtering them for under-250 items on the frontend
+        params.limit = 1000;
+        
         const response = await restaurantAPI.getRestaurants(params)
         const restaurantsRaw = Array.isArray(response?.data?.data?.restaurants)
           ? response.data.data.restaurants

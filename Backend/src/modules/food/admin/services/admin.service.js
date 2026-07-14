@@ -792,7 +792,7 @@ export async function getTransactionReport(query = {}) {
     // We will query the FoodTransaction table directly as it is the ledger
     const transactionRows = await FoodTransaction.find(match)
         .populate('orderId')
-        .populate('userId', 'name')
+        .populate('userId', 'name phone')
         .populate('restaurantId', 'restaurantName')
         .sort({ createdAt: -1 })
         .lean();
@@ -828,10 +828,12 @@ export async function getTransactionReport(query = {}) {
             orderId: tx.orderReadableId || order.orderId || 'N/A',
             restaurant: tx.restaurantId?.restaurantName || 'N/A',
             customerName: tx.userId?.name || 'Guest',
+            customerPhone: tx.userId?.phone || order?.phone || 'N/A',
             totalItemAmount: subtotal,
             itemDiscount: pricing.discount || 0,
-            couponDiscount: 0, // Placeholder if you add coupon logic
+            couponDiscount: Number(pricing.couponDiscount || 0),
             referralDiscount: 0, // Placeholder
+            discountAmount: pricing.discount || 0,
             discountedAmount: Math.max(0, (pricing.subtotal || 0) - (pricing.discount || 0)),
             vatTax: tx.amounts?.taxAmount || pricing.tax || 0,
             deliveryCharge: pricing.deliveryFee || 0,
