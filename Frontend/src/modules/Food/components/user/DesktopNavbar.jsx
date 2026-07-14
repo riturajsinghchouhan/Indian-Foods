@@ -10,7 +10,7 @@ import { useLocationSelector, useSearchOverlay } from "./UserLayout"
 import { useProfile } from "@food/context/ProfileContext"
 import { FaLocationDot } from "react-icons/fa6"
 import { AnimatePresence, motion } from "framer-motion"
-import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png"
+
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
 import { getPublicLandingSettings } from "@food/api"
 import { useAppLocation } from "@food/hooks/useAppLocation"
@@ -205,20 +205,21 @@ export default function DesktopNavbar({ showLogo = true }) {
                             {/* Logo */}
                             {showLogo && (
                                 <Link to="/" className="flex items-center justify-center flex-shrink-0">
-                                    {logoUrl || companyName ? (
+                                    {logoUrl ? (
                                         <img
-                                            src={logoUrl || quickSpicyLogo}
+                                            src={logoUrl}
                                             alt={companyName || "Company Logo"}
                                             className="h-10 w-auto md:h-14 lg:h-16 object-contain"
                                             onError={(e) => {
-                                                if (e.target.src !== quickSpicyLogo) {
-                                                    e.target.src = quickSpicyLogo
+                                                e.target.onerror = null;
+                                                if (false) {
+                                                    e.target.style.display = "none"
                                                 }
                                             }}
                                         />
-                                    ) : (
-                                        <img src={quickSpicyLogo} alt={companyName || "Logo"} className="h-10 w-auto md:h-14 lg:h-16 object-contain" />
-                                    )}
+                                    ) : companyName ? (
+                                        <span className="text-xl font-bold">{companyName}</span>
+                                    ) : null}
                                 </Link>
                             )}
 
