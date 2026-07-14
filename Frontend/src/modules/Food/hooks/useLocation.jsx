@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from "react"
+import { toast } from "sonner"
 import { useLocationFromContext } from '../context/locationContext';
 import { locationAPI, userAPI } from "@food/api"
 import { getGoogleMapsApiKey } from "@food/utils/googleMapsApiKey"
+
+const GPS_OFF_TOAST_ID = "gps-off"
+const showGpsOffToast = () => {
+  toast.error("Please turn on GPS", { id: GPS_OFF_TOAST_ID })
+}
 
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
@@ -1090,6 +1096,14 @@ export function useLocationEngine() {
               return
             }
 
+            // POSITION_UNAVAILABLE (code 2) usually means device GPS / location services are off
+            if (
+              err.code === 2 ||
+              /unavailable|disabled|turn on|enable.*(gps|location)/i.test(err.message || "")
+            ) {
+              showGpsOffToast()
+            }
+
             // Don't log timeout errors as errors - they're expected in some cases
             if (err.code === 3) {
               debugWarn("?? Geolocation timeout (code 3) - using fallback location")
@@ -1462,15 +1476,13 @@ export function useLocationEngine() {
   useEffect(() => {
     // Load stored location first for IMMEDIATE display (no loading state)
     const stored = localStorage.getItem("userLocation")
-    let shouldForceRefresh = false
     let hasInitialLocation = false
 
     if (stored) {
       try {
         const parsedLocation = JSON.parse(stored)
 
-        // Show cached location immediately.
-        // Requirement: only geocode again on explicit manual change.
+        // Show cached location immediately while fresh GPS fetch runs in background.
         const lat = Number(parsedLocation?.latitude)
         const lng = Number(parsedLocation?.longitude)
         const hasLatLng = Number.isFinite(lat) && Number.isFinite(lng)
@@ -1480,20 +1492,16 @@ export function useLocationEngine() {
           setPermissionGranted(true)
           setLoading(false) // Set loading to false immediately
           hasInitialLocation = true
-          shouldForceRefresh = false
-          debugLog("?? Loaded stored location instantly (no auto-refresh):", parsedLocation)
+          debugLog("?? Loaded stored location instantly:", parsedLocation)
         } else {
-          // If we don't have usable coordinates, we must fetch once on first open.
-          debugLog("?? Stored location missing coordinates; will fetch once")
-          shouldForceRefresh = true
+          debugLog("?? Stored location missing coordinates; waiting for GPS fetch")
         }
       } catch (err) {
         debugError("Failed to parse stored location:", err)
-        shouldForceRefresh = true
       }
     }
 
-    // If no cached location, try DB
+    // If no cached location, try DB (fresh GPS still runs on open)
     if (!hasInitialLocation) {
       fetchLocationFromDB()
         .then((dbLoc) => {
@@ -1504,14 +1512,11 @@ export function useLocationEngine() {
             hasInitialLocation = true
             debugLog("?? Loaded location from DB:", dbLoc)
           } else {
-            // No location found - set loading to false and show fallback
             setLoading(false)
-            shouldForceRefresh = true
           }
         })
         .catch(() => {
           setLoading(false)
-          shouldForceRefresh = true
         })
     }
 
@@ -1543,122 +1548,68 @@ export function useLocationEngine() {
     // The background fetch will set the location, or we'll use the cached/DB location
     // Only set fallback if we have no location after all attempts
 
-    // Request fresh location in BACKGROUND (non-blocking)
-    // CRITICAL FIX: Only auto-request if permission is ALREADY granted
-    // This prevents "Requests geolocation permission on page load" warning
+    // On every app open: fetch current GPS location in BACKGROUND (Zomato/Swiggy-like),
+    // even if a previous location is already cached. Keep cache visible until fetch completes.
     const checkPermissionAndStart = async () => {
       try {
-        let permissionGranted = false;
+        if (!navigator.geolocation) {
+          debugWarn("?? Geolocation not supported - prompting user to enable GPS")
+          showGpsOffToast()
+          setLoading(false)
+          return
+        }
 
-        if (navigator.permissions && navigator.permissions.query) {
+        let permissionState = null
+        if (navigator.permissions?.query) {
           try {
-            const result = await navigator.permissions.query({ name: 'geolocation' });
-            if (result.state === 'granted') {
-              permissionGranted = true;
-            } else {
-              debugLog(`?? Geolocation permission is '${result.state}' - Waiting for user action (avoiding prompt on load)`);
-            }
+            const result = await navigator.permissions.query({ name: "geolocation" })
+            permissionState = result.state
+            debugLog(`?? Geolocation permission is '${permissionState}'`)
           } catch (permErr) {
-            debugWarn("?? Permission query failed:", permErr);
+            debugWarn("?? Permission query failed:", permErr)
           }
-        } else {
-          // Fallback for browsers without permissions API - assume not granted to be safe
-          debugLog("?? Permissions API not available - Skipping auto-start");
         }
 
-        const isLoggedIn = !!(localStorage.getItem('user_accessToken') || localStorage.getItem('accessToken'));
+        // Always attempt a fresh GPS fetch on open (ignore saved/cache gates).
+        debugLog("?? App open: fetching fresh current location...")
+        sessionStorage.setItem("appSession_locationFetched", "true")
 
-        let intentionallySaved = false;
-        try {
-          // Check if user explicitly selected a saved location
-          const mode = localStorage.getItem("deliveryAddressMode");
-          if (mode === "saved") {
-            intentionallySaved = true;
-          } else if (mode === null) {
-            // If mode is not set, fallback to checking if there's a valid non-current location in localStorage
-            const stored = localStorage.getItem("userLocation");
-            if (stored) {
-              const loc = JSON.parse(stored);
-              if (loc && loc.formattedAddress && loc.formattedAddress !== "Select location" && loc.city !== "Current Location") {
-                intentionallySaved = true;
-              }
-            }
-          }
-        } catch (e) {}
-
-        let shouldAutoFetch = false;
-        const hasFetchedThisSession = sessionStorage.getItem("appSession_locationFetched");
-        
-        if (!intentionallySaved && !hasFetchedThisSession) {
-          shouldAutoFetch = true; // No saved location and first time this session -> Auto fetch
-        }
-
-        // If permission NOT granted, and we shouldn't auto-fetch,
-        // we should SKIP automatic fetching/watching to allow the user to choose when to enable it.
-        if (!permissionGranted && !shouldAutoFetch && hasInitialLocation) {
-          // If we have an initial location, we are fine (it's displayed).
-          // If we don't, we show "Select Location".
-          // In either case, we avoid the PROMPT.
-          // Ensure loading is false so UI doesn't hang
-          setLoading(false);
-          return;
-        }
-
-        debugLog("?? Permission granted or auto-fetch required! Fetching/Watching location...", shouldForceRefresh ? "(FORCE REFRESH)" : "");
-
-        // Only fetch once on initial app open if we have no stored coordinates yet, or if auto fetch is required.
-        const shouldFetch = shouldForceRefresh || !hasInitialLocation || shouldAutoFetch;
-
-        if (shouldFetch) {
-          const isForceFresh = shouldForceRefresh || shouldAutoFetch;
-          debugLog("?? Fetching location - shouldForceRefresh:", shouldForceRefresh, "hasInitialLocation:", hasInitialLocation, "shouldAutoFetch:", shouldAutoFetch)
-          
-          sessionStorage.setItem("appSession_locationFetched", "true");
-          
-          getLocation(true, isForceFresh) // forceFresh = true if cached location is incomplete or if auto-fetch is required
-            .then((location) => {
-              if (location &&
-                location.formattedAddress !== "Select location" &&
-                location.city !== "Current Location") {
-                debugLog("? Fresh location fetched:", location)
-                debugLog("? Location details:", {
-                  formattedAddress: location?.formattedAddress,
-                  address: location?.address,
-                  city: location?.city,
-                  state: location?.state,
-                  area: location?.area
-                })
-                // CRITICAL: Update state with fresh location so PageNavbar displays it
-                setLocation(location)
-                setPermissionGranted(true)
-                try {
-                  localStorage.setItem("deliveryAddressMode", "current")
-                  window.dispatchEvent(new CustomEvent("deliveryAddressModeUpdated"))
-                } catch {}
-                if (AUTO_START_LIVE_WATCH) startWatchingLocation()
-              } else {
-                // Placeholder result means reverse-geocode failed or was unavailable.
-                // Requirement: no more automatic retries; user can trigger manual refresh.
-                debugWarn("?? Location fetch returned placeholder; not retrying automatically")
-              }
-            })
-            .catch((err) => {
-              debugWarn("?? Background location fetch failed (using cached):", err.message)
-              // Don't auto-start live watching; keep cached/localStorage behavior.
+        getLocation(true, true)
+          .then((location) => {
+            if (
+              location &&
+              location.formattedAddress !== "Select location" &&
+              location.city !== "Current Location"
+            ) {
+              debugLog("? Fresh location fetched:", location)
+              setLocation(location)
+              setPermissionGranted(true)
+              try {
+                localStorage.setItem("deliveryAddressMode", "current")
+                window.dispatchEvent(new CustomEvent("deliveryAddressModeUpdated"))
+              } catch {}
               if (AUTO_START_LIVE_WATCH) startWatchingLocation()
-            })
-        } else {
-          // We have a valid location; no need to start live watching.
-          if (AUTO_START_LIVE_WATCH) startWatchingLocation()
-        }
+            } else {
+              debugWarn("?? Location fetch returned placeholder; not retrying automatically")
+            }
+          })
+          .catch((err) => {
+            debugWarn("?? Background location fetch failed (using cached):", err?.message)
+            if (
+              err?.code === 2 ||
+              /unavailable|disabled|turn on|enable.*(gps|location)/i.test(err?.message || "")
+            ) {
+              showGpsOffToast()
+            }
+            if (AUTO_START_LIVE_WATCH) startWatchingLocation()
+          })
       } catch (err) {
         debugError("Error in checkPermissionAndStart:", err);
         setLoading(false);
       }
     };
 
-    // Always check permission state on startup.
-    // This does NOT trigger browser prompt by itself; it only auto-fetches when permission is already granted.
+    // Always fetch current GPS location on app open (Zomato/Swiggy-like).
     checkPermissionAndStart();
     
     // Listen for manual location updates from other components (like AddressSelectorPage)
