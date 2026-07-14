@@ -267,7 +267,18 @@ export default function UserOrderDetails() {
           img.src = settings.logo.url;
           await new Promise((resolve) => {
             img.onload = () => {
-              doc.addImage(img, "PNG", 14, 15, 30, 30, undefined, 'FAST');
+              try {
+                // Safely convert image to PNG via canvas (handles WebP automatically)
+                const canvas = document.createElement("canvas");
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0);
+                const dataUrl = canvas.toDataURL("image/png");
+                doc.addImage(dataUrl, "PNG", 14, 15, 30, 30, undefined, 'FAST');
+              } catch (e) {
+                console.warn("Failed to add image to PDF", e);
+              }
               resolve();
             };
             img.onerror = resolve; // Continue without logo if it fails
@@ -364,7 +375,7 @@ export default function UserOrderDetails() {
           },
         });
 
-        yPos = doc.lastAutoTable.finalY + 10;
+        yPos = (doc.lastAutoTable?.finalY || doc.autoTable?.previous?.finalY || yPos + (items.length * 10)) + 10;
       }
 
       // Totals block right aligned
@@ -431,8 +442,8 @@ export default function UserOrderDetails() {
         successMessage: "Invoice downloaded successfully!",
       })
     } catch (error) {
-      debugError("Error generating PDF:", error)
-      toast.error("Failed to download invoice")
+      console.error("Error generating PDF:", error)
+      toast.error("Failed to download invoice: " + (error?.message || error))
     }
   }
 
