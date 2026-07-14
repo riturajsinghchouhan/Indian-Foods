@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ConciergeBell } from 'lucide-react'
+import { API_BASE_URL } from "@food/api/config"
+
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
 
 export const ShopPlaceholder = () => (
   <svg viewBox="0 0 100 100" className="w-[40%] h-[40%] max-w-[80px] max-h-[80px] text-[#cfcac2] dark:text-zinc-600" fill="currentColor">
@@ -125,28 +128,38 @@ const OptimizedImage = React.memo(({
     return proxyUrl;
   }
 
+  // Prepend backend origin for local VPS images
+  const finalSrc = useMemo(() => {
+    if (!src || typeof src !== 'string') return src;
+    let computedSrc = src;
+    if (computedSrc.startsWith("/cloudimages") || computedSrc.startsWith("/uploads")) {
+      computedSrc = `${BACKEND_ORIGIN}${computedSrc}`
+    } else if (computedSrc.startsWith("cloudimages") || computedSrc.startsWith("uploads")) {
+      computedSrc = `${BACKEND_ORIGIN}/${computedSrc}`
+    }
+    return computedSrc;
+  }, [src]);
+
   // Generate responsive srcset
   const srcSet = useMemo(() => {
-    if (!supportsOptimization(src)) return undefined
+    if (!supportsOptimization(finalSrc)) return undefined
     const sizesArr = [200, 400, 600, 800, 1200]
     return sizesArr
-      .map(size => `${getOptimizedUrl(src, { w: size, q: 80 })} ${size}w`)
+      .map(size => `${getOptimizedUrl(finalSrc, { w: size, q: 80 })} ${size}w`)
       .join(', ')
-  }, [src])
+  }, [finalSrc])
 
   // Generate WebP srcset
   const webPSrcSet = useMemo(() => {
-    if (!supportsOptimization(src)) return undefined
+    if (!supportsOptimization(finalSrc)) return undefined
     
-    // If the source URL explicitly forces a non-webp format (e.g. Cloudinary f_jpg),
-    // we must NOT generate a webp source tag, otherwise Chrome will reject the mismatched MIME type.
-    if (/f_(jpg|png|gif)/i.test(src)) return undefined;
+    if (/f_(jpg|png|gif)/i.test(finalSrc)) return undefined;
 
     const sizesArr = [200, 400, 600, 800, 1200]
     return sizesArr
-      .map(size => `${getOptimizedUrl(src, { w: size, q: 80, format: 'webp' })} ${size}w`)
+      .map(size => `${getOptimizedUrl(finalSrc, { w: size, q: 80, format: 'webp' })} ${size}w`)
       .join(', ')
-  }, [src])
+  }, [finalSrc])
 
   // Intersection Observer for lazy loading
   useEffect(() => {
@@ -198,17 +211,17 @@ const OptimizedImage = React.memo(({
     return (
       <div className={`relative overflow-hidden ${className}`}>
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-          <span className="text-xs text-gray-400 dark:text-gray-600">Image unavailable</span>
+           <span className="text-xs text-gray-400 dark:text-gray-600">Image unavailable</span>
         </div>
       </div>
     )
   }
 
-  const imageSrc = hasError ? 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23e5e7eb" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle"%3EImage not found%3C/text%3E%3C/svg%3E' : src
+  const imageSrc = hasError ? 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23e5e7eb" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle"%3EImage not found%3C/text%3E%3C/svg%3E' : finalSrc
 
   // Use optimized version for default src as well
-  const optimizedSrc = supportsOptimization(src) && !hasError 
-    ? getOptimizedUrl(src, { w: 800, q: 80, format: 'webp' }) 
+  const optimizedSrc = supportsOptimization(finalSrc) && !hasError 
+    ? getOptimizedUrl(finalSrc, { w: 800, q: 80, format: 'webp' }) 
     : imageSrc;
 
   return (
@@ -253,7 +266,7 @@ const OptimizedImage = React.memo(({
           <motion.img
             src={optimizedSrc}
             srcSet={srcSet}
-            sizes={supportsOptimization(src) ? sizes : undefined}
+            sizes={supportsOptimization(finalSrc) ? sizes : undefined}
             alt={alt}
             className={`w-full h-full ${objectFit === 'cover' ? 'object-cover' : objectFit === 'contain' ? 'object-contain' : ''} ${priority || isLoaded ? 'opacity-100' : 'opacity-0'} ${!priority && 'transition-opacity duration-300'}`}
             loading={priority ? 'eager' : 'lazy'}

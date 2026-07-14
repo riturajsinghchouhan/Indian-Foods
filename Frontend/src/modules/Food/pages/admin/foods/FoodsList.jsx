@@ -6,6 +6,9 @@ import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@food/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@food/components/ui/popover"
 import { getFoodDisplayPrice, getFoodVariants } from "@food/utils/foodVariants"
+import { API_BASE_URL } from "@food/api/config"
+
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -73,8 +76,19 @@ export default function FoodsList() {
 
   const toArray = (value) => (Array.isArray(value) ? value : [])
   const withImageVersion = (url) => {
-    if (!url || typeof url !== "string") return "https://via.placeholder.com/40"
-    return `${url}${url.includes("?") ? "&" : "?"}v=${imageVersion}`
+    if (!url || typeof url !== "string") {
+      console.log(`[ImageLoader] URL is empty. Original DB value:`, url);
+      return "https://placehold.co/400x400?text=No+Image"
+    }
+    let finalUrl = url
+    if (finalUrl.startsWith("/cloudimages") || finalUrl.startsWith("/uploads")) {
+      finalUrl = `${BACKEND_ORIGIN}${finalUrl}`
+    } else if (finalUrl.startsWith("cloudimages") || finalUrl.startsWith("uploads")) {
+      finalUrl = `${BACKEND_ORIGIN}/${finalUrl}`
+    }
+    const versionedUrl = `${finalUrl}${finalUrl.includes("?") ? "&" : "?"}v=${imageVersion}`
+    console.log(`[ImageLoader] Generated URL for "${url}":`, versionedUrl);
+    return versionedUrl
   }
 
   const fetchAllFoods = useCallback(async () => {
@@ -128,7 +142,7 @@ export default function FoodsList() {
               id: String(f.id || f._id || ""),
               _id: f._id || f.id,
               name: f.name || "Unnamed Item",
-              image: f.image || "https://via.placeholder.com/40",
+              image: f.image || "https://placehold.co/400x400?text=No+Image",
               status: f.isAvailable !== false && String(f.approvalStatus || "").toLowerCase() !== "rejected",
               restaurantId: String(f.restaurantId || ""),
               restaurantName: f.restaurantName || "Unknown Restaurant",
@@ -632,7 +646,8 @@ export default function FoodsList() {
                           key={`${food.id}-${imageVersion}`}
                           loading="lazy"
                           onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/40"
+                            console.error(`[ImageLoader] ERROR LOADING IMAGE in browser! URL: ${e.target.src}`);
+                            e.target.src = "https://placehold.co/400x400?text=Error"
                           }}
                         />
                       </div>
@@ -754,7 +769,7 @@ export default function FoodsList() {
                           alt={selectedFood.name}
                           className="w-20 h-20 rounded-xl object-cover border border-slate-200"
                   onError={(e) => {
-                    e.target.src = "https://via.placeholder.com/64"
+                    e.target.src = "https://placehold.co/400x400?text=Error"
                   }}
                 />
                 <div>

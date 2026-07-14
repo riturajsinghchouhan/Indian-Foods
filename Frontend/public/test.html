@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Image</title>
+</head>
+<body>
+  <h1>Test Image</h1>
+  <img src="http://localhost:5000/api/v1/uploads/foods/lvl0thxbzsr5njfl37l9.jpg" id="myimg" crossorigin="anonymous" />
+  <script>
+    document.getElementById('myimg').onerror = function(e) {
+      console.log('Image failed to load!');
+      document.body.innerHTML += '<p style="color:red">Error loading image</p>';
+    };
+    document.getElementById('myimg').onload = function(e) {
+      console.log('Image loaded successfully!');
+      document.body.innerHTML += '<p style="color:green">Success loading image</p>';
+    };
+  </script>
+</body>
+</html>
