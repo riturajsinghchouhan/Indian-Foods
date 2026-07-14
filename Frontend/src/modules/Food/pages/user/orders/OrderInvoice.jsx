@@ -139,12 +139,13 @@ export default function OrderInvoice() {
       
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       
-      const pdfBlob = pdf.output('blob');
-      downloadFile({
+      const pdfBlob = pdf.output("blob")
+      await downloadFile({
         data: pdfBlob,
         filename: `Invoice_${order.id}.pdf`,
-        type: 'application/pdf'
-      });
+        type: "application/pdf",
+        successMessage: "Invoice downloaded successfully!",
+      })
     } catch (error) {
       console.error("PDF generation error:", error)
       handlePrint()

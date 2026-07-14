@@ -422,15 +422,14 @@ export default function UserOrderDetails() {
       doc.setTextColor(148, 163, 184); // Slate 400
       doc.text("This is a computer generated invoice and does not require a physical signature.", 105, pageHeight - 15, { align: "center" });
 
-      // Use robust download utility
-      const pdfBlob = doc.output('blob');
-      downloadFile({
+      // Flutter WebView-safe download (avoids blob URL revoke race)
+      const pdfBlob = doc.output("blob")
+      await downloadFile({
         data: pdfBlob,
         filename: `Invoice_${orderIdDisplay}_${Date.now()}.pdf`,
-        type: 'application/pdf'
-      });
-
-      toast.success("Invoice downloaded successfully!")
+        type: "application/pdf",
+        successMessage: "Invoice downloaded successfully!",
+      })
     } catch (error) {
       debugError("Error generating PDF:", error)
       toast.error("Failed to download invoice")
