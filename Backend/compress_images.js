@@ -6,42 +6,74 @@ import { config } from 'dotenv';
 
 config();
 
-const UPLOAD_DIR = path.join(process.cwd(), 'src', 'uploads');
+// Auto-detect absolute path from .env exactly like app.js
+const UPLOAD_DIR = (process.env.UPLOAD_PATH && path.isAbsolute(process.env.UPLOAD_PATH)) 
+    ? process.env.UPLOAD_PATH 
+    : path.join(process.cwd(), 'src', 'uploads');
 
-async function processDirectory(dir, mappings) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      await processDirectory(fullPath, mappings);
-    } else {
-      const ext = path.extname(fullPath).toLowerCase();
-      if (['.jpg', '.jpeg', '.png'].includes(ext)) {
-        const newPath = fullPath.substring(0, fullPath.length - ext.length) + '.webp';
-        
-        try {
-          // Read buffer first to avoid file locks
-          const buffer = await fs.readFile(fullPath);
-          
-          // Convert to WebP
-          await sharp(buffer)
-            .webp({ quality: 80 })
-            .toFile(newPath);
-          
-          // Delete old file
-          await fs.unlink(fullPath);
-          
-          // Record mapping (old relative url -> new relative url)
-          const relativeOld = fullPath.substring(UPLOAD_DIR.length).replace(/\\/g, '/');
-          const relativeNew = newPath.substring(UPLOAD_DIR.length).replace(/\\/g, '/');
-          mappings[`/uploads${relativeOld}`] = `/uploads${relativeNew}`;
-          
-        } catch (err) {
-          console.error(`Failed to convert ${fullPath}:`, err.message);
+async function gatherImages(dir, filesList = []) {
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await gatherImages(fullPath, filesList);
+      } else {
+        const ext = path.extname(fullPath).toLowerCase();
+        if (['.jpg', '.jpeg', '.png'].includes(ext)) {
+          filesList.push(fullPath);
         }
       }
     }
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.error(`Error reading directory ${dir}:`, err.message);
+    }
   }
+  return filesList;
+}
+
+function updateProgressBar(current, total) {
+  const percentage = Math.round((current / total) * 100);
+  const filled = Math.round((percentage / 100) * 40);
+  const empty = 40 - filled;
+  const bar = '█'.repeat(filled) + '-'.repeat(empty);
+  process.stdout.write(`\r[${bar}] ${percentage}% (${current}/${total} images converted)`);
+}
+
+async function convertImages(files, mappings) {
+  const total = files.length;
+  if (total === 0) return;
+  
+  for (let i = 0; i < total; i++) {
+    const fullPath = files[i];
+    const ext = path.extname(fullPath).toLowerCase();
+    const newPath = fullPath.substring(0, fullPath.length - ext.length) + '.webp';
+    
+    try {
+      // Read buffer first to avoid file locks
+      const buffer = await fs.readFile(fullPath);
+      
+      // Convert to WebP
+      await sharp(buffer)
+        .webp({ quality: 80 })
+        .toFile(newPath);
+      
+      // Delete old file
+      await fs.unlink(fullPath);
+      
+      // Record mapping (old relative url -> new relative url)
+      const relativeOld = fullPath.substring(UPLOAD_DIR.length).replace(/\\/g, '/');
+      const relativeNew = newPath.substring(UPLOAD_DIR.length).replace(/\\/g, '/');
+      mappings[`/uploads${relativeOld}`] = `/uploads${relativeNew}`;
+      
+    } catch (err) {
+      process.stdout.write(`\nFailed to convert ${fullPath}: ${err.message}\n`);
+    }
+    
+    updateProgressBar(i + 1, total);
+  }
+  console.log('\n'); // Move to next line after progress bar finishes
 }
 
 async function updateCollection(collectionName, mappings) {
@@ -104,10 +136,14 @@ async function main() {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log("Connected.");
 
-    console.log("Scanning and converting images in uploads directory...");
+    console.log(`\nScanning uploads directory: ${UPLOAD_DIR}`);
+    const filesToConvert = await gatherImages(UPLOAD_DIR);
+    console.log(`Found ${filesToConvert.length} images to convert.\n`);
+
     const mappings = {};
-    await processDirectory(UPLOAD_DIR, mappings);
-    console.log(`Converted ${Object.keys(mappings).length} images.`);
+    if (filesToConvert.length > 0) {
+      await convertImages(filesToConvert, mappings);
+    }
 
     if (Object.keys(mappings).length > 0) {
       console.log("Updating database references...");
@@ -117,6 +153,8 @@ async function main() {
         await updateCollection(coll.name, mappings);
       }
       console.log("Database update complete.");
+    } else {
+      console.log("No images were converted (either empty or already WebP).");
     }
     
     process.exit(0);
