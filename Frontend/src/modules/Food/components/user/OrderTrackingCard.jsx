@@ -184,13 +184,36 @@ function OrderTrackingCardInner({ hasBottomNav = true }) {
   }, []);
 
   useEffect(() => {
-    fetchOrders();
-    const interval = setInterval(() => {
-      if (document.hidden) return;
-      fetchOrders();
-    }, 90000);
-    return () => clearInterval(interval);
+    fetchOrders(); // Fetch once on mount to check if any order is active
   }, [fetchOrders]);
+
+  // Smart Polling fallback: Only poll if there is an active order, and only fetch that specific order's details
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (document.hidden) return;
+
+      const currentKey = activeOrderKeyRef.current;
+      if (!currentKey) return; // Do nothing if no active order exists
+
+      try {
+        const response = await orderAPI.getOrderDetails(currentKey);
+        const fresh = response?.data?.data?.order || response?.data?.order || response?.data?.data || null;
+        if (fresh) {
+          setActiveOrderOverride(fresh);
+        }
+      } catch (error) {
+        if (error?.response?.status === 404 || error?.response?.status === 400) {
+          setInvalidOrderIds((prev) => {
+            const next = new Set(prev);
+            next.add(currentKey);
+            return next;
+          });
+        }
+      }
+    }, 90000); // Poll every 90 seconds only for the active order
+
+    return () => clearInterval(interval);
+  }, []);
 
   const uniqueOrders = useMemo(() => {
     const isMongoObjectId = (value) => /^[a-f0-9]{24}$/i.test(String(value || ""));

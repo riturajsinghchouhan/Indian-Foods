@@ -1,4 +1,4 @@
-﻿import { useSearchParams, Link, useNavigate } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import React, {
   useRef,
   useEffect,
@@ -241,6 +241,10 @@ export default function Home() {
   const [loadingLandingConfig, setLoadingLandingConfig] = useState(() => !homePageCache.landingExploreFetched);
   const [restaurantsData, setRestaurantsData] = useState(() => homePageCache.restaurantsData || []);
   const [loadingRestaurants, setLoadingRestaurants] = useState(() => !homePageCache.restaurantsData);
+  const [page, setPage] = useState(1);
+  const [hasMoreRestaurants, setHasMoreRestaurants] = useState(true);
+  const [loadingMoreRestaurants, setLoadingMoreRestaurants] = useState(false);
+  const loadMoreObserverRef = useRef(null);
   const [realCategories, setRealCategories] = useState([]);
   const [loadingRealCategories, setLoadingRealCategories] = useState(true);
   const [menuCategories, setMenuCategories] = useState([]);
@@ -1119,7 +1123,7 @@ export default function Home() {
 
   // Fetch restaurants from API with filters
   const fetchRestaurants = useCallback(
-    async (filters = {}) => {
+    async (filters = {}, pageToLoad = 1) => {
       const isDefaultFetch = Object.keys(filters).length === 0 ||
         (!filters.sortBy && !filters.selectedCuisine && (!filters.activeFilters || filters.activeFilters.size === 0));
 
@@ -1131,14 +1135,18 @@ export default function Home() {
         homePageCache.lat === roundCoord(effectiveLocation?.latitude) &&
         homePageCache.lng === roundCoord(effectiveLocation?.longitude);
 
-      if (isDefaultFetch && homePageCache.restaurantsData && homePageCache.effectiveZoneId === effectiveZoneId && isLocationSame) {
+      if (isDefaultFetch && pageToLoad === 1 && homePageCache.restaurantsData && homePageCache.effectiveZoneId === effectiveZoneId && isLocationSame) {
         setLoadingRestaurants(false);
         return;
       }
 
       const requestSeq = ++restaurantsRequestSeqRef.current;
       try {
-        setLoadingRestaurants(true);
+        if (pageToLoad === 1) {
+          setLoadingRestaurants(true);
+        } else {
+          setLoadingMoreRestaurants(true);
+        }
 
         // Backend disconnected - new backend in progress. Skip health check.
 
@@ -1210,6 +1218,9 @@ export default function Home() {
           params.zoneId = effectiveZoneId;
         }
 
+        params.page = pageToLoad;
+        params.limit = 15;
+
         const normalizedUserCity = String(effectiveLocation?.city || "")
           .trim()
           .toLowerCase();
@@ -1233,7 +1244,10 @@ export default function Home() {
 
           if (restaurantsArray.length === 0) {
             debugWarn("No restaurants found in API response");
-            setRestaurantsData([]);
+            if (pageToLoad === 1) {
+              setRestaurantsData([]);
+            }
+            setHasMoreRestaurants(false);
             return;
           }
 
@@ -1478,12 +1492,25 @@ export default function Home() {
           });
           startTransition(() => {
             const finalSorted = sortRestaurantsForDisplay(transformedRestaurants);
-            setRestaurantsData(finalSorted);
+            if (pageToLoad === 1) {
+              setRestaurantsData(finalSorted);
+            } else {
+              setRestaurantsData(prev => [...prev, ...finalSorted]);
+            }
+            
+            setPage(pageToLoad);
+            const total = response.data.data.total || 0;
+            const currentTotal = pageToLoad === 1 ? finalSorted.length : restaurantsData.length + finalSorted.length;
+            if (response.data.data.total !== undefined) {
+               setHasMoreRestaurants(currentTotal < total);
+            } else {
+               setHasMoreRestaurants(finalSorted.length === 15);
+            }
 
             const isDefaultFetch = Object.keys(filters).length === 0 ||
               (!filters.sortBy && !filters.selectedCuisine && (!filters.activeFilters || filters.activeFilters.size === 0));
 
-            if (isDefaultFetch) {
+            if (isDefaultFetch && pageToLoad === 1) {
               homePageCache.restaurantsData = finalSorted;
               homePageCache.effectiveZoneId = effectiveZoneId;
               homePageCache.lat = roundCoord(effectiveLocation?.latitude);
@@ -1493,17 +1520,23 @@ export default function Home() {
 
         } else {
           debugWarn("Invalid API response structure:", response.data);
-          setRestaurantsData([]);
+          if (pageToLoad === 1) setRestaurantsData([]);
+          setHasMoreRestaurants(false);
         }
       } catch (error) {
         debugError("Error fetching restaurants:", error);
         debugError("Error details:", error.response?.data || error.message);
         // Don't set hardcoded data here - let the useMemo fallback handle it
         // This way, if API succeeds later, it will show the real data
-        setRestaurantsData([]);
+        if (pageToLoad === 1) setRestaurantsData([]);
+        setHasMoreRestaurants(false);
       } finally {
         if (requestSeq === restaurantsRequestSeqRef.current) {
-          setLoadingRestaurants(false);
+          if (pageToLoad === 1) {
+            setLoadingRestaurants(false);
+          } else {
+            setLoadingMoreRestaurants(false);
+          }
         }
       }
     },
@@ -1545,8 +1578,25 @@ export default function Home() {
 
   // Fetch restaurants when appliedFilters change
   useEffect(() => {
-    fetchRestaurants(appliedFilters);
+    fetchRestaurants(appliedFilters, 1);
   }, [appliedFilters, fetchRestaurants]);
+
+  // Infinite scroll
+  useEffect(() => {
+    if (!loadMoreObserverRef.current || !hasMoreRestaurants || loadingMoreRestaurants || loadingRestaurants) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchRestaurants(appliedFilters, page + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(loadMoreObserverRef.current);
+    return () => observer.disconnect();
+  }, [hasMoreRestaurants, loadingMoreRestaurants, loadingRestaurants, page, appliedFilters, fetchRestaurants]);
 
   // Recalculate distances when user location updates
   useEffect(() => {
@@ -2497,15 +2547,23 @@ export default function Home() {
               </motion.div>
             </div>
           ) : (
-            <RestaurantGrid
-              restaurants={filteredRestaurants}
-              backendOrigin={BACKEND_ORIGIN}
-              isOutOfService={isEffectiveLocationOutOfService}
-              showSkeleton={showRestaurantSkeleton}
-              isLoading={isLoadingFilterResults || loadingRestaurants}
-              isFavorite={isFavorite}
-              onToggleFavorite={handleRestaurantFavoriteToggle}
-            />
+            <>
+              <RestaurantGrid
+                restaurants={filteredRestaurants}
+                backendOrigin={BACKEND_ORIGIN}
+                isOutOfService={isEffectiveLocationOutOfService}
+                showSkeleton={showRestaurantSkeleton}
+                isLoading={isLoadingFilterResults || loadingRestaurants}
+                isFavorite={isFavorite}
+                onToggleFavorite={handleRestaurantFavoriteToggle}
+              />
+              {/* Infinite scroll trigger */}
+              <div ref={loadMoreObserverRef} className="h-12 w-full mt-6 mb-8 flex items-center justify-center bg-transparent">
+                {loadingMoreRestaurants && (
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                )}
+              </div>
+            </>
           )}
         </section>
               </motion.div>
