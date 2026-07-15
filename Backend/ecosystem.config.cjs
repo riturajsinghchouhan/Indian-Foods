@@ -12,6 +12,7 @@ module.exports = {
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       env: {
         NODE_ENV: 'production',
+        UPLOAD_DIR: '/var/www/uploads/',
       },
     },
     {
@@ -26,6 +27,7 @@ module.exports = {
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       env: {
         NODE_ENV: 'production',
+        UPLOAD_DIR: '/var/www/uploads/',
       },
     },
     {
@@ -40,6 +42,7 @@ module.exports = {
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       env: {
         NODE_ENV: 'production',
+        UPLOAD_DIR: '/var/www/uploads/',
       },
     },
     {
@@ -51,7 +54,7 @@ module.exports = {
       watch: false,
       merge_logs: true,
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production' },
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
     },
     {
       name: 'indian-foods-worker-notification',
@@ -62,7 +65,7 @@ module.exports = {
       watch: false,
       merge_logs: true,
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production' },
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
     },
     {
       name: 'indian-foods-worker-order',
@@ -73,7 +76,7 @@ module.exports = {
       watch: false,
       merge_logs: true,
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production' },
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
     },
     {
       name: 'indian-foods-worker-tracking',
@@ -84,7 +87,7 @@ module.exports = {
       watch: false,
       merge_logs: true,
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production' },
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
     },
     {
       name: 'indian-foods-worker-payment',
@@ -95,7 +98,7 @@ module.exports = {
       watch: false,
       merge_logs: true,
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production' },
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
     }
   ],
 };
