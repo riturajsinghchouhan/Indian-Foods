@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRightCircle, Leaf, Flame, Sparkles } from 'lucide-react';
-import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png";
+
 
 // Images for different modes - Extended pool for rotation
 const defaultImages = {

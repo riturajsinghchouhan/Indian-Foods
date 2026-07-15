@@ -51,7 +51,7 @@ import { cn } from "@food/utils/utils"
 import { Input } from "@food/components/ui/input"
 import { adminSidebarMenu } from "@food/utils/adminSidebarMenu"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
-import quickSpicyLogo from "@food/assets/quicky-spicy-logo.png"
+
 import { adminAPI } from "@food/api"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
@@ -715,23 +715,17 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                 <div className="w-24 h-12 rounded-lg flex items-center justify-center shadow-black/20">
                   {logoUrl ? (
                     <img
-                      src={logoUrl || quickSpicyLogo}
+                      src={logoUrl }
                       alt={companyName || "Company"}
                       className="w-24 h-10 object-contain"
                       loading="lazy"
-                      onError={(e) => {
-                        if (e.target.src !== quickSpicyLogo) {
-                          e.target.src = quickSpicyLogo
-                        }
-                      }}
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   ) : companyName ? (
                     <span className="text-xs font-semibold text-white px-2 truncate">
                       {companyName}
                     </span>
-                  ) : (
-                    <img src={quickSpicyLogo} alt="Company" className="w-24 h-10 object-contain" loading="lazy" />
-                  )}
+                  ) : null}
                 </div>
               </div>
             )}
@@ -740,19 +734,13 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                 <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shadow-lg shadow-black/20 ring-1 ring-white/10">
                   {logoUrl || companyName ? (
                     <img
-                      src={logoUrl || quickSpicyLogo}
+                      src={logoUrl }
                       alt={companyName || "Company"}
                       className="w-10 h-10 object-contain"
                       loading="lazy"
-                      onError={(e) => {
-                        if (e.target.src !== quickSpicyLogo) {
-                          e.target.src = quickSpicyLogo
-                        }
-                      }}
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
-                  ) : (
-                    <img src={quickSpicyLogo} alt="Company" className="w-10 h-10 object-contain" loading="lazy" />
-                  )}
+                  ) : null}
                 </div>
               </div>
             )}
