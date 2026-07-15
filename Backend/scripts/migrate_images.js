@@ -4,11 +4,12 @@ import path from 'path';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../src/config/env.js';
+import { resolveUploadRoot } from '../src/utils/uploadPaths.js';
 
 // Models
 import { FoodItem } from '../src/modules/food/admin/models/food.model.js';
 
-const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'src', 'uploads');
+const UPLOAD_BASE_DIR = resolveUploadRoot();
 
 async function migrateFoodItems() {
     console.log('Migrating Food Items...');
@@ -23,7 +24,6 @@ async function migrateFoodItems() {
             const filenameWithExt = urlParts[urlParts.length - 1];
             const originalFilename = filenameWithExt.split('?')[0];
 
-            // Look for the file in the downloaded folders
             const potentialPaths = [
                 path.join(UPLOAD_BASE_DIR, 'foods', originalFilename),
                 path.join(UPLOAD_BASE_DIR, 'food', originalFilename),
@@ -43,7 +43,6 @@ async function migrateFoodItems() {
                 continue;
             }
 
-            // Process image using sharp
             const newFilename = `food_${uuidv4().replace(/-/g, '').substring(0, 8)}.webp`;
             const targetFolder = path.join(UPLOAD_BASE_DIR, 'food/items');
             if (!fs.existsSync(targetFolder)) fs.mkdirSync(targetFolder, { recursive: true });
@@ -56,10 +55,10 @@ async function migrateFoodItems() {
 
             food.image = `/uploads/food/items/${newFilename}`;
             await food.save();
-            console.log(`✅ Migrated food: ${food.name}`);
+            console.log(`Migrated food: ${food.name}`);
 
         } catch (err) {
-            console.error(`❌ Error migrating food ID ${food._id}:`, err.message);
+            console.error(`Error migrating food ID ${food._id}:`, err.message);
         }
     }
 }
@@ -70,7 +69,7 @@ async function run() {
         console.log('Connected to MongoDB');
 
         await migrateFoodItems();
-        
+
         console.log('Migration Complete.');
     } catch (err) {
         console.error('Migration failed:', err);

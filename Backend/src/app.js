@@ -12,7 +12,7 @@ import { requestIdMiddleware } from './middleware/requestId.js';
 import { healthCheck } from './config/health.js';
 import { config } from './config/env.js';
 import compression from 'compression';
-import path from 'path';
+import { resolveUploadRoot } from './utils/uploadPaths.js';
 
 const app = express();
 
@@ -87,7 +87,7 @@ app.use(morgan('dev'));
 app.use(express.json({
     limit: '15mb',
     verify: (req, res, buf) => {
-        // ✅ Store rawBody for signature verification (Razorpay Webhooks)
+        // Store rawBody for signature verification (Razorpay webhooks)
         if (req.originalUrl && req.originalUrl.includes('/webhook/razorpay')) {
             req.rawBody = buf;
         }
@@ -114,10 +114,7 @@ app.use('/api', responseTimeLogger);
 app.use('/api', routes);
 
 // Static Uploads Serving
-const uploadDir = (process.env.UPLOAD_PATH && path.isAbsolute(process.env.UPLOAD_PATH)) 
-    ? process.env.UPLOAD_PATH 
-    : path.join(process.cwd(), 'src', 'uploads');
-
+const uploadDir = resolveUploadRoot();
 app.use('/uploads', express.static(uploadDir));
 app.use('/api/v1/uploads', express.static(uploadDir));
 

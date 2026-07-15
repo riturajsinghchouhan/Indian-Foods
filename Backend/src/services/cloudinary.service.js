@@ -2,9 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
+import { getUploadPublicUrl, resolveUploadRoot } from '../utils/uploadPaths.js';
 
-// Map UPLOAD_DIR to project root /src/uploads for local or /var/www/uploads for VPS
-const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'src', 'uploads');
+const UPLOAD_BASE_DIR = resolveUploadRoot();
 
 const ensureDirectoryExists = (dirPath) => {
     if (!fs.existsSync(dirPath)) {
@@ -23,7 +23,7 @@ const getProcessingOptions = (folder) => {
         width = 800; height = 800; quality = 85; prefix = 'food';
     } else if (folder.includes('food/restaurants/profile') || folder.includes('users/profiles')) {
         width = 400; height = 400; quality = 80; prefix = 'user';
-    } else if (folder.includes('food/restaurants') || folder.includes('restaurants')) { 
+    } else if (folder.includes('food/restaurants') || folder.includes('restaurants')) {
         // cover, menu, pan, gst, fssai
         width = 1200; height = 800; quality = 80; prefix = 'restaurant';
     } else if (folder.includes('landing/banners') || folder.includes('banners')) {
@@ -40,7 +40,7 @@ export const uploadImageBuffer = async (buffer, folder = 'uploads') => {
 
     const { width, height, quality, prefix } = getProcessingOptions(folder);
     const fileName = `${prefix}_${uuidv4().replace(/-/g, '').substring(0, 8)}.webp`;
-    
+
     const targetDir = path.join(UPLOAD_BASE_DIR, folder);
     ensureDirectoryExists(targetDir);
 
@@ -51,8 +51,7 @@ export const uploadImageBuffer = async (buffer, folder = 'uploads') => {
         .webp({ quality })
         .toFile(filePath);
 
-    // Return the relative URL starting with /uploads/
-    return `/uploads/${folder}/${fileName}`;
+    return getUploadPublicUrl(folder, fileName);
 };
 
 export const uploadImageBufferDetailed = async (buffer, folder = 'uploads') => {
@@ -68,12 +67,12 @@ export const uploadVideoBuffer = async (buffer, folder = 'uploads') => {
     const fileName = `video_${uuidv4().replace(/-/g, '').substring(0, 8)}.mp4`;
     const filePath = path.join(targetDir, fileName);
     fs.writeFileSync(filePath, buffer);
-    return `/uploads/${folder}/${fileName}`;
+    return getUploadPublicUrl(folder, fileName);
 };
 
 export const uploadFileBuffer = async (buffer, folder = 'uploads', options = {}) => {
     if (!buffer) throw new Error('File buffer is required');
-    
+
     const targetDir = path.join(UPLOAD_BASE_DIR, folder);
     ensureDirectoryExists(targetDir);
 
@@ -86,7 +85,7 @@ export const uploadFileBuffer = async (buffer, folder = 'uploads', options = {})
     const filePath = path.join(targetDir, fileName);
     fs.writeFileSync(filePath, buffer);
 
-    return `/uploads/${folder}/${fileName}`;
+    return getUploadPublicUrl(folder, fileName);
 };
 
 export const uploadFileBufferDetailed = async (buffer, folder = 'uploads', options = {}) => {

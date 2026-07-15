@@ -9,10 +9,11 @@ module.exports = {
       watch: false,
       max_memory_restart: '500M',
       merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       env: {
         NODE_ENV: 'production',
         UPLOAD_DIR: '/var/www/uploads/',
+        UPLOAD_PATH: '/var/www/uploads/',
       },
     },
     {
@@ -24,10 +25,11 @@ module.exports = {
       watch: false,
       max_memory_restart: '500M',
       merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       env: {
         NODE_ENV: 'production',
         UPLOAD_DIR: '/var/www/uploads/',
+        UPLOAD_PATH: '/var/www/uploads/',
       },
     },
     {
@@ -39,10 +41,11 @@ module.exports = {
       watch: false,
       max_memory_restart: '500M',
       merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       env: {
         NODE_ENV: 'production',
         UPLOAD_DIR: '/var/www/uploads/',
+        UPLOAD_PATH: '/var/www/uploads/',
       },
     },
     {
@@ -53,8 +56,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/', UPLOAD_PATH: '/var/www/uploads/' },
     },
     {
       name: 'indian-foods-worker-notification',
@@ -64,8 +67,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/', UPLOAD_PATH: '/var/www/uploads/' },
     },
     {
       name: 'indian-foods-worker-order',
@@ -75,8 +78,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/', UPLOAD_PATH: '/var/www/uploads/' },
     },
     {
       name: 'indian-foods-worker-tracking',
@@ -86,8 +89,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/', UPLOAD_PATH: '/var/www/uploads/' },
     },
     {
       name: 'indian-foods-worker-payment',
@@ -97,8 +100,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      env: { NODE_ENV: 'production', UPLOAD_DIR: '/var/www/uploads/', UPLOAD_PATH: '/var/www/uploads/' },
     }
   ],
 };

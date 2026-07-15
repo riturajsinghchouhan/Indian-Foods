@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+import { resolveUploadRoot } from '../src/utils/uploadPaths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,7 +11,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const BACKUP_URI = 'mongodb+srv://indianbite1:indianbite1@indianbitebackup.fgbam3x.mongodb.net/indianbitebackup';
 const LIVE_URI = process.env.MONGODB_URI;
-const UPLOAD_DIR = path.join(__dirname, '../src/uploads');
+const UPLOAD_DIR = resolveUploadRoot();
 
 const backupConnection = mongoose.createConnection(BACKUP_URI);
 const liveConnection = mongoose.createConnection(LIVE_URI);
@@ -52,7 +53,6 @@ async function processCollection(BackupModel, LiveModel, collectionName, fieldsT
     const backupDocs = await BackupModel.find({}).lean();
     console.log(`Found ${backupDocs.length} documents in backup.`);
 
-    // Fetch all live docs for this collection in one go to avoid N queries
     const liveDocs = await LiveModel.find({ _id: { $in: backupDocs.map(d => d._id) } }).lean();
     const liveDocMap = new Map();
     liveDocs.forEach(d => liveDocMap.set(d._id.toString(), d));

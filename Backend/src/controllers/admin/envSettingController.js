@@ -7,7 +7,7 @@ export const ALLOWED_ENV_KEYS = [
     'PORT', 'NODE_ENV', 'MONGODB_URI', 'JWT_ACCESS_SECRET', 'JWT_ACCESS_EXPIRES',
     'JWT_REFRESH_SECRET', 'JWT_REFRESH_EXPIRES', 'FRONTEND_URL', 'REDIS_ENABLED',
     'REDIS_URL', 'BULLMQ_ENABLED', 'RATE_LIMIT_WINDOW_MS', 'RATE_LIMIT_WINDOW',
-    'RATE_LIMIT_MAX', 'BCRYPT_SALT_ROUNDS', 'UPLOAD_PATH', 'HUGGINGFACE_API_KEY',
+    'RATE_LIMIT_MAX', 'BCRYPT_SALT_ROUNDS', 'UPLOAD_DIR', 'UPLOAD_PATH', 'HUGGINGFACE_API_KEY',
     'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET',
     'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS', 'EMAIL_FROM',
     'GOOGLE_MAPS_API_KEY', 'ADMIN_REGISTRATION_CODE', 'ADMIN_NOTIFICATION_EMAILS',
@@ -24,7 +24,7 @@ export const getAllEnvSettings = async (req, res) => {
     try {
         const settings = await EnvSetting.find({});
         const settingsMap = {};
-        
+
         settings.forEach(setting => {
             if (setting.value !== undefined && setting.value !== null) {
                 settingsMap[setting.key] = setting.isEncrypted ? decrypt(setting.value) : setting.value;
@@ -37,7 +37,7 @@ export const getAllEnvSettings = async (req, res) => {
             // Priority: DB value > process.env value
             const dbValue = settingsMap[key];
             const envValue = process.env[key];
-            
+
             result[key] = {
                 value: dbValue !== undefined ? dbValue : (envValue || ''),
                 isOverridden: dbValue !== undefined
@@ -53,7 +53,7 @@ export const getAllEnvSettings = async (req, res) => {
 export const updateEnvSettings = async (req, res) => {
     try {
         const updates = req.body;
-        
+
         for (const [key, value] of Object.entries(updates)) {
             if (ALLOWED_ENV_KEYS.includes(key)) {
                 if (value === null || value === undefined || value === '') {
@@ -71,10 +71,10 @@ export const updateEnvSettings = async (req, res) => {
                 }
             }
         }
-        
+
         // Update the app config object
         updateConfig();
-        
+
         res.status(200).json({ success: true, message: 'Environment settings updated successfully' });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

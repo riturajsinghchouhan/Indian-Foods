@@ -4,12 +4,13 @@ import path from 'path';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../src/config/env.js';
+import { resolveUploadRoot } from '../src/utils/uploadPaths.js';
 
 // Models
 import { FoodCategory as Category } from '../src/modules/food/admin/models/category.model.js';
 import { FoodBusinessSettings as BusinessSettings } from '../src/modules/food/admin/models/businessSettings.model.js';
 
-const UPLOAD_BASE_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'src', 'uploads');
+const UPLOAD_BASE_DIR = resolveUploadRoot();
 
 async function processImage(url, entityType, width, height, quality, prefix, targetSubfolder) {
     if (!url || !url.includes('cloudinary.com')) return url;
@@ -19,7 +20,6 @@ async function processImage(url, entityType, width, height, quality, prefix, tar
         const filenameWithExt = urlParts[urlParts.length - 1];
         const originalFilename = filenameWithExt.split('?')[0];
 
-        // Potential places where it was downloaded
         const potentialPaths = [
             path.join(UPLOAD_BASE_DIR, targetSubfolder, originalFilename),
             path.join(UPLOAD_BASE_DIR, entityType, originalFilename),
@@ -38,13 +38,13 @@ async function processImage(url, entityType, width, height, quality, prefix, tar
 
         if (!foundPath) {
             console.log(`[${entityType}] File not found locally: ${originalFilename}`);
-            return url; // Return original if not found
+            return url;
         }
 
         const newFilename = `${prefix}_${uuidv4().replace(/-/g, '').substring(0, 8)}.webp`;
         const targetFolder = path.join(UPLOAD_BASE_DIR, targetSubfolder);
         if (!fs.existsSync(targetFolder)) fs.mkdirSync(targetFolder, { recursive: true });
-        
+
         const targetPath = path.join(targetFolder, newFilename);
 
         await sharp(foundPath)
@@ -68,7 +68,7 @@ async function migrateCategories() {
             if (newUrl !== item.image) {
                 item.image = newUrl;
                 await item.save();
-                console.log(`✅ Migrated category: ${item.name}`);
+                console.log(`Migrated category: ${item.name}`);
             }
         }
     }
@@ -95,7 +95,7 @@ async function migrateBusinessSettings() {
         }
         if (changed) {
             await item.save();
-            console.log(`✅ Migrated business settings`);
+            console.log('Migrated business settings');
         }
     }
 }
@@ -107,7 +107,7 @@ async function run() {
 
         await migrateCategories();
         await migrateBusinessSettings();
-        
+
         console.log('Migration Complete.');
     } catch (err) {
         console.error('Migration failed:', err);
