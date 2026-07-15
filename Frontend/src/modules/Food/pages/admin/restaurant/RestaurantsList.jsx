@@ -2,7 +2,9 @@ import { useState, useMemo, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Search, Download, ChevronDown, Eye, Settings, ArrowUpDown, Loader2, X, MapPin, Phone, Mail, Clock, Star, Building2, User, FileText, CreditCard, Calendar, Image as ImageIcon, ExternalLink, ShieldX, AlertTriangle, Trash2, Plus, Map } from "lucide-react"
 import { adminAPI, restaurantAPI, uploadAPI } from "@food/api"
+import { API_BASE_URL } from "@food/api/config"
 import { clearModuleAuth } from "@food/utils/auth"
+import { normalizeImageUrl as normalizeBackendImageUrl } from "@food/utils/common"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@food/components/ui/dropdown-menu"
 import { exportRestaurantsToPDF } from "@food/components/admin/restaurants/restaurantsExportUtils"
 import { getGoogleMapsApiKey } from "@food/utils/googleMapsApiKey"
@@ -11,6 +13,7 @@ import { getGoogleMapsApiKey } from "@food/utils/googleMapsApiKey"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/v?\d*\/?$/, "")
 
 const getDefaultDays = () => ({
   Monday: { isOpen: true, openingTime: "11:00", closingTime: "23:00" },
@@ -87,15 +90,19 @@ const formatTime12Hour = (value) => {
 
 const normalizeImageUrl = (image) => {
   if (!image) return ""
-  if (typeof image === "string") return image
-  if (typeof image === "object") return image.url || image.secure_url || ""
+  if (typeof image === "string") return normalizeBackendImageUrl(image, BACKEND_ORIGIN)
+  if (typeof image === "object") {
+    return normalizeBackendImageUrl(image.url || image.secure_url || "", BACKEND_ORIGIN)
+  }
   return ""
 }
 
 const normalizeFileUrl = (file) => {
   if (!file) return ""
-  if (typeof file === "string") return file
-  if (typeof file === "object") return file.url || file.secure_url || ""
+  if (typeof file === "string") return normalizeBackendImageUrl(file, BACKEND_ORIGIN)
+  if (typeof file === "object") {
+    return normalizeBackendImageUrl(file.url || file.secure_url || "", BACKEND_ORIGIN)
+  }
   return ""
 }
 

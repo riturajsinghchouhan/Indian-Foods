@@ -4,6 +4,7 @@
 
 import apiClient, { userClient, restaurantClient, deliveryClient, adminClient } from "./axios.js";
 import { API_ENDPOINTS } from "./config.js";
+import { getImageUrl } from "@food/utils/getImageUrl";
 import * as authService from "./auth.js";
 
 const stub = () =>
@@ -1931,6 +1932,16 @@ export const uploadAPI = {
 
     return userClient.post("/uploads/image", formData, {
       timeout: 300000,
+    }).then((response) => {
+      const nextResponse = response;
+      const media = nextResponse?.data?.data || nextResponse?.data;
+      if (media?.url) {
+        media.url = getImageUrl(media.url);
+      }
+      if (media?.file?.url) {
+        media.file.url = getImageUrl(media.file.url);
+      }
+      return nextResponse;
     });
   },
   /**
