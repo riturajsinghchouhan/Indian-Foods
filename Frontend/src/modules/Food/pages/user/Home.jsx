@@ -1364,13 +1364,12 @@ export default function Home() {
               const allImages = Array.from(
                 new Set(
                   [
-                    ...coverImages,
                     ...profileImageCandidates,
+                    ...coverImages,
                   ].filter(Boolean),
                 ),
               );
 
-              // Keep single image for backward compatibility
               const image = allImages[0] || profileImageUrl || "";
               const offerText = restaurant.offer || null;
 
@@ -1870,11 +1869,11 @@ export default function Home() {
           ? restaurant.cuisines[0]
           : "Multi-cuisine";
       const imageCandidates = extractImages([
+        restaurant?.profileImage,
         ...(Array.isArray(restaurant?.coverImages)
           ? restaurant.coverImages
           : [restaurant?.coverImages]
         ).filter(Boolean),
-        restaurant?.profileImage,
       ]);
       const image = imageCandidates[0] || foodImages[0];
 

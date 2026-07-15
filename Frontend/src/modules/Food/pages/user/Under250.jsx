@@ -759,11 +759,12 @@ export default function Under250() {
                     isVeg,
                     image:
                       item?.image ||
+                      restaurant?.profileImage?.url ||
+                      restaurant?.profileImage ||
                       restaurant?.coverImages?.[0]?.url ||
                       restaurant?.coverImages?.[0] ||
                       restaurant?.menuImages?.[0]?.url ||
                       restaurant?.menuImages?.[0] ||
-                      restaurant?.profileImage?.url ||
                       "",
                   }
                 })

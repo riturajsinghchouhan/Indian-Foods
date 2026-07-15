@@ -5,8 +5,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@food/components/ui/dialog"
 import { exportDeliverymenToExcel, exportDeliverymenToPDF } from "@food/components/admin/deliveryman/deliverymanExportUtils"
 import { toast } from "sonner"
+import { API_BASE_URL } from "@food/api/config"
+import { normalizeImageUrl } from "@food/utils/common"
 const debugError = () => {}
-
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
 
 const formatCurrency = (amount) => {
   const numericAmount = Number(amount)
@@ -622,7 +624,7 @@ availableCashLimit: deliveryman.availableCashLimit || 0,
                               >
                                 {(dm.profileImage?.url ?? dm.profilePhoto) ? (
                                   <img
-                                    src={dm.profileImage?.url ?? dm.profilePhoto}
+                                    src={normalizeImageUrl(dm.profileImage?.url ?? dm.profilePhoto, BACKEND_ORIGIN)}
                                     alt={dm.name}
                                     className="w-full h-full object-cover"
                                   />
@@ -838,7 +840,7 @@ availableCashLimit: deliveryman.availableCashLimit || 0,
                   <div className="flex-shrink-0">
                     {viewDetails.profileImage?.url ? (
                       <img 
-                        src={viewDetails.profileImage.url} 
+                        src={normalizeImageUrl(viewDetails.profileImage.url, BACKEND_ORIGIN)} 
                         alt={viewDetails.name}
                         className="w-24 h-24 rounded-full object-cover border-2 border-slate-200"
                       />

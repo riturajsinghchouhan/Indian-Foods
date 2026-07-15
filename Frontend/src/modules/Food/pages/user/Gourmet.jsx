@@ -178,7 +178,6 @@ export default function Gourmet() {
                     distanceStr = restaurant.distance
                   }
 
-                  // Get restaurant cover image with priority: coverImages > menuImages > profileImage
                   const coverImages = restaurant.coverImages && restaurant.coverImages.length > 0
                     ? restaurant.coverImages.map(img => img.url || img).filter(Boolean)
                     : []
@@ -188,11 +187,10 @@ export default function Gourmet() {
                     : []
 
                   const rawRestaurantImage =
-                    coverImages.length > 0
+                    restaurant.profileImage?.url || restaurant.profileImage || restaurant.image ||
+                    (coverImages.length > 0
                       ? coverImages[0]
-                      : (menuImages.length > 0
-                        ? menuImages[0]
-                        : (restaurant.profileImage?.url || restaurant.profileImage || restaurant.image || ""))
+                      : (menuImages.length > 0 ? menuImages[0] : ""))
 
                   const restaurantImage = resolveImageUrl(rawRestaurantImage)
 

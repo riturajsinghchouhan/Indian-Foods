@@ -848,6 +848,10 @@ export default function CategoryPage() {
                 ? restaurant.cuisines.join(", ")
                 : null
 
+              const profileImages = [restaurant.profileImage?.url, restaurant.profileImage]
+                .map((img) => normalizeImageUrl(typeof img === "string" ? img : (img?.url || "")))
+                .filter(Boolean)
+
               const coverImages = restaurant.coverImages && restaurant.coverImages.length > 0
                 ? restaurant.coverImages.map(img => normalizeImageUrl(img.url || img)).filter(Boolean)
                 : []
@@ -856,11 +860,9 @@ export default function CategoryPage() {
                 ? restaurant.menuImages.map(img => normalizeImageUrl(img.url || img)).filter(Boolean)
                 : []
 
-              const allImages = coverImages.length > 0
-                ? coverImages
-                : (fallbackImages.length > 0
-                  ? fallbackImages
-                  : (restaurant.profileImage?.url ? [normalizeImageUrl(restaurant.profileImage.url)] : []))
+              const allImages = profileImages.length > 0
+                ? profileImages
+                : (coverImages.length > 0 ? coverImages : fallbackImages)
 
               const image = allImages[0] || null
               const restaurantId = restaurant.restaurantId || restaurant._id

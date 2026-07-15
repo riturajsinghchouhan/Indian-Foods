@@ -10,6 +10,7 @@ import { useProfile } from "@food/context/ProfileContext"
 import { useAppLocation } from "@food/hooks/useAppLocation"
 import { restaurantAPI, adminAPI } from "@food/api"
 import { useDelayedLoading } from "@food/hooks/useDelayedLoading"
+import { normalizeImageUrl } from "@food/utils/common"
 
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
@@ -337,22 +338,23 @@ export default function SearchResults() {
                 : null
 
               // Get images from backend only
+              const profileImages = [restaurant.profileImage?.url, restaurant.profileImage]
+                .map((img) => normalizeImageUrl(typeof img === "string" ? img : (img?.url || "")))
+                .filter(Boolean)
+
               const coverImages = restaurant.coverImages && restaurant.coverImages.length > 0
-                ? restaurant.coverImages.map(img => img.url || img).filter(Boolean)
+                ? restaurant.coverImages.map(img => normalizeImageUrl(img.url || img)).filter(Boolean)
                 : []
 
               const fallbackImages = restaurant.menuImages && restaurant.menuImages.length > 0
-                ? restaurant.menuImages.map(img => img.url || img).filter(Boolean)
+                ? restaurant.menuImages.map(img => normalizeImageUrl(img.url || img)).filter(Boolean)
                 : []
 
-              // Use backend images only - no fallback placeholder
-              const allImages = coverImages.length > 0
-                ? coverImages
-                : (fallbackImages.length > 0
-                  ? fallbackImages
-                  : (restaurant.profileImage?.url ? [restaurant.profileImage.url] : []))
+              const allImages = profileImages.length > 0
+                ? profileImages
+                : (coverImages.length > 0 ? coverImages : fallbackImages)
 
-              const image = allImages[0] || null // Will be handled in UI
+              const image = allImages[0] || null
               const restaurantId = restaurant.restaurantId || restaurant._id
 
               let featuredDish = restaurant.featuredDish || null
