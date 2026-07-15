@@ -24,6 +24,7 @@ import { restaurantAPI, uploadAPI } from "@food/api"
 import RestaurantBentoGrid from "@food/components/restaurant/RestaurantBentoGrid"
 import { toast } from "sonner"
 import { downloadFile } from "@/shared/utils/downloadUtils"
+import { getImageUrl } from "@food/utils/getImageUrl"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -1076,8 +1077,8 @@ export default function Inventory() {
                   id: String(item.id || Date.now() + Math.random()),
                   name: item.name || "Unnamed Item",
                   description: item.description || "",
-                  image: item.image || "",
-                  images: item.image ? [item.image] : [],
+                  image: getImageUrl(item.image),
+                  images: item.image ? [getImageUrl(item.image)] : [],
                   price: item.price ?? "",
                   variants: Array.isArray(item.variants) ? item.variants : (Array.isArray(item.variations) ? item.variations : []),
                   category: section.name || "",
@@ -1342,7 +1343,7 @@ export default function Inventory() {
         name: addonName.trim(),
         description: addonDescription.trim(),
         price: parsedPrice,
-        image: imageUrl,
+        image: imageUrl, // Keep original for backend
         images: imageUrl ? [imageUrl] : [],
       }
       
@@ -2324,7 +2325,7 @@ export default function Inventory() {
                         <div className="mb-2">
                           <img
                             key={addonImagePreview}
-                            src={addonImagePreview}
+                            src={getImageUrl(addonImagePreview)}
                             alt="Preview"
                             className="w-24 h-24 object-cover rounded border"
                             onLoad={(e) => (e.target.style.display = "block")}
@@ -2432,7 +2433,7 @@ export default function Inventory() {
                         <div className="flex items-start gap-3">
                           {addon.images && addon.images.length > 0 && addon.images[0] && (
                             <img
-                              src={addon.images[0]}
+                              src={getImageUrl(addon.images[0])}
                               alt={addon.name}
                               className="h-20 w-20 rounded-2xl object-cover ring-1 ring-slate-200"
                               onError={(e) => {
@@ -2616,7 +2617,7 @@ export default function Inventory() {
                                 {item.image && (
                                   <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 flex-shrink-0 rounded-[20px] overflow-hidden shadow-md border-2 border-white ring-1 ring-slate-100/50">
                                     <img
-                                      src={item.image}
+                                      src={getImageUrl(item.image)}
                                       alt={item.name}
                                       className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
                                       onError={(e) => {

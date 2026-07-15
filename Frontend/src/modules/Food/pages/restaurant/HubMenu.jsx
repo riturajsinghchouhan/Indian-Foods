@@ -21,6 +21,8 @@ import {
 } from "lucide-react"
 // Removed foodManagement - now using backend API directly
 import { useNavigate } from "react-router-dom"
+import { RestaurantNotificationProvider, useRestaurantNotifications } from "@food/context/RestaurantNotificationContext"
+import { getImageUrl } from "@food/utils/getImageUrl"
 import { restaurantAPI, uploadAPI } from "@food/api"
 import { toast } from "sonner"
 const debugLog = (...args) => {}
@@ -1251,7 +1253,7 @@ export default function HubMenu() {
                       <div className="flex items-start gap-2">
                         {addon.images && addon.images.length > 0 && addon.images[0] && (
                           <img
-                            src={addon.images[0]}
+                            src={getImageUrl(addon.images[0])}
                             alt={addon.name}
                             className="w-20 h-20 object-cover rounded-lg"
                             onError={(e) => {
@@ -1409,7 +1411,7 @@ export default function HubMenu() {
                           {/* Right: Image */}
                           <div className="relative">
                             <img
-                              src={item.image}
+                              src={getImageUrl(item.image)}
                               alt={item.name}
                               className="w-20 h-20 rounded-lg object-cover"
                             />
@@ -2137,7 +2139,7 @@ export default function HubMenu() {
                                 }`}
                               >
                                 <img
-                                  src={item.image}
+                                  src={getImageUrl(item.image)}
                                   alt={item.name}
                                   className="w-16 h-16 rounded-lg object-cover"
                                 />
@@ -2300,7 +2302,7 @@ export default function HubMenu() {
                         <div key={index} className="relative group">
                           {img && (
                             <img
-                              src={img}
+                              src={getImageUrl(img)}
                               alt={`Add-on ${index + 1}`}
                               className="w-full h-24 object-cover rounded-lg border border-gray-200"
                               onError={(e) => {

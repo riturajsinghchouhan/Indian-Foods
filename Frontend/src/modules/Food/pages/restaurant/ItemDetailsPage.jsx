@@ -24,6 +24,7 @@ import { toast } from "sonner"
 import { ImageSourcePicker } from "@food/components/ImageSourcePicker"
 import { isFlutterBridgeAvailable } from "@food/utils/imageUploadUtils"
 import { getFoodVariants } from "@food/utils/foodVariants"
+import { getImageUrl } from "@food/utils/getImageUrl"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
@@ -833,7 +834,7 @@ export default function ItemDetailsPage() {
                   >
                     {images[currentImageIndex] ? (
                       <img
-                        src={images[currentImageIndex]}
+                        src={getImageUrl(images[currentImageIndex])}
                         alt={`${itemName} - Image ${currentImageIndex + 1}`}
                         className="w-full h-full object-cover"
                       />
