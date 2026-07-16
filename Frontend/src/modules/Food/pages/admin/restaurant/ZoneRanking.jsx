@@ -4,7 +4,7 @@ import { adminAPI } from "@food/api"
 import { API_BASE_URL } from "@food/api/config"
 import { normalizeImageUrl } from "@food/utils/common"
 
-const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "")
 
 export default function ZoneRanking() {
   const [zones, setZones] = useState([])

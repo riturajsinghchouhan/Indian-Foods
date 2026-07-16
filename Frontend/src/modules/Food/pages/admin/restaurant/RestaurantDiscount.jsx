@@ -7,7 +7,7 @@ import { Loader2, Search, Percent, Settings2, Plus, Trash2, X, ChevronRight, Tag
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@food/components/ui/dialog";
 import { Button } from "@food/components/ui/button";
 
-const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "");
 
 export default function RestaurantDiscount() {
   const [zones, setZones] = useState([]);

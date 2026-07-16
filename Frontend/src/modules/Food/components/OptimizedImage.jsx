@@ -4,7 +4,7 @@ import { ConciergeBell } from 'lucide-react'
 import { API_BASE_URL } from "@food/api/config"
 import { normalizeImageUrl } from "@food/utils/common"
 
-const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "")
 
 export const ShopPlaceholder = () => (
   <svg viewBox="0 0 100 100" className="w-[40%] h-[40%] max-w-[80px] max-h-[80px] text-[#cfcac2] dark:text-zinc-600" fill="currentColor">

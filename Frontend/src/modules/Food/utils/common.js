@@ -47,7 +47,7 @@ const getPreferredMediaOrigin = (backendOrigin = "") => {
     return getSafeOrigin(DEFAULT_PUBLIC_MEDIA_ORIGIN) || DEFAULT_PUBLIC_MEDIA_ORIGIN;
   }
 
-  return trimSlashes(backendOrigin);
+  return getSafeOrigin(backendOrigin) || trimSlashes(backendOrigin);
 };
 
 /**

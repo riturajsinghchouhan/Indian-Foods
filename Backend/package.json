@@ -22,7 +22,9 @@
     "backfill:images": "node scripts/backfill-image-fields.js",
     "backfill:images:apply": "node scripts/backfill-image-fields.js --apply",
     "backfill:food-images-by-name": "node scripts/backfill-food-images-by-name.js",
-    "backfill:food-images-by-name:apply": "node scripts/backfill-food-images-by-name.js --apply"
+    "backfill:food-images-by-name:apply": "node scripts/backfill-food-images-by-name.js --apply",
+    "backfill:category-images-by-name": "node scripts/backfill-category-images-by-name.js",
+    "backfill:category-images-by-name:apply": "node scripts/backfill-category-images-by-name.js --apply"
   },
   "keywords": [],
   "author": "",

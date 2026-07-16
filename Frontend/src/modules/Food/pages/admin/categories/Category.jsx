@@ -476,7 +476,7 @@ export default function Category() {
                         <div className="flex items-start gap-3">
                           <div className="h-11 w-11 overflow-hidden rounded-2xl bg-slate-100">
                             {category?.image ? (
-                              <img src={normalizeImageUrl(category.image, API_BASE_URL.replace(/\/api\/?$/, ""))} alt={category.name} className="h-full w-full object-cover" />
+                              <img src={normalizeImageUrl(category.image, API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, ""))} alt={category.name} className="h-full w-full object-cover" />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-sm font-bold text-slate-500">
                                 {String(category?.name || "C").slice(0, 1).toUpperCase()}

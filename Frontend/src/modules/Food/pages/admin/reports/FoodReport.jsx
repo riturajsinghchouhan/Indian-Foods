@@ -7,7 +7,7 @@ import { exportReportsToCSV, exportReportsToExcel, exportReportsToPDF, exportRep
 import { API_BASE_URL } from "@food/api/config"
 import { normalizeImageUrl } from "@food/utils/common"
 
-const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "")
 
 export default function FoodReport() {
   const [searchQuery, setSearchQuery] = useState("")
