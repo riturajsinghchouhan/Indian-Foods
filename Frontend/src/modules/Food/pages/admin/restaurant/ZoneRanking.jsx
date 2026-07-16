@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react"
 import { MapPin, Search } from "lucide-react"
 import { adminAPI } from "@food/api"
+import { API_BASE_URL } from "@food/api/config"
+import { normalizeImageUrl } from "@food/utils/common"
+
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
 
 export default function ZoneRanking() {
   const [zones, setZones] = useState([])
@@ -190,7 +194,7 @@ export default function ZoneRanking() {
                             <div className="h-10 w-10 shrink-0">
                               <img 
                                 className="h-10 w-10 rounded-full object-cover" 
-                                src={typeof r.profileImage === 'string' && r.profileImage ? r.profileImage : (r.profileImage?.url || "https://placehold.co/100x100")} 
+                                src={normalizeImageUrl(typeof r.profileImage === 'string' && r.profileImage ? r.profileImage : r.profileImage?.url, BACKEND_ORIGIN) || "https://placehold.co/100x100"} 
                                 alt={r.name || r.restaurantName} 
                               />
                             </div>

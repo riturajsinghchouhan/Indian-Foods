@@ -1,9 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { adminAPI } from "@food/api";
+import { API_BASE_URL } from "@food/api/config";
+import { normalizeImageUrl } from "@food/utils/common";
 import { toast } from "sonner";
 import { Loader2, Search, Percent, Settings2, Plus, Trash2, X, ChevronRight, Tag } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@food/components/ui/dialog";
 import { Button } from "@food/components/ui/button";
+
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
 
 export default function RestaurantDiscount() {
   const [zones, setZones] = useState([]);
@@ -243,7 +247,7 @@ export default function RestaurantDiscount() {
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 overflow-hidden rounded-lg bg-slate-100 shrink-0">
                               {restaurant?.profileImage || restaurant?.logo ? (
-                                <img src={restaurant.profileImage || restaurant.logo} alt={restaurant.restaurantName} className="h-full w-full object-cover" />
+                                <img src={normalizeImageUrl(restaurant.profileImage || restaurant.logo, BACKEND_ORIGIN)} alt={restaurant.restaurantName} className="h-full w-full object-cover" />
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center font-bold text-slate-500">
                                   {String(restaurant?.restaurantName || "R").charAt(0).toUpperCase()}

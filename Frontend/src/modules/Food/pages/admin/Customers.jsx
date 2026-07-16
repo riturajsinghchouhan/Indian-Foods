@@ -4,12 +4,14 @@ import { Search, Download, ChevronDown, Eye, FileDown, FileSpreadsheet, FileText
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@food/components/ui/dropdown-menu"
 import { exportCustomersToCSV, exportCustomersToExcel, exportCustomersToPDF } from "@food/components/admin/customers/customersExportUtils"
 import { adminAPI } from "@food/api"
+import { API_BASE_URL } from "@food/api/config"
+import { normalizeImageUrl } from "@food/utils/common"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@food/components/ui/dialog"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
-
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -461,7 +463,7 @@ export default function Customers() {
                           >
                             {customer.profileImage ? (
                               <img
-                                src={customer.profileImage}
+                                src={normalizeImageUrl(customer.profileImage, BACKEND_ORIGIN)}
                                 alt={customer.name}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -610,7 +612,7 @@ export default function Customers() {
                 <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                   <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
                     {userDetails.profileImage ? (
-                      <img src={userDetails.profileImage} alt={userDetails.name} className="w-full h-full rounded-full object-cover" />
+                      <img src={normalizeImageUrl(userDetails.profileImage, BACKEND_ORIGIN)} alt={userDetails.name} className="w-full h-full rounded-full object-cover" />
                     ) : (
                       <User className="w-8 h-8 text-slate-400" />
                     )}

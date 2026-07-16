@@ -4,6 +4,10 @@ import { emptyFoodReports, emptyYearlySalesData } from "@food/utils/adminFallbac
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@food/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@food/components/ui/dialog"
 import { exportReportsToCSV, exportReportsToExcel, exportReportsToPDF, exportReportsToJSON } from "@food/components/admin/reports/reportsExportUtils"
+import { API_BASE_URL } from "@food/api/config"
+import { normalizeImageUrl } from "@food/utils/common"
+
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
 
 export default function FoodReport() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -445,7 +449,7 @@ export default function FoodReport() {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
                             <img
-                              src={food.image}
+                              src={normalizeImageUrl(food.image, BACKEND_ORIGIN)}
                               alt={food.name}
                               className="w-full h-full object-cover"
                               onError={(e) => {
