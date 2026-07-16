@@ -14,6 +14,7 @@ const uploadFields = upload.fields([
     { name: 'aadharFrontPhoto', maxCount: 1 },
     { name: 'aadharBackPhoto', maxCount: 1 },
     { name: 'panPhoto', maxCount: 1 },
+    { name: 'drivingLicensePhoto', maxCount: 1 },
     { name: 'drivingLicenseFrontPhoto', maxCount: 1 },
     { name: 'drivingLicenseBackPhoto', maxCount: 1 },
     { name: 'rcPhoto', maxCount: 1 },

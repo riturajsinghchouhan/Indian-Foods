@@ -140,6 +140,8 @@ export const updateDeliveryPartnerProfile = async (userId, payload, files) => {
     if (vehicleName !== undefined) partner.vehicleName = vehicleName;
     if (vehicleNumber !== undefined) partner.vehicleNumber = vehicleNumber;
     if (drivingLicenseNumber !== undefined) partner.drivingLicenseNumber = drivingLicenseNumber;
+    if (panNumber !== undefined) partner.panNumber = panNumber;
+    if (aadharNumber !== undefined) partner.aadharNumber = aadharNumber;
 
     if (fcmToken) {
         if (platform === 'mobile') {
@@ -159,6 +161,32 @@ export const updateDeliveryPartnerProfile = async (userId, payload, files) => {
 
     if (files?.profilePhoto?.[0]) {
         partner.profilePhoto = await uploadImageBuffer(files.profilePhoto[0].buffer, 'food/delivery/profile');
+    }
+    if (files?.aadharPhoto?.[0]) {
+        partner.aadharPhoto = await uploadImageBuffer(files.aadharPhoto[0].buffer, 'food/delivery/aadhar');
+    }
+    if (files?.aadharFrontPhoto?.[0]) {
+        partner.aadharFrontPhoto = await uploadImageBuffer(files.aadharFrontPhoto[0].buffer, 'food/delivery/aadhar');
+    }
+    if (files?.aadharBackPhoto?.[0]) {
+        partner.aadharBackPhoto = await uploadImageBuffer(files.aadharBackPhoto[0].buffer, 'food/delivery/aadhar');
+    }
+    if (files?.panPhoto?.[0]) {
+        partner.panPhoto = await uploadImageBuffer(files.panPhoto[0].buffer, 'food/delivery/pan');
+    }
+    if (files?.drivingLicensePhoto?.[0]) {
+        const licenseUrl = await uploadImageBuffer(files.drivingLicensePhoto[0].buffer, 'food/delivery/license');
+        partner.drivingLicenseFrontPhoto = licenseUrl;
+        if (!partner.drivingLicenseBackPhoto) partner.drivingLicenseBackPhoto = licenseUrl;
+    }
+    if (files?.drivingLicenseFrontPhoto?.[0]) {
+        partner.drivingLicenseFrontPhoto = await uploadImageBuffer(files.drivingLicenseFrontPhoto[0].buffer, 'food/delivery/license');
+    }
+    if (files?.drivingLicenseBackPhoto?.[0]) {
+        partner.drivingLicenseBackPhoto = await uploadImageBuffer(files.drivingLicenseBackPhoto[0].buffer, 'food/delivery/license');
+    }
+    if (files?.rcPhoto?.[0]) {
+        partner.rcPhoto = await uploadImageBuffer(files.rcPhoto[0].buffer, 'food/delivery/rc');
     }
 
     await partner.save();
