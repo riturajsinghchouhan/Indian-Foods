@@ -2301,7 +2301,7 @@ function RestaurantDetailsContent() {
         <div className="relative w-32 h-32 flex-shrink-0">
           {/* Image Container with rounded-2xl overflow-hidden */}
           <div className="w-full h-full bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm">
-            <DishImage src={item.image} alt={item.name} className="w-full h-full object-cover" />
+            <DishImage src={normalizeImageUrl(item.image, BACKEND_ORIGIN)} alt={item.name} className="w-full h-full object-cover" />
           </div>
           {/* Button overlay - rendered outside of overflow-hidden image container to prevent clipping */}
           {quantity > 0 ? (
@@ -3578,7 +3578,7 @@ function RestaurantDetailsContent() {
                   <div className="relative w-full h-64 overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
                     {selectedItem.image ? (
                       <DishImage
-                        src={selectedItem.image}
+                        src={normalizeImageUrl(selectedItem.image, BACKEND_ORIGIN)}
                         alt={selectedItem.name}
                         className="w-full h-full object-cover"
                       />

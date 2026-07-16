@@ -289,7 +289,7 @@ export default function CategoryPage() {
         description: food?.description || "",
         price: Number(food?.price || 0),
         originalPrice: Number(food?.originalPrice || food?.price || 0),
-        image: normalizeImageUrl(food?.image),
+        image: normalizeImageUrl(food?.image, BACKEND_ORIGIN),
         foodType: food?.foodType || "Non-Veg",
         isAvailable: food?.isAvailable !== false,
         categoryName: food?.categoryName || sectionName,
@@ -355,7 +355,7 @@ export default function CategoryPage() {
 
         const fallbackRestaurantName = restaurantName || "Restaurant"
         const fallbackSlug = slugify(fallbackRestaurantName)
-        const fallbackImage = normalizeImageUrl(food?.image)
+        const fallbackImage = normalizeImageUrl(food?.image, BACKEND_ORIGIN)
 
         return {
           ...(matchedRestaurant || {}),
@@ -731,7 +731,7 @@ export default function CategoryPage() {
               : originalPrice
 
             // Get dish image (prioritize item image, then section image)
-            const dishImage = normalizeImageUrl(item.image?.url || item.image || section.image?.url || section.image)
+            const dishImage = normalizeImageUrl(item.image?.url || item.image || section.image?.url || section.image, BACKEND_ORIGIN)
 
             matchingDishes.push({
               name: item.name,
@@ -767,7 +767,8 @@ export default function CategoryPage() {
                 : originalPrice
 
               const dishImage = normalizeImageUrl(
-                item?.image?.url || item?.image || subsection?.image?.url || subsection?.image || section?.image?.url || section?.image
+                item?.image?.url || item?.image || subsection?.image?.url || subsection?.image || section?.image?.url || section?.image,
+                BACKEND_ORIGIN
               )
 
               matchingDishes.push({
@@ -849,15 +850,15 @@ export default function CategoryPage() {
                 : null
 
               const profileImages = [restaurant.profileImage?.url, restaurant.profileImage]
-                .map((img) => normalizeImageUrl(typeof img === "string" ? img : (img?.url || "")))
+                .map((img) => normalizeImageUrl(typeof img === "string" ? img : (img?.url || ""), BACKEND_ORIGIN))
                 .filter(Boolean)
 
               const coverImages = restaurant.coverImages && restaurant.coverImages.length > 0
-                ? restaurant.coverImages.map(img => normalizeImageUrl(img.url || img)).filter(Boolean)
+                ? restaurant.coverImages.map(img => normalizeImageUrl(img.url || img, BACKEND_ORIGIN)).filter(Boolean)
                 : []
 
               const fallbackImages = restaurant.menuImages && restaurant.menuImages.length > 0
-                ? restaurant.menuImages.map(img => normalizeImageUrl(img.url || img)).filter(Boolean)
+                ? restaurant.menuImages.map(img => normalizeImageUrl(img.url || img, BACKEND_ORIGIN)).filter(Boolean)
                 : []
 
               const allImages = profileImages.length > 0

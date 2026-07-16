@@ -1,6 +1,8 @@
+import fs from 'fs';
 import path from 'path';
 
 const DEFAULT_UPLOAD_ROOT = path.join(process.cwd(), 'src', 'uploads');
+const LEGACY_UPLOAD_ROOT = path.join(process.cwd(), 'uploads');
 
 const toAbsolutePath = (value) => {
     const normalized = String(value || '').trim();
@@ -10,14 +12,25 @@ const toAbsolutePath = (value) => {
         : path.normalize(path.resolve(process.cwd(), normalized));
 };
 
+const pathExists = (value) => {
+    if (!value) return false;
+    try {
+        return fs.existsSync(value);
+    } catch {
+        return false;
+    }
+};
+
 export const resolveUploadRoot = () => {
     const fromUploadDir = toAbsolutePath(process.env.UPLOAD_DIR);
-    if (fromUploadDir) return fromUploadDir;
-
     const fromUploadPath = toAbsolutePath(process.env.UPLOAD_PATH);
-    if (fromUploadPath) return fromUploadPath;
+    const configured = fromUploadDir || fromUploadPath;
 
-    return DEFAULT_UPLOAD_ROOT;
+    if (configured && pathExists(configured)) return configured;
+    if (pathExists(DEFAULT_UPLOAD_ROOT)) return DEFAULT_UPLOAD_ROOT;
+    if (pathExists(LEGACY_UPLOAD_ROOT)) return LEGACY_UPLOAD_ROOT;
+
+    return configured || DEFAULT_UPLOAD_ROOT;
 };
 
 export const getUploadPublicUrl = (folder, fileName) => {

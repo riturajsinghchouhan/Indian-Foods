@@ -16,6 +16,7 @@ import {
     GLOBAL_CATEGORY_FILTER
 } from '../../shared/categoryWorkflow.js';
 import { parseQueryLimit, parseQueryPage } from '../../../../utils/helpers.js';
+import { normalizeMediaUrl } from '../../../../utils/mediaUrl.js';
 
 const toStr = (v) => (v != null ? String(v).trim() : '');
 const APPROVED_CATEGORY_FILTER = [
@@ -292,7 +293,7 @@ export async function createRestaurantFood(restaurantId, body = {}) {
     try {
         const { notifyAdminsSafely } = await import('../../../../core/notifications/firebase.service.js');
         void notifyAdminsSafely({
-            title: 'New Product Approval Request ðŸ”',
+            title: 'New Product Approval Request Ã°Å¸Ââ€',
             body: `Restaurant has submitted a new item "${doc.name}" for approval.`,
             data: {
                 type: 'approval_request',
@@ -460,7 +461,7 @@ export async function bulkCreateFood(restaurantId, items = []) {
         try {
             const { notifyAdminsSafely } = await import('../../../../core/notifications/firebase.service.js');
             void notifyAdminsSafely({
-                title: 'Bulk Product Approval Request 🚀',
+                title: 'Bulk Product Approval Request ðŸš€',
                 body: `Restaurant has uploaded ${processedItems.length} new items for approval.`,
                 data: {
                     type: 'approval_request',
@@ -543,7 +544,7 @@ export async function listPublicApprovedFoods(query = {}) {
         name: f.name,
         description: f.description || '',
         price: getFoodDisplayPrice(f),
-        image: f.image || '',
+        image: normalizeMediaUrl(f.image || ''),
         foodType: f.foodType || 'Non-Veg',
         isAvailable: f.isAvailable !== false,
         approvalStatus: f.approvalStatus || 'approved'

@@ -2,6 +2,54 @@
  * Common utility functions for the Food module
  */
 
+const LOCAL_HOST_RE = /^(localhost|127\.0\.0\.1)$/i;
+const ABSOLUTE_URL_RE = /^(https?:)?\/\//i;
+const DEFAULT_PUBLIC_MEDIA_ORIGIN =
+  typeof import.meta !== "undefined" && import.meta.env?.VITE_PUBLIC_MEDIA_ORIGIN
+    ? String(import.meta.env.VITE_PUBLIC_MEDIA_ORIGIN).trim().replace(/\/+$/, "")
+    : "https://theindianbite.com";
+
+const trimSlashes = (value = "") => String(value || "").trim().replace(/\/+$/, "");
+
+const isUploadPath = (value = "") => {
+  const normalized = String(value || "").trim().replace(/\\/g, "/").replace(/^\/+/, "").toLowerCase();
+  return normalized.startsWith("uploads/") || normalized.startsWith("api/v1/uploads/");
+};
+
+const toApiUploadPath = (value = "") => {
+  const normalized = String(value || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized) return "";
+  if (normalized.toLowerCase().startsWith("api/v1/uploads/")) return `/${normalized}`;
+  if (normalized.toLowerCase().startsWith("uploads/")) return `/api/v1/${normalized}`;
+  return normalized.startsWith("/") ? normalized : `/${normalized}`;
+};
+
+const getSafeOrigin = (value = "") => {
+  if (!value) return "";
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "";
+  }
+};
+
+const getPreferredMediaOrigin = (backendOrigin = "") => {
+  const appHost = typeof window !== "undefined" ? window.location?.hostname || "" : "";
+  const backendHost = (() => {
+    try {
+      return backendOrigin ? new URL(backendOrigin).hostname || "" : "";
+    } catch {
+      return "";
+    }
+  })();
+
+  if (LOCAL_HOST_RE.test(appHost) && LOCAL_HOST_RE.test(backendHost || appHost)) {
+    return getSafeOrigin(DEFAULT_PUBLIC_MEDIA_ORIGIN) || DEFAULT_PUBLIC_MEDIA_ORIGIN;
+  }
+
+  return trimSlashes(backendOrigin);
+};
+
 /**
  * Normalizes an image URL to handle relative paths and backend origins
  */
@@ -20,10 +68,20 @@ export const normalizeImageUrl = (imageUrl, backendOrigin = "") => {
 
   if (/^\/\//.test(normalized)) normalized = `${appProtocol || "https:"}${normalized}`;
 
-  if (/^(https?:)?\/\//i.test(normalized)) {
+  if (ABSOLUTE_URL_RE.test(normalized)) {
     try {
       const parsed = new URL(normalized, window.location.origin);
-      if (appHost && !/^(localhost|127\.0\.0\.1)$/i.test(appHost) && /^(localhost|127\.0\.0\.1)$/i.test(parsed.hostname)) {
+      const isLocalParsedHost = LOCAL_HOST_RE.test(parsed.hostname || "");
+      const isUploadRequest = isUploadPath(parsed.pathname || "");
+
+      if (isLocalParsedHost && isUploadRequest) {
+        const mediaOrigin = getPreferredMediaOrigin(backendOrigin);
+        if (mediaOrigin) {
+          return `${mediaOrigin}${toApiUploadPath(parsed.pathname || "")}`.replace(/ /g, "%20");
+        }
+      }
+
+      if (appHost && !LOCAL_HOST_RE.test(appHost) && isLocalParsedHost) {
         const backendUrl = new URL(backendOrigin || window.location.origin);
         parsed.protocol = backendUrl.protocol;
         parsed.hostname = backendUrl.hostname;
@@ -31,18 +89,27 @@ export const normalizeImageUrl = (imageUrl, backendOrigin = "") => {
       }
       if (appProtocol === "https:" && parsed.protocol === "http:") parsed.protocol = "https:";
       const finalUrl = parsed.toString();
-      // Prevent double encoding of Firebase URLs which already contain %2F
-      if (finalUrl.includes('firebasestorage.googleapis.com')) return finalUrl;
+      if (finalUrl.includes("firebasestorage.googleapis.com")) return finalUrl;
       const hasSigned = /[?&](X-Amz-|Signature=|Expires=|AWSAccessKeyId=|GoogleAccessId=|token=|sig=|se=|sp=|sv=|alt=)/i.test(finalUrl);
-      return hasSigned ? finalUrl : finalUrl.replace(/ /g, '%20');
+      return hasSigned ? finalUrl : finalUrl.replace(/ /g, "%20");
     } catch {
       return normalized;
     }
   }
 
+  if (isUploadPath(normalized)) {
+    const uploadPath = toApiUploadPath(normalized);
+    const mediaOrigin = getPreferredMediaOrigin(backendOrigin);
+    if (mediaOrigin) {
+      return `${mediaOrigin}${uploadPath}`.replace(/ /g, "%20");
+    }
+    return uploadPath.replace(/ /g, "%20");
+  }
+
+  const baseOrigin = trimSlashes(backendOrigin);
   const absolutePath = normalized.startsWith("/")
-    ? `${backendOrigin}${normalized}`
-    : `${backendOrigin}/${normalized.replace(/^\.?\/*/, "")}`;
+    ? `${baseOrigin}${normalized}`
+    : `${baseOrigin}/${normalized.replace(/^\.?\/*/, "")}`;
   return absolutePath;
 };
 

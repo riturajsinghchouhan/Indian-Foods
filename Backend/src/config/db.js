@@ -1,13 +1,18 @@
+import dns from 'node:dns';
 import mongoose from 'mongoose';
 import { config } from './env.js';
 import { logger } from '../utils/logger.js';
 
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+
 export const connectDB = async () => {
     try {
         const conn = await mongoose.connect(config.mongodbUri, {
-            maxPoolSize: 100,       // Handle up to 100 concurrent DB operations (default is ~5-10)
-            minPoolSize: 5,         // Keep 5 connections warm for instant response
-            socketTimeoutMS: 45000, // Timeout idle sockets after 45s
+            maxPoolSize: 100,
+            minPoolSize: 5,
+            serverSelectionTimeoutMS: 20000,
+            connectTimeoutMS: 20000,
+            socketTimeoutMS: 45000,
         });
         logger.info(`MongoDB connected: ${conn.connection.host}`);
     } catch (error) {

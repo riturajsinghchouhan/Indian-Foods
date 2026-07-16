@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ConciergeBell } from 'lucide-react'
 import { API_BASE_URL } from "@food/api/config"
+import { normalizeImageUrl } from "@food/utils/common"
 
 const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "")
 
@@ -128,17 +129,7 @@ const OptimizedImage = React.memo(({
     return proxyUrl;
   }
 
-  // Prepend backend origin for local VPS images
-  const finalSrc = useMemo(() => {
-    if (!src || typeof src !== 'string') return src;
-    let computedSrc = src;
-    if (computedSrc.startsWith("/cloudimages") || computedSrc.startsWith("/uploads")) {
-      computedSrc = `${BACKEND_ORIGIN}${computedSrc}`
-    } else if (computedSrc.startsWith("cloudimages") || computedSrc.startsWith("uploads")) {
-      computedSrc = `${BACKEND_ORIGIN}/${computedSrc}`
-    }
-    return computedSrc;
-  }, [src]);
+  const finalSrc = useMemo(() => normalizeImageUrl(src, BACKEND_ORIGIN), [src])
 
   // Generate responsive srcset
   const srcSet = useMemo(() => {
