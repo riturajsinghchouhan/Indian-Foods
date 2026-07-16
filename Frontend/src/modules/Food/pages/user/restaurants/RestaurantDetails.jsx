@@ -760,7 +760,7 @@ function RestaurantDetailsContent() {
               for (const lookupId of normalizedLookupIds) {
                 try {
                   debugLog('? Fetching menu for restaurant lookup ID:', lookupId)
-                  const response = await restaurantAPI.getMenuByRestaurantId(lookupId)
+                  const response = await restaurantAPI.getMenuByRestaurantId(lookupId, { noCache: true })
                   if (response?.data?.success) {
                     menuResponse = response
                     resolvedMenuLookupId = lookupId

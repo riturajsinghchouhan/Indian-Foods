@@ -92,7 +92,7 @@ export const useHomeData = (location, zoneId) => {
       const menuResponses = await Promise.all(
         restaurantsData.slice(0, 50).map(async (r) => {
           try {
-            const res = await restaurantAPI.getMenuByRestaurantId(r.id);
+            const res = await restaurantAPI.getMenuByRestaurantId(r.id, { noCache: true });
             return { id: r.id, menu: res?.data?.data?.menu };
           } catch {
             return { id: r.id, menu: null };

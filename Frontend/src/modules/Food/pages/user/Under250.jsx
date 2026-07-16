@@ -745,7 +745,7 @@ export default function Under250() {
             if (!restaurantId) return null
 
             try {
-              const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurantId)
+              const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurantId, { noCache: true })
               const menu = getMenuFromResponse(menuResponse)
               const menuItems = flattenMenuItems(menu)
                 .filter((item) => Number(item?.price || 0) <= under250PriceLimit && item?.isAvailable !== false)

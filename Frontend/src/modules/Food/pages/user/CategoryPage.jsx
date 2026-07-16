@@ -926,7 +926,7 @@ export default function CategoryPage() {
                       let menu = null
                       for (const lookupId of lookupIds) {
                         try {
-                          const menuResponse = await restaurantAPI.getMenuByRestaurantId(lookupId)
+                          const menuResponse = await restaurantAPI.getMenuByRestaurantId(lookupId, { noCache: true })
                           const rawMenu = getMenuFromResponse(menuResponse)
                           const normalizedMenu = normalizeMenu(rawMenu)
                           if (menuResponse?.data?.success && normalizedMenu?.sections?.length > 0) {

@@ -154,7 +154,7 @@ export default function DiningRestaurantDetails() {
           setIsFetchingBookings(false)
       }
 
-      const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurantId).catch(() => null)
+      const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurantId, { noCache: true }).catch(() => null)
       const resolvedMenu = menuResponse ? getMenuFromResponse(menuResponse) : null
       setMenuSections(Array.isArray(resolvedMenu?.sections) ? resolvedMenu.sections : [])
     } catch {

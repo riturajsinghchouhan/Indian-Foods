@@ -1310,10 +1310,13 @@ const getPublicRestaurantMenuOnce = (id, config = {}) => {
   if (noCache) {
     return userClient.get(`/food/restaurant/restaurants/${safeId}/menu`, {
       ...axiosConfig,
+      params: {
+        ...(axiosConfig?.params || {}),
+        _ts: Date.now(),
+      },
     });
   }
-  const key = `menu:${safeId}`;
-  return publicRestaurantMenuCache.getOrCreate(key, () =>
+  return publicRestaurantMenuCache.getOrCreate(`menu:${safeId}`, () =>
     userClient.get(`/food/restaurant/restaurants/${safeId}/menu`, {
       ...axiosConfig,
     }),

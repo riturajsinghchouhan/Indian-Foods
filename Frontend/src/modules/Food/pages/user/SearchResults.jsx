@@ -399,7 +399,7 @@ export default function SearchResults() {
               const batchResults = await Promise.all(
                 batchRestaurants.map(async (restaurant) => {
                   try {
-                    const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurant.restaurantId)
+                    const menuResponse = await restaurantAPI.getMenuByRestaurantId(restaurant.restaurantId, { noCache: true })
                     if (menuResponse.data && menuResponse.data.success && menuResponse.data.data && menuResponse.data.data.menu) {
                       const menu = menuResponse.data.data.menu
                       const hasPaneer = checkCategoryInMenu(menu, 'paneer-tikka')

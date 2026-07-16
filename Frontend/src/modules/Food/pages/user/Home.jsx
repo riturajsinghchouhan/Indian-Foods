@@ -1752,7 +1752,7 @@ export default function Home() {
               }
 
               try {
-                const response = await restaurantAPI.getMenuByRestaurantId(id);
+                const response = await restaurantAPI.getMenuByRestaurantId(id, { noCache: true });
                 const menu = response?.data?.data?.menu || null;
                 menuCache.set(id, menu);
                 return { id, menu };
