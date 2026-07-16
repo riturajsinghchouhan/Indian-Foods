@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { FoodItem } from '../admin/models/food.model.js';
+import { normalizeMediaUrl } from '../../../utils/mediaUrl.js';
 
 export const CATEGORY_APPROVAL_STATUSES = ['pending', 'approved', 'rejected'];
 export const CATEGORY_FOOD_TYPE_SCOPES = ['Veg', 'Non-Veg', 'Both'];
@@ -170,7 +171,7 @@ export const serializeCategoryForResponse = (category = {}, options = {}) => {
         id: category._id || category.id,
         _id: category._id || category.id,
         name: category.name,
-        image: category.image || '',
+        image: normalizeMediaUrl(category.image || ''),
         type: category.type || '',
         status: category.isActive !== false,
         isActive: category.isActive !== false,

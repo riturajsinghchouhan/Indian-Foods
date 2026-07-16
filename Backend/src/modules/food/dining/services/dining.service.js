@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { ValidationError } from '../../../../core/auth/errors.js';
+import { toMediaObject } from '../../../../utils/mediaUrl.js';
 import { FoodRestaurant } from '../../restaurant/models/restaurant.model.js';
 import { FoodDiningCategory } from '../models/diningCategory.model.js';
 import { FoodDiningRestaurant } from '../models/diningRestaurant.model.js';
@@ -464,7 +465,7 @@ export async function listAllPendingDiningRequests() {
             restaurant: doc.restaurantId ? {
                 _id: doc.restaurantId._id,
                 name: doc.restaurantId.restaurantName,
-                profileImage: doc.restaurantId.profileImage ? { url: doc.restaurantId.profileImage } : null,
+                profileImage: toMediaObject(doc.restaurantId.profileImage),
                 address: doc.restaurantId.location?.formattedAddress || ''
             } : null,
             restaurantId: doc.restaurantId?._id

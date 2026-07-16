@@ -16,6 +16,7 @@ import { logger } from "../../utils/logger.js";
 import { sendAdminResetOtpEmail } from "../../utils/email.js";
 import mongoose from "mongoose";
 import { creditReferralReward } from "../../modules/food/user/services/userWallet.service.js";
+import { normalizeMediaUrl, toMediaObject, toMediaArray } from "../../utils/mediaUrl.js";
 
 const ROLES = {
   USER: "USER",
@@ -24,12 +25,7 @@ const ROLES = {
   ADMIN: "ADMIN",
 };
 
-const toSafeImageUrl = (value) => {
-  if (!value) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "object") return value.url || value.secure_url || "";
-  return "";
-};
+const toSafeImageUrl = (value) => normalizeMediaUrl(value);
 
 const sanitizeUserForAuthResponse = (userDoc = {}) => {
   const id = userDoc?._id?.toString?.() || userDoc?.id?.toString?.() || userDoc?._id || userDoc?.id || null;

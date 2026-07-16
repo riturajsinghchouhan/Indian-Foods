@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { ValidationError } from '../../../../core/auth/errors.js';
 import { FoodRestaurant } from '../../restaurant/models/restaurant.model.js';
 import { buildRawDownloadUrlFromFileUrl } from '../../../../services/cloudinary.service.js';
+import { normalizeMediaUrl, toMediaObject } from '../../../../utils/mediaUrl.js';
 import { FoodDeliveryPartner } from '../../delivery/models/deliveryPartner.model.js';
 import { DeliverySupportTicket } from '../../delivery/models/supportTicket.model.js';
 import { FoodZone } from '../models/zone.model.js';
@@ -3838,7 +3839,7 @@ export async function getDeliveryJoinRequests(query) {
         status: doc.status === 'rejected' ? 'denied' : doc.status,
         rejectionReason: doc.rejectionReason || undefined,
         profilePhoto: doc.profilePhoto || null,
-        profileImage: doc.profilePhoto ? { url: doc.profilePhoto } : null
+        profileImage: toMediaObject(doc.profilePhoto)
     }));
 
     return { requests };
@@ -4030,7 +4031,7 @@ export async function getDeliveryPartners(query) {
         status: doc.status,
         totalOrders: countsMap.get(String(doc._id)) || 0,
         profilePhoto: doc.profilePhoto || null,
-        profileImage: doc.profilePhoto ? { url: doc.profilePhoto } : null
+        profileImage: toMediaObject(doc.profilePhoto)
     }));
 
     return {
@@ -4625,28 +4626,28 @@ export async function getDeliveryPartnerById(id) {
         email: partner.email || null,
         deliveryId,
         status: partner.status === 'rejected' ? 'blocked' : partner.status,
-        profileImage: partner.profilePhoto ? { url: partner.profilePhoto } : null,
+        profileImage: toMediaObject(partner.profilePhoto),
         documents: {
             aadhar: (partner.aadharPhoto || partner.aadharFrontPhoto || partner.aadharBackPhoto || partner.aadharNumber)
                 ? { 
                     number: partner.aadharNumber || null, 
-                    document: partner.aadharFrontPhoto || partner.aadharPhoto || null,
-                    front: partner.aadharFrontPhoto || partner.aadharPhoto || null,
-                    back: partner.aadharBackPhoto || null
+                    document: normalizeMediaUrl(partner.aadharFrontPhoto || partner.aadharPhoto || null),
+                    front: normalizeMediaUrl(partner.aadharFrontPhoto || partner.aadharPhoto || null),
+                    back: normalizeMediaUrl(partner.aadharBackPhoto || null)
                   }
                 : null,
             pan: (partner.panPhoto || partner.panNumber)
-                ? { number: partner.panNumber || null, document: partner.panPhoto || null }
+                ? { number: partner.panNumber || null, document: normalizeMediaUrl(partner.panPhoto || null) }
                 : null,
             drivingLicense: (partner.drivingLicensePhoto || partner.drivingLicenseFrontPhoto || partner.drivingLicenseBackPhoto || partner.drivingLicenseNumber) 
                 ? { 
                     number: partner.drivingLicenseNumber || null,
-                    document: partner.drivingLicenseFrontPhoto || partner.drivingLicensePhoto || null,
-                    front: partner.drivingLicenseFrontPhoto || partner.drivingLicensePhoto || null,
-                    back: partner.drivingLicenseBackPhoto || null
+                    document: normalizeMediaUrl(partner.drivingLicenseFrontPhoto || partner.drivingLicensePhoto || null),
+                    front: normalizeMediaUrl(partner.drivingLicenseFrontPhoto || partner.drivingLicensePhoto || null),
+                    back: normalizeMediaUrl(partner.drivingLicenseBackPhoto || null)
                   } 
                 : null,
-            vehicleRC: partner.rcPhoto ? { document: partner.rcPhoto } : null,
+            vehicleRC: partner.rcPhoto ? { document: normalizeMediaUrl(partner.rcPhoto) } : null,
             bankDetails:
                 partner.bankAccountHolderName || partner.bankAccountNumber || partner.bankIfscCode || partner.bankName
                     ? {

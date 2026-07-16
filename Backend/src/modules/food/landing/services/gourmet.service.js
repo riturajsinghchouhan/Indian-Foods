@@ -1,5 +1,6 @@
 import { FoodGourmetRestaurant } from '../models/gourmetRestaurant.model.js';
 import { FoodRestaurant } from '../../restaurant/models/restaurant.model.js';
+import { toMediaObject } from '../../../../utils/mediaUrl.js';
 
 export const getPublicGourmetRestaurants = async () => {
     const docs = await FoodGourmetRestaurant.find({ isActive: true })
@@ -22,7 +23,7 @@ export const getPublicGourmetRestaurants = async () => {
                 name: r.restaurantName,
                 restaurantName: r.restaurantName,
                 rating: r.rating || 0,
-                profileImage: r.profileImage ? { url: r.profileImage } : null,
+                profileImage: toMediaObject(r.profileImage),
                 area: r.area,
                 city: r.city,
                 cuisines: r.cuisines || [],

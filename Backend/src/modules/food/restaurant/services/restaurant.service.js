@@ -9,6 +9,7 @@ import Promocode from '../../../../models/Promocode.js';
 import { upsertOutletTimingsForRestaurant } from './outletTimings.service.js';
 import { getDrivingDistances } from '../../../../services/googleMaps.service.js';
 import { parseQueryLimit, parseQueryPage } from '../../../../utils/helpers.js';
+import { normalizeMediaUrl, toMediaObject, toMediaArray } from '../../../../utils/mediaUrl.js';
 
 const normalizeName = (value) =>
     String(value || '')
@@ -131,12 +132,8 @@ const toRestaurantProfile = (doc) => {
             }
             : null;
 
-    const menuImages = Array.isArray(doc.menuImages)
-        ? doc.menuImages.map((m) => toUrl(m)).filter(Boolean).map((url) => ({ url, publicId: null }))
-        : [];
-    const coverImages = Array.isArray(doc.coverImages)
-        ? doc.coverImages.map((m) => toUrl(m)).filter(Boolean).map((url) => ({ url, publicId: null }))
-        : [];
+    const menuImages = toMediaArray(Array.isArray(doc.menuImages) ? doc.menuImages.map((m) => toUrl(m)).filter(Boolean) : []);
+    const coverImages = toMediaArray(Array.isArray(doc.coverImages) ? doc.coverImages.map((m) => toUrl(m)).filter(Boolean) : []);
 
     return {
         id: doc._id,
@@ -153,23 +150,23 @@ const toRestaurantProfile = (doc) => {
         primaryContactNumber: doc.primaryContactNumber || '',
         panNumber: doc.panNumber || '',
         nameOnPan: doc.nameOnPan || '',
-        panImage: doc.panImage ? { url: doc.panImage } : null,
+        panImage: toMediaObject(doc.panImage),
         gstRegistered: Boolean(doc.gstRegistered),
         gstNumber: doc.gstNumber || '',
         gstLegalName: doc.gstLegalName || '',
         gstAddress: doc.gstAddress || '',
-        gstImage: doc.gstImage ? { url: doc.gstImage } : null,
+        gstImage: toMediaObject(doc.gstImage),
         fssaiNumber: doc.fssaiNumber || '',
         fssaiExpiry: doc.fssaiExpiry || null,
-        fssaiImage: doc.fssaiImage ? { url: doc.fssaiImage } : null,
+        fssaiImage: toMediaObject(doc.fssaiImage),
         accountNumber: doc.accountNumber || '',
         ifscCode: doc.ifscCode || '',
         accountHolderName: doc.accountHolderName || '',
         accountType: doc.accountType || '',
         upiId: doc.upiId || '',
-        upiQrImage: doc.upiQrImage ? { url: doc.upiQrImage } : null,
+        upiQrImage: toMediaObject(doc.upiQrImage),
         pureVegRestaurant: Boolean(doc.pureVegRestaurant),
-        profileImage: doc.profileImage ? { url: doc.profileImage } : null,
+        profileImage: toMediaObject(doc.profileImage),
         menuImages,
         coverImages,
         openingTime: normalizeRestaurantTime(doc.openingTime) || null,
@@ -1115,7 +1112,7 @@ export const uploadRestaurantProfileImage = async (restaurantId, file) => {
         restaurantId,
         {
             $set: {
-                profileImage: url,
+                profileImage: normalizeMediaUrl(url),
                 status: 'pending'
             },
             $unset: {
@@ -1132,7 +1129,7 @@ export const uploadRestaurantProfileImage = async (restaurantId, file) => {
         void notifyAdminsAboutRestaurantProfileReview(restaurantId, currentRestaurant.restaurantName || doc.restaurantName);
     }
 
-    return { profileImage: { url } };
+    return { profileImage: toMediaObject(url) };
 };
 
 export const uploadRestaurantMenuImage = async (file) => {
@@ -1195,8 +1192,8 @@ export const uploadRestaurantCoverImages = async (restaurantId, files = []) => {
     }
 
     return {
-        coverImages: uploadedUrls.map((url) => ({ url, publicId: null })),
-        profileImage: update.profileImage ? { url: update.profileImage } : undefined
+        coverImages: toMediaArray(uploadedUrls),
+        profileImage: update.profileImage ? toMediaObject(update.profileImage) : undefined
     };
 };
 
@@ -1248,7 +1245,7 @@ export const uploadRestaurantMenuImages = async (restaurantId, files = []) => {
     }
 
     return {
-        menuImages: uploadedUrls.map((url) => ({ url, publicId: null }))
+        menuImages: toMediaArray(uploadedUrls)
     };
 };
 
@@ -1491,12 +1488,12 @@ export const listApprovedRestaurants = async (query = {}) => {
                 name: r.restaurantName || '',
                 rating: normalizeRatingValue(r.rating),
                 totalRatings: normalizeTotalRatingsValue(r.totalRatings),
-                profileImage: r.profileImage ? { url: r.profileImage } : null,
-                coverImages: Array.isArray(r.coverImages) ? r.coverImages : [],
+                profileImage: toMediaObject(r.profileImage),
+                coverImages: Array.isArray(r.coverImages) ? r.coverImages.map((img) => normalizeMediaUrl(img)).filter(Boolean) : [],
                 openingTime: r.openingTime || null,
                 closingTime: r.closingTime || null,
                 openDays: Array.isArray(r.openDays) ? r.openDays : [],
-                menuImages: Array.isArray(r.menuImages) ? r.menuImages : [],
+                menuImages: Array.isArray(r.menuImages) ? r.menuImages.map((img) => normalizeMediaUrl(img)).filter(Boolean) : [],
                 distanceInfo: drivingInfo || null,
                 distanceText: drivingInfo ? drivingInfo.distanceText : null
             };
@@ -1613,13 +1610,13 @@ export const listApprovedRestaurants = async (query = {}) => {
             name: r.restaurantName || '',
             rating: normalizeRatingValue(r.rating),
             totalRatings: normalizeTotalRatingsValue(r.totalRatings),
-            profileImage: r.profileImage ? { url: r.profileImage } : null,
-            coverImages: Array.isArray(r.coverImages) ? r.coverImages : [],
+            profileImage: toMediaObject(r.profileImage),
+            coverImages: Array.isArray(r.coverImages) ? r.coverImages.map((img) => normalizeMediaUrl(img)).filter(Boolean) : [],
             openingTime: r.openingTime || null,
             closingTime: r.closingTime || null,
             openDays: Array.isArray(r.openDays) ? r.openDays : [],
             // Keep menuImages as an array for fallbacks; allow both string and {url} on client.
-            menuImages: Array.isArray(r.menuImages) ? r.menuImages : [],
+            menuImages: Array.isArray(r.menuImages) ? r.menuImages.map((img) => normalizeMediaUrl(img)).filter(Boolean) : [],
             distanceInfo: drivingInfo || null,
             distanceText: drivingInfo ? drivingInfo.distanceText : null
         };

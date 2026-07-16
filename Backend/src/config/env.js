@@ -6,6 +6,7 @@ dotenv.config();
 export const config = {
     // Basic server config
     port: process.env.PORT || 5000,
+    publicBaseUrl: process.env.PUBLIC_BASE_URL || process.env.APP_URL || process.env.BACKEND_BASE_URL || '',
     socketPort: process.env.SOCKET_PORT || 5001,
     host: process.env.HOST || '0.0.0.0',
     nodeEnv: process.env.NODE_ENV || 'development',
@@ -96,6 +97,7 @@ export const config = {
 
 export const updateConfig = () => {
     config.port = process.env.PORT || config.port;
+    config.publicBaseUrl = process.env.PUBLIC_BASE_URL || process.env.APP_URL || process.env.BACKEND_BASE_URL || config.publicBaseUrl;
     config.socketPort = process.env.SOCKET_PORT || config.socketPort;
     config.host = process.env.HOST || config.host;
     config.nodeEnv = process.env.NODE_ENV || config.nodeEnv;
