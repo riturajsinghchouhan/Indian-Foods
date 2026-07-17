@@ -1,12 +1,15 @@
 import { useState, useMemo, useEffect } from "react"
 import { Search, Filter, Eye, Check, X, Package, ArrowUpDown, FileText, FileSpreadsheet, Loader2, Download, ExternalLink, Calendar, MapPin, CreditCard, User, Mail, Phone, Bike, FileCheck } from "lucide-react"
 import { adminAPI } from "@food/api"
+import { API_BASE_URL } from "@food/api/config"
+import { normalizeImageUrl } from "@food/utils/common"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@food/components/ui/dialog"
 import { exportJoinRequestsToExcel, exportJoinRequestsToPDF } from "@food/components/admin/deliveryman/joinRequestExportUtils"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "")
 const DocumentPreview = ({ url, label }) => {
   const [error, setError] = useState(false);
 
@@ -24,11 +27,12 @@ const DocumentPreview = ({ url, label }) => {
     );
   }
 
-  const isPdf = typeof url === 'string' && url.toLowerCase().includes('.pdf');
+  const previewUrl = normalizeImageUrl(url, BACKEND_ORIGIN);
+  const isPdf = typeof previewUrl === 'string' && previewUrl.toLowerCase().includes('.pdf');
   
   return (
     <a 
-      href={url} 
+      href={previewUrl} 
       target="_blank" 
       rel="noopener noreferrer"
       className="block mt-2 rounded-lg overflow-hidden border border-slate-200 hover:border-blue-500 transition-colors group relative bg-white cursor-pointer"
@@ -40,7 +44,7 @@ const DocumentPreview = ({ url, label }) => {
         </div>
       ) : (
         <img 
-          src={url} 
+          src={previewUrl} 
           alt={label} 
           className="w-full h-28 object-cover bg-slate-50" 
           onError={() => setError(true)}
@@ -438,7 +442,7 @@ export default function JoinRequest() {
                             >
                               {(request.profileImage?.url || request.profilePhoto) ? (
                                 <img
-                                  src={request.profileImage?.url || request.profilePhoto}
+                                  src={normalizeImageUrl(request.profileImage?.url || request.profilePhoto, BACKEND_ORIGIN)}
                                   alt={request.name}
                                   className="w-full h-full object-cover"
                                 />
