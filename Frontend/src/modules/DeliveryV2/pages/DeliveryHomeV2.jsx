@@ -67,6 +67,12 @@ function getDeliveryPartnerId() {
   return null;
 }
 
+
+function isCancelledDeliveryStatus(statusLike) {
+  const normalized = String(statusLike || '').toLowerCase();
+  return normalized.includes('cancel') || normalized === 'dead';
+}
+
 /** Minimal bottom-sheet popup (Restored from legacy FeedNavbar) */
 function BottomPopup({ isOpen, onClose, title, children }) {
   if (!isOpen) return null;
@@ -1103,9 +1109,44 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
   useEffect(() => {
     if (!orderStatusUpdate) return;
 
-    if (orderStatusUpdate.status === 'cancelled') {
-      toast.error('Order cancelled');
-      resetTrip();
+    const normalizedStatus = String(
+      orderStatusUpdate.status || orderStatusUpdate.orderStatus || '',
+    ).toLowerCase();
+    const targetOrderRef = {
+      orderMongoId:
+        orderStatusUpdate.orderMongoId || orderStatusUpdate._id || orderStatusUpdate.orderId,
+      orderId: orderStatusUpdate.orderId || orderStatusUpdate.order_id,
+      _id: orderStatusUpdate._id || orderStatusUpdate.orderMongoId || orderStatusUpdate.orderId,
+    };
+
+    if (isCancelledDeliveryStatus(normalizedStatus) || normalizedStatus === 'deleted') {
+      const isActiveTarget = activeOrder && isSameOrder(activeOrder, targetOrderRef);
+      const popupVisible = incomingOrder && isSameOrder(incomingOrder, targetOrderRef);
+      const queueHasOrder = incomingOrders.some((item) => isSameOrder(item, targetOrderRef));
+
+      setIncomingOrders((prev) => {
+        const next = removeIncomingOrderFromQueue(prev, targetOrderRef);
+        syncSelectionAfterQueueChange(next);
+        return next;
+      });
+
+      setIsModalMinimized(false);
+      setShowVerification(false);
+      setShowPhotoModal(false);
+      clearNewOrder();
+
+      if (isActiveTarget) {
+        resetTrip();
+      }
+
+      if (normalizedStatus === 'deleted') {
+        if (popupVisible || queueHasOrder || isActiveTarget) {
+          toast.error('Order was removed by admin.', { duration: 4000 });
+        }
+      } else if (popupVisible || queueHasOrder || isActiveTarget) {
+        toast.error('Order was cancelled.', { duration: 4000 });
+      }
+
       clearOrderStatusUpdate();
       return;
     }
@@ -1137,7 +1178,18 @@ export default function DeliveryHomeV2({ tab = 'feed' }) {
     }
 
     clearOrderStatusUpdate();
-  }, [orderStatusUpdate, resetTrip, clearOrderStatusUpdate, setActiveOrder, updateTripStatus]);
+  }, [
+    orderStatusUpdate,
+    activeOrder,
+    incomingOrder,
+    incomingOrders,
+    resetTrip,
+    clearNewOrder,
+    clearOrderStatusUpdate,
+    setActiveOrder,
+    syncSelectionAfterQueueChange,
+    updateTripStatus,
+  ]);
 
   // Handle auto-killed order reasoning
   useEffect(() => {

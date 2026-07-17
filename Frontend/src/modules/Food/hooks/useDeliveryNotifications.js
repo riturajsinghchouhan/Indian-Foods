@@ -989,7 +989,52 @@ export const useDeliveryNotifications = () => {
 
     socketRef.current.on('order_status_update', (statusData) => {
       debugLog('?? Delivery order status update received via socket:', statusData);
-      setOrderStatusUpdate(statusData || null);
+
+      const statusValue = String(
+        statusData?.status || statusData?.orderStatus || ''
+      ).toLowerCase();
+      const orderStatusPayload = statusData || null;
+      const affectedOrderId =
+        statusData?.orderMongoId || statusData?.orderId || statusData?._id;
+
+      if (statusValue.includes('cancel') || statusValue === 'dead') {
+        stopAlertLoop();
+        activeOrderRef.current = null;
+        setNewOrder(null);
+        if (affectedOrderId) {
+          setClaimedOrderId({
+            orderId: affectedOrderId,
+            orderMongoId: statusData?.orderMongoId || affectedOrderId,
+            claimedBy: 'cancelled',
+          });
+        }
+        setOrderStatusUpdate({
+          ...orderStatusPayload,
+          status: 'cancelled',
+          orderStatus: statusData?.orderStatus || statusData?.status || 'cancelled',
+        });
+        return;
+      }
+
+      if (statusValue === 'deleted') {
+        stopAlertLoop();
+        activeOrderRef.current = null;
+        setNewOrder(null);
+        if (affectedOrderId) {
+          setClaimedOrderId({
+            orderId: affectedOrderId,
+            orderMongoId: statusData?.orderMongoId || affectedOrderId,
+            claimedBy: 'deleted',
+          });
+        }
+        setOrderStatusUpdate({
+          ...orderStatusPayload,
+          status: 'deleted',
+        });
+        return;
+      }
+
+      setOrderStatusUpdate(orderStatusPayload);
     });
 
     socketRef.current.on('order_cancelled', (statusData) => {
