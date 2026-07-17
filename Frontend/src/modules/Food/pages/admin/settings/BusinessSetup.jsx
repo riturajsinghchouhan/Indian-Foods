@@ -2,12 +2,22 @@ import { useState, useRef, useEffect } from "react";
 import { Info, Phone, Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { adminAPI } from "@food/api";
+import { API_BASE_URL } from "@food/api/config";
+import { normalizeImageUrl } from "@food/utils/common";
 import { setCachedSettings, updateFavicon, updateTitle } from "@food/utils/businessSettings";
 import { EMAIL_REGEX } from "@/shared/utils/emailValidation";
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
 
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "");
+
+const resolveMediaPreview = (media) => {
+  if (!media) return null;
+  if (typeof media === "string") return normalizeImageUrl(media, BACKEND_ORIGIN) || null;
+  const raw = media?.url || media?.secure_url || media?.imageUrl || media?.image || media?.src || "";
+  return normalizeImageUrl(raw, BACKEND_ORIGIN) || null;
+};
 
 export default function BusinessSetup() {
   const [loading, setLoading] = useState(true);
@@ -67,15 +77,9 @@ export default function BusinessSetup() {
         });
 
         // Set logo and favicon previews if they exist
-        if (settings.logo?.url) {
-          setLogoPreview(settings.logo.url);
-        }
-        if (settings.favicon?.url) {
-          setFaviconPreview(settings.favicon.url);
-        }
-        if (settings.termsAndConditionsPdf?.url) {
-          setTermsPdfUrl(settings.termsAndConditionsPdf.url);
-        }
+        setLogoPreview(resolveMediaPreview(settings.logo));
+        setFaviconPreview(resolveMediaPreview(settings.favicon));
+        setTermsPdfUrl(resolveMediaPreview(settings.termsAndConditionsPdf));
       }
     } catch (error) {
       debugError("Error fetching business settings:", error);
@@ -210,16 +214,19 @@ export default function BusinessSetup() {
         setCachedSettings(updatedSettings);
 
         // Update previews with new URLs if files were uploaded
-        if (updatedSettings.logo?.url) {
-          setLogoPreview(updatedSettings.logo.url);
+        const nextLogoPreview = resolveMediaPreview(updatedSettings.logo);
+        if (nextLogoPreview) {
+          setLogoPreview(nextLogoPreview);
           setLogoFile(null);
         }
-        if (updatedSettings.favicon?.url) {
-          setFaviconPreview(updatedSettings.favicon.url);
+        const nextFaviconPreview = resolveMediaPreview(updatedSettings.favicon);
+        if (nextFaviconPreview) {
+          setFaviconPreview(nextFaviconPreview);
           setFaviconFile(null);
         }
-        if (updatedSettings.termsAndConditionsPdf?.url) {
-          setTermsPdfUrl(updatedSettings.termsAndConditionsPdf.url);
+        const nextTermsPdfUrl = resolveMediaPreview(updatedSettings.termsAndConditionsPdf);
+        if (nextTermsPdfUrl) {
+          setTermsPdfUrl(nextTermsPdfUrl);
           setTermsPdfFile(null);
         }
       }

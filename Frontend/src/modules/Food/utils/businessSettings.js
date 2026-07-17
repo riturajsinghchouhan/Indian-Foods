@@ -4,10 +4,19 @@
  */
 
 import apiClient from "@food/api/axios";
-import { API_ENDPOINTS } from "@food/api/config";
+import { API_ENDPOINTS, API_BASE_URL } from "@food/api/config";
 import { publicGetOnce } from "@food/api";
+import { normalizeImageUrl } from "@food/utils/common";
 
 const SETTINGS_KEY = 'food_business_settings';
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "");
+
+const resolveMediaUrl = (media) => {
+  if (!media) return "";
+  if (typeof media === "string") return normalizeImageUrl(media, BACKEND_ORIGIN) || "";
+  const raw = media?.url || media?.secure_url || media?.imageUrl || media?.image || media?.src || "";
+  return normalizeImageUrl(raw, BACKEND_ORIGIN) || "";
+};
 
 // Initialize from localStorage immediately so it's available for components on mount
 let cachedSettings = (() => {
@@ -22,7 +31,7 @@ let cachedSettings = (() => {
 // Apply cached settings immediately on module load if they exist
 if (cachedSettings) {
   setTimeout(() => {
-    updateFavicon(cachedSettings.favicon?.url);
+    updateFavicon(cachedSettings.favicon);
     updateTitle(cachedSettings.companyName);
   }, 0);
 }
@@ -57,7 +66,7 @@ export const loadBusinessSettings = async () => {
           localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
         } catch (e) {}
         
-        updateFavicon(settings.favicon?.url);
+        updateFavicon(settings.favicon);
         updateTitle(settings.companyName);
         return settings;
       }
@@ -76,21 +85,34 @@ export const loadBusinessSettings = async () => {
 /**
  * Update favicon in document
  */
-export const updateFavicon = (url) => {
-  if (!url || typeof document === 'undefined') return;
+export const updateFavicon = (favicon) => {
+  if (typeof document === 'undefined') return;
+  const url = resolveMediaUrl(favicon);
+  if (!url) return;
+
+  const iconType = url.endsWith(".svg")
+    ? "image/svg+xml"
+    : url.endsWith(".ico")
+      ? "image/x-icon"
+      : "image/png";
 
   // Remove existing favicons
   const existingFavicons = document.querySelectorAll("link[rel*='icon']");
   existingFavicons.forEach(el => el.remove());
 
-  // Add new favicon
-  const link = document.createElement("link");
-  link.rel = "icon";
-  link.type = "image/png";
-  link.href = url;
-  // Prevent third-party cookie warning (Cloudinary)
-  link.crossOrigin = "anonymous";
-  document.head.appendChild(link);
+  [
+    { rel: "icon", sizes: "32x32" },
+    { rel: "shortcut icon" },
+    { rel: "apple-touch-icon", sizes: "180x180" },
+  ].forEach(({ rel, sizes }) => {
+    const link = document.createElement("link");
+    link.rel = rel;
+    link.type = iconType;
+    link.href = url;
+    if (sizes) link.sizes = sizes;
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+  });
 };
 
 /**
@@ -112,7 +134,7 @@ export const setCachedSettings = (settings) => {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (e) {}
     
-    updateFavicon(settings.favicon?.url);
+    updateFavicon(settings.favicon);
     updateTitle(settings.companyName);
   }
 };
