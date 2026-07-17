@@ -625,9 +625,9 @@ export default function JoinRequest() {
                 {/* Profile Image & Basic Info */}
                 <div className="flex items-start gap-6 pb-6 border-b border-slate-200">
                   <div className="flex-shrink-0">
-                    {viewDetails.profileImage?.url ? (
+                    {(viewDetails.profileImage?.url || viewDetails.profilePhoto) ? (
                       <img 
-                        src={viewDetails.profileImage.url} 
+                        src={normalizeImageUrl(viewDetails.profileImage?.url || viewDetails.profilePhoto, BACKEND_ORIGIN)} 
                         alt={viewDetails.name}
                         className="w-24 h-24 rounded-full object-cover border-2 border-slate-200"
                       />
