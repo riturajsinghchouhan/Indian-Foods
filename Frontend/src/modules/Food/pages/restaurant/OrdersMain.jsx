@@ -1239,6 +1239,7 @@ export default function OrdersMain() {
     onboarding: null,
     isLoading: true,
   });
+  const [ordersRefreshToken, setOrdersRefreshToken] = useState(0);
   const [isReverifying, setIsReverifying] = useState(false);
   const audioUnlockedRef = useRef(false);
   const showNewOrderPopupRef = useRef(showNewOrderPopup);
@@ -1268,8 +1269,21 @@ export default function OrdersMain() {
 
   // Pending counts for tabs
   const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
-  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+  const [orderFilterCounts, setOrderFilterCounts] = useState({});
   const [pendingDiningRequest, setPendingDiningRequest] = useState(null);
+
+  const { meta: preparingOrdersMeta } = usePaginatedRestaurantOrders({
+    status: RESTAURANT_ORDER_TAB_STATUS.preparing,
+    refreshToken: ordersRefreshToken,
+    enablePoll: true,
+    pollMs: 15000,
+  });
+  const { meta: readyOrdersMeta } = usePaginatedRestaurantOrders({
+    status: RESTAURANT_ORDER_TAB_STATUS.ready,
+    refreshToken: ordersRefreshToken,
+    enablePoll: true,
+    pollMs: 15000,
+  });
 
   // Fetch pending counts and settings
   useEffect(() => {
@@ -1307,17 +1321,71 @@ export default function OrdersMain() {
           }
         }
 
-        // 3. Fetch pending orders
-        const ordersRes = await restaurantAPI.getOrders({ page: 1, limit: 100 });
-        if (ordersRes.data.success) {
-          const orders = Array.isArray(ordersRes.data.data?.orders) ? ordersRes.data.data.orders : [];
-          const pending = orders.filter(o => 
-            String(o.status).toLowerCase() === 'pending' || 
-            String(o.status).toLowerCase() === 'created' ||
-            String(o.status).toLowerCase() === 'confirmed'
-          ).length;
-          setPendingOrdersCount(pending);
-        }
+        // 3. Fetch a normalized order list once and derive tab counts locally.
+        const ordersRes = await restaurantAPI.getOrders({ page: 1, limit: 200, status: "all" });
+        const orders = Array.isArray(ordersRes?.data?.data?.orders)
+          ? ordersRes.data.data.orders
+          : [];
+
+        const nextOrderFilterCounts = {
+          new: 0,
+          preparing: 0,
+          ready: 0,
+          "out-for-delivery": 0,
+          scheduled: 0,
+          completed: 0,
+          cancelled: 0,
+          dead: 0,
+          all: orders.length,
+        };
+
+        orders.forEach((order) => {
+          const rawStatus = String(order?.status || order?.orderStatus || "")
+            .toLowerCase()
+            .trim();
+          const hasScheduledTime = Boolean(order?.scheduledAt);
+
+          if (hasScheduledTime && ["created", "confirmed", "pending"].includes(rawStatus)) {
+            nextOrderFilterCounts.scheduled += 1;
+            return;
+          }
+
+          if (["pending", "created", "confirmed", "new"].includes(rawStatus)) {
+            nextOrderFilterCounts.new += 1;
+            return;
+          }
+
+          if (rawStatus === "preparing") {
+            nextOrderFilterCounts.preparing += 1;
+            return;
+          }
+
+          if (["ready", "ready_for_pickup"].includes(rawStatus)) {
+            nextOrderFilterCounts.ready += 1;
+            return;
+          }
+
+          if (["out_for_delivery", "picked_up"].includes(rawStatus)) {
+            nextOrderFilterCounts["out-for-delivery"] += 1;
+            return;
+          }
+
+          if (["delivered", "completed"].includes(rawStatus)) {
+            nextOrderFilterCounts.completed += 1;
+            return;
+          }
+
+          if (rawStatus.includes("cancel")) {
+            nextOrderFilterCounts.cancelled += 1;
+            return;
+          }
+
+          if (rawStatus === "dead") {
+            nextOrderFilterCounts.dead += 1;
+          }
+        });
+
+        setOrderFilterCounts(nextOrderFilterCounts);
       } catch (error) {
         // Non-blocking
       }
@@ -1757,7 +1825,6 @@ export default function OrdersMain() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
-  const [ordersRefreshToken, setOrdersRefreshToken] = useState(0);
   const requestOrdersRefresh = () => setOrdersRefreshToken((t) => t + 1);
 
   // Check for confirmed orders that haven't been shown in popup yet, or scheduled orders whose time has come
@@ -2582,6 +2649,15 @@ export default function OrdersMain() {
           `}</style>
           {filterTabs.map((tab, index) => {
             const isActive = activeFilter === tab.id;
+            const orderCount = Number(
+              tab.id === "preparing"
+                ? preparingOrdersMeta?.total ?? orderFilterCounts?.[tab.id] ?? 0
+                : tab.id === "ready"
+                  ? readyOrdersMeta?.total ?? orderFilterCounts?.[tab.id] ?? 0
+                  : orderFilterCounts?.[tab.id] ?? 0,
+            );
+            const showOrderCount = orderCount > 0;
+            const showAttentionDot = ["new", "preparing", "ready"].includes(tab.id) && showOrderCount;
 
             return (
               <motion.button
@@ -2621,19 +2697,24 @@ export default function OrdersMain() {
                 <div className="flex items-center gap-2 relative z-10">
                   <span className="flex items-center gap-1.5">
                     {tab.label}
-                    {tab.id === 'table-booking' && pendingBookingsCount > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-black animate-bounce">
-                        {pendingBookingsCount}
-                      </span>
-                    )}
-                    {tab.id === 'all' && pendingOrdersCount > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black">
-                        {pendingOrdersCount}
+                    {showOrderCount && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-black transition-all duration-300 ${
+                          tab.id === "ready"
+                            ? isActive
+                              ? "bg-emerald-100 text-emerald-700 ring-2 ring-white/70 shadow-[0_0_14px_rgba(16,185,129,0.55)] animate-pulse"
+                              : "bg-emerald-100 text-emerald-700 ring-2 ring-emerald-300 shadow-[0_0_14px_rgba(16,185,129,0.45)] animate-pulse"
+                            : tab.id === "new"
+                              ? "bg-red-100 text-red-600 animate-bounce"
+                              : isActive
+                                ? "bg-white/20 text-white"
+                                : "bg-amber-100 text-amber-700"
+                        }`}>
+                        {orderCount}
                       </span>
                     )}
                   </span>
-                  {((tab.id === 'table-booking' && pendingBookingsCount > 0) || 
-                    (tab.id === 'all' && pendingOrdersCount > 0)) && (
+                  {showAttentionDot && (
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
                   )}
                 </div>
