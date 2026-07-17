@@ -182,23 +182,24 @@
   }
 }
 
-/* Orders page — 2–3 column card grid on desktop */
+/* Orders page ??? structured single-column list on desktop */
 @media (min-width: 1024px) {
   .restaurant-bento-grid--orders {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.875rem;
   }
 
   .restaurant-bento-grid--orders > * {
     margin-bottom: 0 !important;
     height: 100%;
   }
-}
 
-@media (min-width: 1280px) {
-  .restaurant-bento-grid--orders {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1.5rem;
+  .restaurant-order-list-card {
+    border-radius: 1.25rem;
+  }
+
+  .restaurant-order-list-card:hover {
+    transform: translateY(-1px);
   }
 }
 

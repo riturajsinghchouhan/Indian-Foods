@@ -3728,38 +3728,41 @@ function OrderCard({
   }
 
   return (
-    <div className="restaurant-bento-card w-full p-3 mb-3 lg:mb-0 h-full relative overflow-hidden active:bg-slate-50 transition-colors lg:p-4">
-      <div 
-        className="absolute top-0 left-0 w-1 h-full" 
+    <div className="restaurant-bento-card restaurant-order-list-card w-full p-3 mb-3 lg:mb-0 h-full relative overflow-hidden active:bg-slate-50 transition-colors lg:p-4">
+      <div
+        className="absolute top-0 left-0 w-1 h-full"
         style={{ backgroundColor: brandColor }}
       />
-      
+
       <div
         onClick={() => onSelect?.({ orderId, mongoId, status, customerName, type, tableOrToken, timePlaced, eta, itemsSummary, paymentMethod, scheduledAt, restaurantNote, pickupOtp, deliveryPartnerId, dispatchStatus, cancellationReason, rejectionReason })}
-        className="flex gap-3 items-start cursor-pointer pl-1 lg:gap-4">
-        
-        {/* Photo Container - Smaller for mobile */}
-        <div className="h-14 w-14 rounded-lg overflow-hidden bg-slate-50 flex-shrink-0 border border-slate-100 mt-0.5 lg:h-20 lg:w-20 lg:rounded-xl">
+        className="flex gap-3 items-start cursor-pointer pl-1 lg:grid lg:grid-cols-[88px_minmax(0,1.6fr)_minmax(220px,0.95fr)_auto] lg:items-center lg:gap-5 lg:pl-2"
+      >
+        <div className="h-14 w-14 rounded-lg overflow-hidden bg-slate-50 flex-shrink-0 border border-slate-100 mt-0.5 lg:h-[88px] lg:w-[88px] lg:rounded-2xl lg:mt-0">
           {photoUrl ? (
             <img src={photoUrl} alt={photoAlt} className="h-full w-full object-cover" />
           ) : (
             <div className="h-full w-full flex items-center justify-center p-1 bg-slate-50">
-              <span className="text-[8px] font-bold text-slate-300 text-center leading-none uppercase">
+              <span className="text-[8px] font-bold text-slate-300 text-center leading-none uppercase lg:text-[10px]">
                 {photoAlt}
               </span>
             </div>
           )}
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 min-w-0 flex flex-col lg:min-h-[88px]">
-          {/* Top Row: ID & Status Badge */}
-          <div className="flex items-center justify-between gap-2 mb-1 lg:mb-2">
-            <h3 className="text-[13px] font-black text-slate-900 truncate lg:text-[15px]">
-              #<span style={{ color: brandColor }}>{orderId}</span>
-            </h3>
-            
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex-1 min-w-0 flex flex-col lg:min-h-[88px] lg:justify-center">
+          <div className="flex items-center justify-between gap-2 mb-1 lg:mb-1.5">
+            <div className="min-w-0">
+              <h3 className="text-[13px] font-black text-slate-900 truncate lg:text-[17px]">
+                #<span style={{ color: brandColor }}>{orderId}</span>
+              </h3>
+              <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase tracking-tight mt-1 lg:text-[10px] lg:justify-start lg:gap-3">
+                <span className="truncate max-w-[60%] lg:max-w-none">{customerName}</span>
+                <span className="whitespace-nowrap">{type}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0 lg:hidden">
               {scheduledAt && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100 text-[8px] font-black uppercase">
                   <Calendar className="w-2 h-2" />
@@ -3767,128 +3770,138 @@ function OrderCard({
                 </span>
               )}
               <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-black border uppercase tracking-wider ${
-                isReady ? "bg-emerald-50 text-emerald-600 border-emerald-100" : 
-                normalizedStatus === "confirmed" ? "bg-amber-50 text-amber-600 border-amber-100" : 
+                isReady ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                normalizedStatus === "confirmed" ? "bg-amber-50 text-amber-600 border-amber-100" :
                 "bg-slate-50 text-slate-500 border-slate-100"
               }`}>
                 {statusLabel}
               </span>
-              
-              {/* {isPreparing && onCancel && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCancel({ orderId, mongoId, customerName });
-                  }}
-                  className="p-1 rounded-full bg-rose-50 text-rose-500"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )} */}
             </div>
           </div>
 
-          {/* Customer & Type */}
-          <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase tracking-tight mb-1 lg:mb-2 lg:text-[10px]">
-            <span className="truncate max-w-[60%]">{customerName}</span>
-            <span className="whitespace-nowrap">{type}</span>
-          </div>
-
-          {/* Items Summary - One line only */}
-          <p className="text-[10px] text-slate-600 font-bold truncate italic mb-1 lg:mb-2 lg:text-[11px]">
+          <p className="text-[10px] text-slate-600 font-bold truncate italic mb-1 lg:mb-1.5 lg:text-[12px] lg:not-italic">
             {itemsSummary}
           </p>
 
           {restaurantNote && (
-            <div className="mb-2 px-2 py-1 bg-blue-50 border border-blue-100 rounded-md">
-              <p className="text-[9px] text-blue-700 font-bold line-clamp-1 italic">
+            <div className="mb-2 px-2 py-1 bg-blue-50 border border-blue-100 rounded-md lg:mb-0 lg:max-w-[440px]">
+              <p className="text-[9px] text-blue-700 font-bold line-clamp-1 italic lg:text-[10px]">
                 Note: {restaurantNote}
               </p>
             </div>
           )}
+        </div>
 
-          {/* Pickup OTP Display on Card */}
+        <div className="flex flex-col gap-2 w-full lg:w-auto lg:min-w-[220px] lg:justify-center">
+          <div className="hidden lg:flex lg:flex-wrap lg:items-center lg:gap-2">
+            {scheduledAt && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 text-green-600 border border-green-100 text-[10px] font-black uppercase">
+                <Calendar className="w-3 h-3" />
+                Scheduled
+              </span>
+            )}
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-black border uppercase tracking-wider ${
+              isReady ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+              normalizedStatus === "confirmed" ? "bg-amber-50 text-amber-600 border-amber-100" :
+              "bg-slate-50 text-slate-500 border-slate-100"
+            }`}>
+              {statusLabel}
+            </span>
+            {deliveryPartnerId ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black uppercase text-emerald-700 border border-emerald-100">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                Rider Assigned
+              </span>
+            ) : isPreparing ? (
+              <span className="inline-flex items-center rounded-full bg-slate-50 px-2 py-1 text-[10px] font-black uppercase text-slate-500 border border-slate-100">
+                No Rider
+              </span>
+            ) : null}
+          </div>
+
           {pickupOtp ? (
-            <div className="mb-2 px-2 py-1.5 bg-emerald-50 border border-emerald-100 rounded flex justify-between items-center" onClick={(e) => e.stopPropagation()}>
+            <div className="px-2 py-1.5 bg-emerald-50 border border-emerald-100 rounded flex justify-between items-center" onClick={(e) => e.stopPropagation()}>
               <span className="text-[9px] font-bold text-emerald-700 uppercase">Pickup OTP</span>
               <span className="text-[13px] font-black text-emerald-800 tracking-[0.2em]">{pickupOtp}</span>
             </div>
           ) : (isReady || isPreparing || normalizedStatus === "confirmed") && type === "Home Delivery" ? (
-            <div className="mb-2 px-2 py-1 bg-gray-50 border border-gray-100 rounded flex justify-center items-center">
-              <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wider text-center">OTP shown upon rider arrival</span>
+            <div className="px-2 py-1 bg-gray-50 border border-gray-100 rounded flex justify-center items-center lg:justify-start">
+              <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wider text-center lg:text-left">OTP shown upon rider arrival</span>
             </div>
           ) : null}
 
-          {/* Bottom Actions Row - Clean Grid/Flex */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-50 mt-auto lg:pt-3">
-              {scheduledAt ? (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[8px] font-bold text-green-600 uppercase">Scheduled For</span>
-                  <span className="text-[10px] font-black text-green-700">
-                    {new Date(scheduledAt).toLocaleString("en-US", {
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-0.5">
-                  {!isReady && eta && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[8px] font-bold text-slate-400 uppercase">ETA</span>
-                      <span className="text-[11px] font-black text-slate-800">{eta}</span>
-                    </div>
-                  )}
-                  <span className="text-[7px] text-slate-300 font-bold uppercase">{timePlaced}</span>
-                </div>
-              )}
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-50 lg:border-t-0 lg:pt-0">
+            {scheduledAt ? (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[8px] font-bold text-green-600 uppercase">Scheduled For</span>
+                <span className="text-[10px] font-black text-green-700 lg:text-[11px]">
+                  {new Date(scheduledAt).toLocaleString("en-US", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-0.5 lg:gap-1">
+                {!isReady && eta && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] font-bold text-slate-400 uppercase">ETA</span>
+                    <span className="text-[11px] font-black text-slate-800 lg:text-[13px]">{eta}</span>
+                  </div>
+                )}
+                <span className="text-[7px] text-slate-300 font-bold uppercase lg:text-[9px] lg:text-slate-400">{timePlaced}</span>
+              </div>
+            )}
 
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              {(isPreparing || isReady || normalizedStatus === "confirmed") && (
-                <>
-                  {deliveryPartnerId && (
-                    <div className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600" title="Driver Assigned">
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                  )}
-                  
-                  {!deliveryPartnerId && isPreparing && (
-                    <div className="px-1.5 py-0.5 rounded bg-slate-50 text-slate-400 text-[7px] font-black border border-slate-100 uppercase tracking-tighter">
-                      No Rider
-                    </div>
-                  )}
-
-                  {dispatchStatus !== "accepted" && (
-                    <ResendNotificationButton
-                      orderId={orderId}
-                      mongoId={mongoId}
-                      onSuccess={onSelect}
-                    />
-                  )}
-                </>
-              )}
-
-              {isPreparing && onMarkReady && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMarkReady({ orderId, mongoId, customerName });
-                  }}
-                  disabled={isMarkingReady}
-                  className="px-3 py-1.5 rounded-lg text-[9px] font-black text-white shadow-sm transition-transform active:scale-95 disabled:opacity-50"
-                  style={{ backgroundColor: brandColor }}>
-                  {isMarkingReady ? "..." : "MARK READY"}
-                </button>
+            <div className="flex items-center gap-1.5 flex-shrink-0 lg:hidden">
+              {(isPreparing || isReady || normalizedStatus === "confirmed") && dispatchStatus !== "accepted" && (
+                <ResendNotificationButton
+                  orderId={orderId}
+                  mongoId={mongoId}
+                  onSuccess={onSelect}
+                />
               )}
             </div>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0 w-full justify-end lg:w-auto lg:min-w-[168px] lg:justify-end">
+          {(isPreparing || isReady || normalizedStatus === "confirmed") && (
+            <>
+              {deliveryPartnerId && (
+                <div className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 lg:hidden" title="Driver Assigned">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              )}
+
+              {dispatchStatus !== "accepted" && (
+                <ResendNotificationButton
+                  orderId={orderId}
+                  mongoId={mongoId}
+                  onSuccess={onSelect}
+                />
+              )}
+            </>
+          )}
+
+          {isPreparing && onMarkReady && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkReady({ orderId, mongoId, customerName });
+              }}
+              disabled={isMarkingReady}
+              className="px-3 py-1.5 rounded-lg text-[9px] font-black text-white shadow-sm transition-transform active:scale-95 disabled:opacity-50 lg:min-w-[112px] lg:px-4 lg:py-2 lg:text-[11px]"
+              style={{ backgroundColor: brandColor }}>
+              {isMarkingReady ? "..." : "MARK READY"}
+            </button>
+          )}
         </div>
       </div>
     </div>
