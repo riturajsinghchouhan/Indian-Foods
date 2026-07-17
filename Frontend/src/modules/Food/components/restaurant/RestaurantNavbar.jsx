@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom"
 import { Search, Menu, ChevronRight, MapPin, X, Bell, HelpCircle } from "lucide-react"
 import { restaurantAPI } from "@food/api"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
+import { API_BASE_URL } from "@food/api/config"
+import { normalizeImageUrl } from "@food/utils/common"
 import useNotificationInbox from "@food/hooks/useNotificationInbox"
 import { useRestaurantNotifications } from "@food/hooks/useRestaurantNotifications"
 import { Utensils } from "lucide-react"
@@ -10,6 +12,14 @@ import { Utensils } from "lucide-react"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
+
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "")
+const resolveRestaurantLogo = (media) => {
+  if (!media) return null
+  if (typeof media === "string") return normalizeImageUrl(media, BACKEND_ORIGIN) || null
+  const raw = media?.url || media?.secure_url || media?.imageUrl || media?.image || media?.src || ""
+  return normalizeImageUrl(raw, BACKEND_ORIGIN) || null
+}
 
 const extractRestaurantPayload = (response) =>
   response?.data?.data?.restaurant ||
@@ -105,12 +115,12 @@ export default function RestaurantNavbar({
       const cached = getCachedSettings()
       if (cached) {
         if (cached.companyName) setCompanyName(cached.companyName)
-        if (cached.logo?.url) setLogoUrl(cached.logo.url)
+        if (cached.logo) setLogoUrl(resolveRestaurantLogo(cached.logo))
       } else {
         const settings = await loadBusinessSettings()
         if (settings) {
           if (settings.companyName) setCompanyName(settings.companyName)
-          if (settings.logo?.url) setLogoUrl(settings.logo.url)
+          if (settings.logo) setLogoUrl(resolveRestaurantLogo(settings.logo))
         }
       }
     }
@@ -120,7 +130,7 @@ export default function RestaurantNavbar({
       const cached = getCachedSettings()
       if (cached) {
         if (cached.companyName) setCompanyName(cached.companyName)
-        if (cached.logo?.url) setLogoUrl(cached.logo.url)
+        if (cached.logo) setLogoUrl(resolveRestaurantLogo(cached.logo))
       }
     }
     window.addEventListener('businessSettingsUpdated', handleSettingsUpdate)

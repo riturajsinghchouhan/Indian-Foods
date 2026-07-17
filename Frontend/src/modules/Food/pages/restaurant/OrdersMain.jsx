@@ -3728,7 +3728,7 @@ function OrderCard({
   }
 
   return (
-    <div className="restaurant-bento-card w-full p-3 mb-3 lg:mb-0 h-full relative overflow-hidden active:bg-slate-50 transition-colors">
+    <div className="restaurant-bento-card w-full p-3 mb-3 lg:mb-0 h-full relative overflow-hidden active:bg-slate-50 transition-colors lg:p-4">
       <div 
         className="absolute top-0 left-0 w-1 h-full" 
         style={{ backgroundColor: brandColor }}
@@ -3736,10 +3736,10 @@ function OrderCard({
       
       <div
         onClick={() => onSelect?.({ orderId, mongoId, status, customerName, type, tableOrToken, timePlaced, eta, itemsSummary, paymentMethod, scheduledAt, restaurantNote, pickupOtp, deliveryPartnerId, dispatchStatus, cancellationReason, rejectionReason })}
-        className="flex gap-3 items-start cursor-pointer pl-1">
+        className="flex gap-3 items-start cursor-pointer pl-1 lg:gap-4">
         
         {/* Photo Container - Smaller for mobile */}
-        <div className="h-14 w-14 rounded-lg overflow-hidden bg-slate-50 flex-shrink-0 border border-slate-100 mt-0.5">
+        <div className="h-14 w-14 rounded-lg overflow-hidden bg-slate-50 flex-shrink-0 border border-slate-100 mt-0.5 lg:h-20 lg:w-20 lg:rounded-xl">
           {photoUrl ? (
             <img src={photoUrl} alt={photoAlt} className="h-full w-full object-cover" />
           ) : (
@@ -3752,10 +3752,10 @@ function OrderCard({
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex-1 min-w-0 flex flex-col lg:min-h-[88px]">
           {/* Top Row: ID & Status Badge */}
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <h3 className="text-[13px] font-black text-slate-900 truncate">
+          <div className="flex items-center justify-between gap-2 mb-1 lg:mb-2">
+            <h3 className="text-[13px] font-black text-slate-900 truncate lg:text-[15px]">
               #<span style={{ color: brandColor }}>{orderId}</span>
             </h3>
             
@@ -3790,13 +3790,13 @@ function OrderCard({
           </div>
 
           {/* Customer & Type */}
-          <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase tracking-tight mb-1">
+          <div className="flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase tracking-tight mb-1 lg:mb-2 lg:text-[10px]">
             <span className="truncate max-w-[60%]">{customerName}</span>
             <span className="whitespace-nowrap">{type}</span>
           </div>
 
           {/* Items Summary - One line only */}
-          <p className="text-[10px] text-slate-600 font-bold truncate italic mb-1">
+          <p className="text-[10px] text-slate-600 font-bold truncate italic mb-1 lg:mb-2 lg:text-[11px]">
             {itemsSummary}
           </p>
 
@@ -3821,7 +3821,7 @@ function OrderCard({
           ) : null}
 
           {/* Bottom Actions Row - Clean Grid/Flex */}
-          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-50 mt-auto">
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-50 mt-auto lg:pt-3">
               {scheduledAt ? (
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[8px] font-bold text-green-600 uppercase">Scheduled For</span>

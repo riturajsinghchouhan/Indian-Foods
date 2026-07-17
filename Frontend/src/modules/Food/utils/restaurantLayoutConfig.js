@@ -53,8 +53,8 @@ export const RESTAURANT_SIDEBAR_SECTIONS = [
       { label: "Outlet timings", route: `${BASE}/outlet-timings` },
       { label: "Menu categories", route: `${BASE}/menu-categories` },
       { label: "Promo codes", route: `${BASE}/promocodes` },
-      { label: "Delivery settings", route: `${BASE}/delivery-settings` },
       { label: "Zone setup", route: `${BASE}/zone-setup` },
+      { label: "Outlet status", route: `${BASE}/delivery-settings` },
     ],
   },
   {

@@ -11,6 +11,8 @@ import {
 import { cn } from "@food/utils/utils"
 import { RESTAURANT_SIDEBAR_SECTIONS } from "@food/utils/restaurantLayoutConfig"
 import { getCachedSettings, loadBusinessSettings } from "@food/utils/businessSettings"
+import { API_BASE_URL } from "@food/api/config"
+import { normalizeImageUrl } from "@food/utils/common"
 import { useState, useEffect } from "react"
 
 const ICON_MAP = {
@@ -18,6 +20,14 @@ const ICON_MAP = {
   orders: FileText,
   inventory: Package,
   feedback: MessageSquare,
+}
+
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "")
+const resolveRestaurantLogo = (media) => {
+  if (!media) return null
+  if (typeof media === "string") return normalizeImageUrl(media, BACKEND_ORIGIN) || null
+  const raw = media?.url || media?.secure_url || media?.imageUrl || media?.image || media?.src || ""
+  return normalizeImageUrl(raw, BACKEND_ORIGIN) || null
 }
 
 export default function RestaurantSidebar({
@@ -33,7 +43,7 @@ export default function RestaurantSidebar({
   useEffect(() => {
     const apply = (settings) => {
       if (settings?.companyName) setCompanyName(settings.companyName)
-      if (settings?.logo?.url) setLogoUrl(settings.logo.url)
+      if (settings?.logo) setLogoUrl(resolveRestaurantLogo(settings.logo))
     }
     const cached = getCachedSettings()
     if (cached) apply(cached)
