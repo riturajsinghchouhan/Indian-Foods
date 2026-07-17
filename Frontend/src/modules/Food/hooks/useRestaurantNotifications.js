@@ -18,6 +18,23 @@ const resolveAudioSource = (source) => {
 const supportsBrowserNotifications = () =>
   typeof window !== 'undefined' && typeof Notification !== 'undefined';
 
+const isRestaurantOrderSoundAllowed = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+
+  const userAgent = navigator.userAgent || '';
+  const isWebView =
+    Boolean(window.ReactNativeWebView) ||
+    Boolean(window.flutter_inappwebview) ||
+    /\bwv\b|WebView/i.test(userAgent);
+
+  if (isWebView) return true;
+
+  const isMobileUserAgent = /Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini|Windows Phone/i.test(userAgent);
+  const isSmallViewport = window.matchMedia?.('(max-width: 768px)')?.matches;
+
+  return !(isMobileUserAgent || isSmallViewport);
+};
+
 const buildRestaurantOrderNotification = (orderData = {}) => {
   const orderId = orderData.orderId || orderData.orderMongoId || 'New';
   const itemCount = Array.isArray(orderData.items) ? orderData.items.length : 0;
@@ -857,6 +874,21 @@ export const useRestaurantNotifications = () => {
       userInteractedRef.current = true;
       audioUnlockAttemptedRef.current = true;
 
+      try {
+        if (audioRef.current) {
+          audioRef.current.muted = true;
+          audioRef.current.volume = 0;
+          audioRef.current.currentTime = 0;
+          await audioRef.current.play();
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          audioRef.current.muted = false;
+          audioRef.current.volume = 1;
+        }
+      } catch (error) {
+        debugWarn('Restaurant audio unlock failed:', error);
+      }
+
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('touchstart', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
@@ -877,10 +909,12 @@ export const useRestaurantNotifications = () => {
   }, []);
 
   const playNotificationSound = async (orderData = {}) => {
+    if (!isRestaurantOrderSoundAllowed()) {
+      return;
+    }
+
     try {
-      // Temporarily disabled native bridge sound trigger
-      // const usedNativeBridge = await triggerWebViewNativeNotification(orderData);
-      const usedNativeBridge = false;
+      const usedNativeBridge = await triggerWebViewNativeNotification(orderData);
       if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
         try {
           if (navigator.userActivation && !navigator.userActivation.hasBeenActive) {

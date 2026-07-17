@@ -44,6 +44,28 @@ const debugError = (...args) => {};
 
 const STORAGE_KEY = "restaurant_online_status";
 
+const isOrderPopupSoundControlAllowed = () => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return false;
+  }
+
+  const userAgent = navigator.userAgent || "";
+  const isWebView =
+    Boolean(window.ReactNativeWebView) ||
+    Boolean(window.flutter_inappwebview) ||
+    /\bwv\b|WebView/i.test(userAgent);
+
+  if (isWebView) return true;
+
+  const isMobileUserAgent =
+    /Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini|Windows Phone/i.test(
+      userAgent,
+    );
+  const isSmallViewport = window.matchMedia?.("(max-width: 768px)")?.matches;
+
+  return !(isMobileUserAgent || isSmallViewport);
+};
+
 // Top filter tabs
 const filterTabs = [
   { id: "new", label: "New" },
@@ -1192,7 +1214,7 @@ export default function OrdersMain() {
   // New order popup states
   const [showNewOrderPopup, setShowNewOrderPopup] = useState(false);
   const [popupOrder, setPopupOrder] = useState(null); // Store order for popup (from Socket.IO or API)
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(() => !isOrderPopupSoundControlAllowed());
   const [prepTime, setPrepTime] = useState(11);
   const [countdown, setCountdown] = useState(180); // 3 minutes in seconds
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
@@ -1203,6 +1225,9 @@ export default function OrdersMain() {
   const [orderToCancel, setOrderToCancel] = useState(null);
   const [acceptSwipeProgress, setAcceptSwipeProgress] = useState(0);
   const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
+  const [showSoundControl, setShowSoundControl] = useState(() =>
+    isOrderPopupSoundControlAllowed(),
+  );
   const audioRef = useRef(null);
   const shownOrdersRef = useRef(new Set()); // Track orders already shown in popup
   const acceptSliderRef = useRef(null);
@@ -1220,6 +1245,21 @@ export default function OrdersMain() {
   useEffect(() => {
     showNewOrderPopupRef.current = showNewOrderPopup;
   }, [showNewOrderPopup]);
+
+  useEffect(() => {
+    setShowSoundControl(isOrderPopupSoundControlAllowed());
+
+    const handleViewportChange = () => {
+      setShowSoundControl(isOrderPopupSoundControlAllowed());
+    };
+
+    window.addEventListener("resize", handleViewportChange);
+
+    return () => {
+      window.removeEventListener("resize", handleViewportChange);
+    };
+  }, []);
+
   const isMutedRef = useRef(isMuted);
   const newOrderRef = useRef(null);
   // Refs to always have latest popup order & dismiss helper available in event listeners
@@ -2842,6 +2882,23 @@ export default function OrdersMain() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {showSoundControl && (
+                      <button
+                        onClick={toggleMute}
+                        className={`p-2 rounded-lg transition-colors ${
+                          isMuted
+                            ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                            : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        }`}
+                        aria-label={isMuted ? "Enable order sound" : "Mute order sound"}
+                        title={isMuted ? "Enable order sound" : "Mute order sound"}>
+                        {isMuted ? (
+                          <VolumeX className="w-5 h-5" />
+                        ) : (
+                          <Volume2 className="w-5 h-5" />
+                        )}
+                      </button>
+                    )}
                     <button
                       onClick={handlePrint}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"

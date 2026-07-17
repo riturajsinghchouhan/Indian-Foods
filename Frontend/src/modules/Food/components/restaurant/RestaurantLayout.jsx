@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom"
 import RestaurantNavbar from "./RestaurantNavbar"
 import RestaurantSidebar from "./RestaurantSidebar"
 import BottomNavOrders from "./BottomNavOrders"
+import GlobalRestaurantOrderNotification from "./GlobalRestaurantOrderNotification"
 import { RestaurantLayoutProvider, useRestaurantLayout } from "./RestaurantLayoutContext"
 import { RestaurantNotificationProvider } from "@food/context/RestaurantNotificationContext"
 import { getRestaurantLayoutOptions, getRestaurantHeaderOptions } from "@food/utils/restaurantLayoutConfig"
@@ -130,6 +131,8 @@ function RestaurantLayoutShell({
             <Outlet />
           </div>
         </main>
+
+        <GlobalRestaurantOrderNotification />
 
         {showBottomNav && <BottomNavOrders />}
       </div>
