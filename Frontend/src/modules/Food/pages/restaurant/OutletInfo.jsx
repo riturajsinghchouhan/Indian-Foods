@@ -30,16 +30,14 @@ const resolveOutletImage = (media) => {
 
   if (!normalizedRaw) return ""
   if (/^(data:|blob:)/i.test(normalizedRaw)) return normalizedRaw
-  if (/^https?:\/\/res\.cloudinary\.com\//i.test(normalizedRaw)) return normalizedRaw
+  if (/^https?:\/\//i.test(normalizedRaw)) return normalizedRaw.replace(/ /g, "%20")
 
   const canonicalUploadPath = normalizedRaw
-    .replace(/^https?:\/\/[^/]+/i, "")
-    .replace(/^\/api\/v1\/uploads\//i, "/uploads/")
-    .replace(/^api\/v1\/uploads\//i, "/uploads/")
-    .replace(/^uploads\//i, "/uploads/")
+    .replace(/^\/+/, "")
+    .replace(/^uploads\//i, "api/v1/uploads/")
 
-  if (/^\/api\/v1\/uploads\//i.test(canonicalUploadPath)) {
-    return `${BACKEND_ORIGIN}${canonicalUploadPath}`.replace(/ /g, "%20")
+  if (/^api\/v1\/uploads\//i.test(canonicalUploadPath)) {
+    return `${BACKEND_ORIGIN}/${canonicalUploadPath}`.replace(/ /g, "%20")
   }
 
   return normalizeImageUrl(normalizedRaw, BACKEND_ORIGIN) || ""

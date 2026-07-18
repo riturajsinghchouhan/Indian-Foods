@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 import notificationSound from "@food/assets/audio/alert.mp3";
 import { restaurantAPI, diningAPI } from "@food/api";
+import { API_BASE_URL } from "@food/api/config";
 import { useAuthStore } from "@/core/auth/auth.store";
 import { useRestaurantNotifications } from "@food/hooks/useRestaurantNotifications";
 import useRestaurantLenis from "@food/hooks/useRestaurantLenis";
@@ -38,9 +39,34 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import ResendNotificationButton from "@food/components/restaurant/ResendNotificationButton";
 import { loadBusinessSettings } from "@food/utils/businessSettings";
+import { normalizeImageUrl } from "@food/utils/common";
 const debugLog = (...args) => {};
 const debugWarn = (...args) => {};
 const debugError = (...args) => {};
+
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "");
+
+const resolveRestaurantOrderImage = (media) => {
+  if (!media) return null;
+  const raw = typeof media === "string"
+    ? media
+    : media?.url || media?.secure_url || media?.imageUrl || media?.image || media?.src || "";
+  const normalizedRaw = String(raw || "").trim().replace(/\\/g, "/");
+
+  if (!normalizedRaw) return null;
+  if (/^(data:|blob:)/i.test(normalizedRaw)) return normalizedRaw;
+  if (/^https?:\/\//i.test(normalizedRaw)) return normalizedRaw.replace(/ /g, "%20");
+
+  const canonicalUploadPath = normalizedRaw
+    .replace(/^\/+/, "")
+    .replace(/^uploads\//i, "api/v1/uploads/");
+
+  if (/^api\/v1\/uploads\//i.test(canonicalUploadPath)) {
+    return `${BACKEND_ORIGIN}/${canonicalUploadPath}`.replace(/ /g, "%20");
+  }
+
+  return normalizeImageUrl(normalizedRaw, BACKEND_ORIGIN) || null;
+};
 
 const STORAGE_KEY = "restaurant_online_status";
 
@@ -119,7 +145,7 @@ const transformOrderForList = (order) => ({
   itemsSummary:
     order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
     "No items",
-  photoUrl: order.items?.[0]?.image || null,
+  photoUrl: resolveRestaurantOrderImage(order.items?.[0]?.image),
   photoAlt: order.items?.[0]?.name || "Order",
   paymentMethod: order.paymentMethod || order.payment?.method || null,
   deliveryPartnerId: order.deliveryPartnerId || null,
@@ -155,7 +181,7 @@ function CompletedOrders({ onSelectOrder, refreshToken = 0 }) {
     itemsSummary:
       order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
       "No items",
-    photoUrl: order.items?.[0]?.image || null,
+    photoUrl: resolveRestaurantOrderImage(order.items?.[0]?.image),
     photoAlt: order.items?.[0]?.name || "Order",
     amount: order.pricing?.total || order.total || 0,
     paymentMethod: order.paymentMethod || order.payment?.method || null,
@@ -318,7 +344,7 @@ function CancelledOrders({ onSelectOrder, refreshToken = 0 }) {
     itemsSummary:
       order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
       "No items",
-    photoUrl: order.items?.[0]?.image || null,
+    photoUrl: resolveRestaurantOrderImage(order.items?.[0]?.image),
     photoAlt: order.items?.[0]?.name || "Order",
     amount: order.pricing?.total || order.total || 0,
     paymentMethod: order.paymentMethod || order.payment?.method || null,
@@ -506,7 +532,7 @@ function DeadOrders({ onSelectOrder, refreshToken = 0 }) {
     itemsSummary:
       order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
       "No items",
-    photoUrl: order.items?.[0]?.image || null,
+    photoUrl: resolveRestaurantOrderImage(order.items?.[0]?.image),
     photoAlt: order.items?.[0]?.name || "Order",
     amount: order.pricing?.total || order.total || 0,
     paymentMethod: order.paymentMethod || order.payment?.method || null,
@@ -3963,7 +3989,7 @@ function PreparingOrders({
         itemsSummary:
           order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
           "No items",
-        photoUrl: order.items?.[0]?.image || null,
+        photoUrl: resolveRestaurantOrderImage(order.items?.[0]?.image),
         photoAlt: order.items?.[0]?.name || "Order",
         deliveryPartnerId: order.deliveryPartnerId || null,
         dispatchStatus: order.dispatch?.status || null,
@@ -4221,7 +4247,7 @@ function ReadyOrders({ onSelectOrder, refreshToken = 0 }) {
     itemsSummary:
       order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
       "No items",
-    photoUrl: order.items?.[0]?.image || null,
+    photoUrl: resolveRestaurantOrderImage(order.items?.[0]?.image),
     photoAlt: order.items?.[0]?.name || "Order",
     paymentMethod: order.paymentMethod || order.payment?.method || null,
     deliveryPartnerId: order.deliveryPartnerId || null,
@@ -4303,7 +4329,7 @@ const OutForDeliveryOrders = ({ onSelectOrder, refreshToken = 0 }) => {
     itemsSummary:
       order.items?.map((item) => `${item.quantity}x ${item.name}`).join(", ") ||
       "No items",
-    photoUrl: order.items?.[0]?.image || null,
+    photoUrl: resolveRestaurantOrderImage(order.items?.[0]?.image),
     photoAlt: order.items?.[0]?.name || "Order",
     paymentMethod: order.paymentMethod || order.payment?.method || null,
     deliveryPartnerId: order.deliveryPartnerId || null,

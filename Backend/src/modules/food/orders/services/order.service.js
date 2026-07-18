@@ -8,6 +8,7 @@ import { FoodDeliveryPartner } from '../../delivery/models/deliveryPartner.model
 import { FoodZone } from '../../admin/models/zone.model.js';
 import { FoodFeeSettings } from '../../admin/models/feeSettings.model.js';
 import { FoodBusinessSettings } from '../../admin/models/businessSettings.model.js';
+import { FoodItem } from '../../admin/models/food.model.js';
 import { ValidationError, ForbiddenError, NotFoundError } from '../../../../core/auth/errors.js';
 import { buildPaginationOptions, buildPaginatedResult, parseQueryLimit, parseQueryPage } from '../../../../utils/helpers.js';
 import { FoodOffer } from '../../admin/models/offer.model.js';
@@ -60,6 +61,78 @@ import {
 const COMMISSION_CACHE_MS = 10 * 1000;
 let commissionRulesCache = null;
 let commissionRulesLoadedAt = 0;
+
+const CLOUDINARY_HOST_RE = /res\.cloudinary\.com/i;
+
+const isLikelyBrokenRestaurantOrderImage = (value = "") => {
+  const raw = String(value || "").trim();
+  if (!raw) return true;
+  if (CLOUDINARY_HOST_RE.test(raw)) return false;
+  return /(appzeto\/restaurant\/menu-items|food\/restaurants\/menu|uploads\/)/i.test(raw);
+};
+
+const enrichRestaurantOrderImages = async (restaurantId, docs = []) => {
+  if (!Array.isArray(docs) || docs.length === 0) return docs;
+
+  const itemIds = new Set();
+  const itemNames = new Set();
+
+  for (const doc of docs) {
+    const items = Array.isArray(doc?.items) ? doc.items : [];
+    for (const item of items) {
+      const itemId = String(item?.itemId || "").trim();
+      const itemName = String(item?.name || "").trim().toLowerCase();
+      if (itemId && /^[a-f0-9]{24}$/i.test(itemId)) itemIds.add(itemId);
+      if (itemName) itemNames.add(itemName);
+    }
+  }
+
+  if (itemIds.size === 0 && itemNames.size === 0) return docs;
+
+  const foodDocs = await FoodItem.find({
+    restaurantId: new mongoose.Types.ObjectId(restaurantId),
+    $or: [
+      ...(itemIds.size ? [{ _id: { $in: Array.from(itemIds).map((id) => new mongoose.Types.ObjectId(id)) } }] : []),
+      ...(itemNames.size ? [{ name: { $in: Array.from(itemNames).map((name) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")) } }] : []),
+    ],
+  })
+    .select("_id name image")
+    .lean();
+
+  if (!Array.isArray(foodDocs) || foodDocs.length === 0) return docs;
+
+  const byId = new Map();
+  const byName = new Map();
+  for (const food of foodDocs) {
+    const image = String(food?.image || "").trim();
+    if (!image) continue;
+    byId.set(String(food._id), image);
+    byName.set(String(food.name || "").trim().toLowerCase(), image);
+  }
+
+  return docs.map((doc) => {
+    const items = Array.isArray(doc?.items) ? doc.items : [];
+    const nextItems = items.map((item) => {
+      const currentImage = String(item?.image || "").trim();
+      const itemId = String(item?.itemId || "").trim();
+      const itemName = String(item?.name || "").trim().toLowerCase();
+      const preferredImage = byId.get(itemId) || byName.get(itemName) || "";
+
+      if (!preferredImage) return item;
+      if (!isLikelyBrokenRestaurantOrderImage(currentImage) && currentImage) return item;
+
+      return {
+        ...item,
+        image: preferredImage,
+      };
+    });
+
+    return {
+      ...doc,
+      items: nextItems,
+    };
+  });
+};
 
 async function getActiveCommissionRules() {
   const now = Date.now();
@@ -1221,8 +1294,9 @@ export async function listOrdersRestaurant(restaurantId, query) {
       .lean(),
     FoodOrder.countDocuments(filter),
   ]);
+  const docsWithResolvedImages = await enrichRestaurantOrderImages(restaurantId, docs);
   const paginated = buildPaginatedResult({
-    docs: docs.map((d) => {
+    docs: docsWithResolvedImages.map((d) => {
       const o = normalizeOrderForClient(d);
       if (d.pickupOtp) o.pickupOtp = d.pickupOtp;
       return o;
