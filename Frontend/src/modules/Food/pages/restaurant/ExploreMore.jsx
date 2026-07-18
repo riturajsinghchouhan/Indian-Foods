@@ -36,13 +36,23 @@ import { Card, CardContent } from "@food/components/ui/card"
 import { DateRangeCalendar } from "@food/components/ui/date-range-calendar"
 import { clearModuleAuth, clearAuthData, getCurrentUser } from "@food/utils/auth"
 import { restaurantAPI, notificationAPI } from "@food/api"
+import { API_BASE_URL } from "@food/api/config"
 import { firebaseAuth, ensureFirebaseInitialized } from "@food/firebase"
 import { toast } from "sonner"
 import { registerWebPushForCurrentModule } from "@food/utils/firebaseMessaging"
+import { normalizeImageUrl } from "@food/utils/common"
 const debugLog = (...args) => {}
 const debugWarn = (...args) => {}
 const debugError = (...args) => {}
 
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "")
+const resolveProfileImage = (media) => {
+  if (!media) return ""
+  const raw = typeof media === "string"
+    ? media
+    : media?.url || media?.secure_url || media?.imageUrl || media?.image || media?.src || ""
+  return normalizeImageUrl(raw, BACKEND_ORIGIN) || ""
+}
 
 // Time Picker Wheel Component
 function TimePickerWheel({
@@ -488,6 +498,8 @@ export default function ExploreMore() {
   // Get restaurant display data
   const restaurantDisplayName = restaurantData?.name || "Loading..."
   const restaurantDisplayAddress = restaurantData?.location ? formatAddress(restaurantData.location) : ""
+  const restaurantProfileImage = resolveProfileImage(restaurantData?.profileImage || userData?.profileImage)
+  const userProfileImage = resolveProfileImage(userData?.profileImage || restaurantData?.profileImage)
 
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
@@ -946,8 +958,16 @@ export default function ExploreMore() {
             <CardContent className="px-4">
               <div className="w-full flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1">
-                  <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-primary/10 transition-colors">
-                    <Store className="w-5 h-5 text-gray-900 group-hover:text-primary" />
+                  <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                    {restaurantProfileImage ? (
+                      <img
+                        src={restaurantProfileImage}
+                        alt={restaurantDisplayName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Store className="w-5 h-5 text-gray-900 group-hover:text-primary" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <h2 className="text-base font-semibold text-gray-900 mb-0.5">
@@ -1277,9 +1297,9 @@ export default function ExploreMore() {
                 >
                   {/* Avatar */}
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center shrink-0 overflow-hidden ring-4 ring-primary/10 group-hover:ring-primary/20 transition-all">
-                    {userData.profileImage?.url ? (
+                    {userProfileImage ? (
                       <img
-                        src={userData.profileImage.url}
+                        src={userProfileImage}
                         alt={userData.name}
                         className="w-full h-full object-cover"
                       />
