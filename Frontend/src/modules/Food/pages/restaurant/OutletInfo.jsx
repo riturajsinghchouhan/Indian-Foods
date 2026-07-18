@@ -38,7 +38,7 @@ const resolveOutletImage = (media) => {
     .replace(/^api\/v1\/uploads\//i, "/uploads/")
     .replace(/^uploads\//i, "/uploads/")
 
-  if (/^\/uploads\//i.test(canonicalUploadPath)) {
+  if (/^\/api\/v1\/uploads\//i.test(canonicalUploadPath)) {
     return `${BACKEND_ORIGIN}${canonicalUploadPath}`.replace(/ /g, "%20")
   }
 
