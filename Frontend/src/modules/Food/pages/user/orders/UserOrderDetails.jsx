@@ -748,14 +748,6 @@ export default function UserOrderDetails() {
           <FileText className="w-4 h-4" />
           View Invoice
         </button>
-        <button
-          type="button"
-          onClick={handleDownloadSummary}
-          className="flex-1 bg-white dark:bg-[#1a1a1a] border border-primary text-primary py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-primary/5 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Download Invoice
-        </button>
 
       </div>
       {/* Restaurant Complaint Button - Below Order Details */}

@@ -8,7 +8,6 @@ import { useOrders } from "@food/context/OrdersContext"
 import { useCompanyName } from "@food/hooks/useCompanyName"
 import { orderAPI } from "@food/api"
 import { jsPDF } from "jspdf"
-import html2canvas from "html2canvas"
 import { downloadFile } from "@/shared/utils/downloadUtils"
 
 // Helper function for converting numbers to words
@@ -101,36 +100,154 @@ export default function OrderInvoice() {
   }
 
   const handleDownloadPDF = async () => {
-    if (!invoiceRef.current) return;
     try {
-      const canvas = await html2canvas(invoiceRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      
-      const pdfBlob = pdf.output("blob")
+      const doc = new jsPDF()
+      const primaryColor = [220, 38, 38]
+      const secondaryColor = [71, 85, 105]
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      doc.setDrawColor(226, 232, 240)
+      doc.setLineWidth(1)
+      doc.rect(5, 5, pageWidth - 10, pageHeight - 10)
+
+      doc.setFontSize(22)
+      doc.setTextColor(...primaryColor)
+      doc.setFont("helvetica", "bold")
+      doc.text("INVOICE", 105, 25, { align: "center" })
+
+      doc.setTextColor(15, 23, 42)
+      doc.setFontSize(11)
+      doc.text(companyName, 14, 45)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      doc.setTextColor(...secondaryColor)
+      doc.text(`FSSAI: ${rest.fssaiNumber || "N/A"}`, 14, 66)
+      doc.text(`GSTIN: ${rest.gstNumber || "N/A"}`, 14, 71)
+
+      doc.setTextColor(15, 23, 42)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(11)
+      doc.text(rest.restaurantName || companyName, 110, 45)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      doc.setTextColor(...secondaryColor)
+      const sellerAddress = [rest.addressLine1, rest.addressLine2, [rest.city, rest.state, rest.pincode].filter(Boolean).join(" ")].filter(Boolean).join(", ") || "Address not available"
+      doc.text(doc.splitTextToSize(sellerAddress, 85), 110, 50)
+      doc.text(`FSSAI: ${rest.fssaiNumber || "N/A"}`, 110, 66)
+      doc.text(`GSTIN: ${rest.gstNumber || "N/A"}`, 110, 71)
+
+      doc.setDrawColor(226, 232, 240)
+      doc.setLineWidth(0.5)
+      doc.line(14, 78, 196, 78)
+
+      doc.setTextColor(15, 23, 42)
+      doc.setFont("helvetica", "bold")
+      doc.text(`Order ID: ${order.id || orderId}`, 14, 88)
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(...secondaryColor)
+      doc.text(`Date: ${formatDate(order.createdAt)}`, 14, 93)
+      doc.text(`Payment: ${order.paymentMethod?.type?.toUpperCase() || "CASH"}`, 14, 98)
+
+      doc.setTextColor(15, 23, 42)
+      doc.setFont("helvetica", "bold")
+      doc.text("Billed To:", 110, 88)
+      doc.setFont("helvetica", "normal")
+      doc.text(order.user?.name || "Customer", 110, 93)
+      doc.setTextColor(...secondaryColor)
+      const customerAddress = [custAddress.street || custAddress.addressLine1, custAddress.additionalDetails || custAddress.addressLine2, [custAddress.city, custAddress.state, custAddress.zipCode].filter(Boolean).join(" ")].filter(Boolean).join(", ") || "Address not available"
+      doc.text(doc.splitTextToSize(customerAddress, 85), 110, 98)
+
+      const tableRows = order.items.map((item, index) => {
+        const itemQuantity = Number(item.quantity || 0)
+        const itemPrice = Number(item.price || 0)
+        return [
+          index + 1,
+          item.variantName ? `${item.name || "Item"} (${item.variantName})` : (item.name || "Item"),
+          String(itemQuantity),
+          `Rs. ${itemPrice.toFixed(2)}` ,
+          `Rs. ${(itemPrice * itemQuantity).toFixed(2)}` ,
+        ]
+      })
+
+      const autoTable = (await import("jspdf-autotable")).default
+      autoTable(doc, {
+        startY: 108,
+        margin: { left: 14, right: 14 },
+        head: [["S.No", "Item Description", "Qty", "Unit Price", "Total Price"]],
+        body: tableRows,
+        theme: "striped",
+        headStyles: {
+          fillColor: primaryColor,
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        styles: { fontSize: 9, cellPadding: 4 },
+        columnStyles: {
+          0: { cellWidth: 15, halign: "center" },
+          2: { cellWidth: 15, halign: "center" },
+          3: { cellWidth: 35, halign: "right" },
+          4: { cellWidth: 35, halign: "right" },
+        },
+      })
+
+      let yPos = (doc.lastAutoTable?.finalY || 150) + 10
+      const rightX = 196
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(...secondaryColor)
+      doc.text("Item Total:", 140, yPos)
+      doc.text(`Rs. ${subtotalAmount.toFixed(2)}`, rightX, yPos, { align: "right" })
+      yPos += 6
+
+      if (taxAmount > 0) {
+        doc.text("GST (gov. taxes):", 140, yPos)
+        doc.text(`Rs. ${taxAmount.toFixed(2)}`, rightX, yPos, { align: "right" })
+        yPos += 6
+      }
+
+      if (deliveryFeeAmount > 0) {
+        doc.text("Delivery Charges:", 140, yPos)
+        doc.text(`Rs. ${deliveryFeeAmount.toFixed(2)}`, rightX, yPos, { align: "right" })
+        yPos += 6
+      }
+
+      if (platformFeeAmount > 0) {
+        doc.text("Platform Fee:", 140, yPos)
+        doc.text(`Rs. ${platformFeeAmount.toFixed(2)}`, rightX, yPos, { align: "right" })
+        yPos += 6
+      }
+
+      if (discountAmount > 0) {
+        doc.text("Discount:", 140, yPos)
+        doc.text(`- Rs. ${discountAmount.toFixed(2)}`, rightX, yPos, { align: "right" })
+        yPos += 6
+      }
+
+      yPos += 2
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(11)
+      doc.setTextColor(15, 23, 42)
+      doc.text("Grand Total:", 140, yPos)
+      doc.text(`Rs. ${totalAmount.toFixed(2)}`, rightX, yPos, { align: "right" })
+
+      doc.setFontSize(8)
+      doc.setFont("helvetica", "italic")
+      doc.setTextColor(148, 163, 184)
+      doc.text("This is a computer generated invoice and does not require a physical signature.", 105, pageHeight - 15, { align: "center" })
+
+      const pdfBlob = doc.output("blob")
       await downloadFile({
         data: pdfBlob,
-        filename: `Invoice_${order.id}.pdf`,
+        filename: `Invoice_${order.id || orderId}.pdf`,
         type: "application/pdf",
         successMessage: "Invoice downloaded successfully!",
         preferNativeShare: false,
       })
     } catch (error) {
       console.error("PDF generation error:", error)
-      handlePrint()
+      toast.error("Failed to download invoice. Please try again.")
     }
   }
-
 
   useEffect(() => {
     if (loading || error || !order || autoDownloadTriggeredRef.current) return
@@ -193,7 +310,7 @@ export default function OrderInvoice() {
               </Button>
               <Button onClick={handleDownloadPDF} className="w-full sm:w-auto bg-primary hover:bg-secondary gap-2 text-white">
                 <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Download PDF</span>
+                <span>Download</span>
               </Button>
             </div>
           </div>
@@ -369,6 +486,8 @@ export default function OrderInvoice() {
     </AnimatedPage>
   )
 }
+
+
 
 
 
