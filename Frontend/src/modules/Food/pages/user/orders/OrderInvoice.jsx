@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom"
+import { useParams, Link, useSearchParams } from "react-router-dom"
 import { Download, ArrowLeft, Printer } from "lucide-react"
 import { useRef, useState, useEffect } from "react"
 import AnimatedPage from "@food/components/user/AnimatedPage"
@@ -31,11 +31,13 @@ function numberToWords(num) {
 export default function OrderInvoice() {
   const companyName = useCompanyName()
   const { orderId } = useParams()
+  const [searchParams] = useSearchParams()
   const { getOrderById } = useOrders()
   const [order, setOrder] = useState(() => getOrderById(orderId))
   const [loading, setLoading] = useState(!order)
   const [error, setError] = useState(null)
   const invoiceRef = useRef(null)
+  const autoDownloadTriggeredRef = useRef(false)
 
   useEffect(() => {
     if (order) return
@@ -58,30 +60,6 @@ export default function OrderInvoice() {
 
     fetchOrder()
   }, [orderId, order])
-
-  if (loading) {
-    return (
-      <AnimatedPage className="min-h-screen bg-[#f5f5f5] dark:bg-[#0a0a0a] p-4">
-        <div className="max-w-4xl mx-auto text-center py-20">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Generating invoice...</p>
-        </div>
-      </AnimatedPage>
-    )
-  }
-
-  if (error || !order) {
-    return (
-      <AnimatedPage className="min-h-screen bg-[#f5f5f5] dark:bg-[#0a0a0a] p-4">
-        <div className="max-w-4xl mx-auto text-center py-20">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold mb-4">{error || 'Order Not Found'}</h1>
-          <Link to="/user/orders">
-            <Button>Back to Orders</Button>
-          </Link>
-        </div>
-      </AnimatedPage>
-    )
-  }
 
   const formatDate = (dateString) => {
     const date = new Date(dateString)
@@ -145,6 +123,7 @@ export default function OrderInvoice() {
         filename: `Invoice_${order.id}.pdf`,
         type: "application/pdf",
         successMessage: "Invoice downloaded successfully!",
+        preferNativeShare: false,
       })
     } catch (error) {
       console.error("PDF generation error:", error)
@@ -152,9 +131,47 @@ export default function OrderInvoice() {
     }
   }
 
+
+  useEffect(() => {
+    if (loading || error || !order || autoDownloadTriggeredRef.current) return
+    if (searchParams.get("download") !== "1") return
+
+    autoDownloadTriggeredRef.current = true
+    handleDownloadPDF()
+  }, [loading, error, order, searchParams])
+
+  if (loading) {
+    return (
+      <AnimatedPage className="min-h-screen bg-[#f5f5f5] dark:bg-[#0a0a0a] p-4">
+        <div className="max-w-4xl mx-auto text-center py-20">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Generating invoice...</p>
+        </div>
+      </AnimatedPage>
+    )
+  }
+
+  if (error || !order) {
+    return (
+      <AnimatedPage className="min-h-screen bg-[#f5f5f5] dark:bg-[#0a0a0a] p-4">
+        <div className="max-w-4xl mx-auto text-center py-20">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold mb-4">{error || 'Order Not Found'}</h1>
+          <Link to="/user/orders">
+            <Button>Back to Orders</Button>
+          </Link>
+        </div>
+      </AnimatedPage>
+    )
+  }
   const rest = order.restaurant || {};
   const custAddress = order.address || {};
-  const totalRounded = Math.round(order.total || 0);
+  const subtotalAmount = Number(order.subtotal ?? order.pricing?.subtotal ?? order.pricing?.total ?? 0)
+  const deliveryFeeAmount = Number(order.deliveryFee ?? order.pricing?.deliveryFee ?? 0)
+  const platformFeeAmount = Number(order.platformFee ?? order.pricing?.platformFee ?? 0)
+  const taxAmount = Number(order.tax ?? order.pricing?.tax ?? 0)
+  const discountAmount = Number(order.discount ?? order.pricing?.discount ?? 0)
+  const totalAmount = Number(order.total ?? order.pricing?.total ?? subtotalAmount + deliveryFeeAmount + platformFeeAmount + taxAmount - discountAmount)
+  const totalRounded = Math.round(totalAmount)
 
   return (
     <AnimatedPage className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] p-4">
@@ -162,7 +179,7 @@ export default function OrderInvoice() {
         <ScrollReveal>
           <div className="flex items-center justify-between no-print">
             <div className="flex items-center gap-4">
-              <Link to={`/user/orders/${orderId}`}>
+              <Link to={`/user/orders/${orderId}/details`}>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
@@ -261,54 +278,59 @@ export default function OrderInvoice() {
                   </tr>
                 </thead>
                 <tbody>
-                  {order.items.map((item, index) => (
-                    <tr key={item.id} className="border-b border-gray-300 last:border-b-0">
-                      <td className="px-3 py-2 border-r border-gray-400 text-center text-gray-800">{index + 1}</td>
-                      <td className="px-3 py-2 border-r border-gray-400 font-medium text-gray-900">
-                        {item.name} {item.variantName ? `(${item.variantName})` : ""}
-                      </td>
-                      <td className="px-3 py-2 border-r border-gray-400 text-center font-bold text-gray-800">{item.quantity}</td>
-                      <td className="px-3 py-2 border-r border-gray-400 text-right text-gray-800">₹{item.price.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right font-bold text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</td>
-                    </tr>
-                  ))}
+                  {order.items.map((item, index) => {
+                    const itemPrice = Number(item.price || 0)
+                    const itemQuantity = Number(item.quantity || 0)
+
+                    return (
+                      <tr key={item.id || item._id || index} className="border-b border-gray-300 last:border-b-0">
+                        <td className="px-3 py-2 border-r border-gray-400 text-center text-gray-800">{index + 1}</td>
+                        <td className="px-3 py-2 border-r border-gray-400 font-medium text-gray-900">
+                          {item.name} {item.variantName ? `(${item.variantName})` : ""}
+                        </td>
+                        <td className="px-3 py-2 border-r border-gray-400 text-center font-bold text-gray-800">{itemQuantity}</td>
+                        <td className="px-3 py-2 border-r border-gray-400 text-right text-gray-800">{"\u20B9"}{itemPrice.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right font-bold text-gray-900">{"\u20B9"}{(itemPrice * itemQuantity).toFixed(2)}</td>
+                      </tr>
+                    )
+                  })}
                   
                   {/* Totals */}
                   <tr className="border-t-2 border-gray-400 bg-gray-50">
                     <td colSpan="2" className="px-3 py-2 border-r border-gray-400 font-bold text-right text-gray-800 uppercase text-xs">Total</td>
                     <td className="px-3 py-2 border-r border-gray-400 text-center font-bold text-gray-800">
-                      {order.items.reduce((sum, item) => sum + item.quantity, 0)}
+                      {order.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)}
                     </td>
                     <td className="px-3 py-2 border-r border-gray-400"></td>
-                    <td className="px-3 py-2 font-bold text-right text-gray-900">₹{order.subtotal.toFixed(2)}</td>
+                    <td className="px-3 py-2 font-bold text-right text-gray-900">{"\u20B9"}{subtotalAmount.toFixed(2)}</td>
                   </tr>
-                  {order.deliveryFee > 0 && (
+                  {deliveryFeeAmount > 0 && (
                     <tr className="border-t border-gray-300">
                       <td colSpan="4" className="px-3 py-2 border-r border-gray-400 font-bold text-right text-gray-800 uppercase text-[10px] tracking-wider">Delivery Charges</td>
-                      <td className="px-3 py-2 text-right font-medium">₹{order.deliveryFee.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right font-medium">{"\u20B9"}{deliveryFeeAmount.toFixed(2)}</td>
                     </tr>
                   )}
-                  {order.platformFee > 0 && (
+                  {platformFeeAmount > 0 && (
                     <tr className="border-t border-gray-300">
                       <td colSpan="4" className="px-3 py-2 border-r border-gray-400 font-bold text-right text-gray-800 uppercase text-[10px] tracking-wider">Platform Fee</td>
-                      <td className="px-3 py-2 text-right font-medium">₹{order.platformFee.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right font-medium">{"\u20B9"}{platformFeeAmount.toFixed(2)}</td>
                     </tr>
                   )}
-                  {order.tax > 0 && (
+                  {taxAmount > 0 && (
                     <tr className="border-t border-gray-300">
                       <td colSpan="4" className="px-3 py-2 border-r border-gray-400 font-bold text-right text-gray-800 uppercase text-[10px] tracking-wider">GST (Gov. Taxes)</td>
-                      <td className="px-3 py-2 text-right font-medium">₹{order.tax.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right font-medium">{"\u20B9"}{taxAmount.toFixed(2)}</td>
                     </tr>
                   )}
-                  {order.discount > 0 && (
+                  {discountAmount > 0 && (
                     <tr className="border-t border-gray-300">
                       <td colSpan="4" className="px-3 py-2 border-r border-gray-400 font-bold text-right text-gray-800 uppercase text-[10px] tracking-wider">Discount</td>
-                      <td className="px-3 py-2 text-right text-green-700 font-bold">-₹{order.discount.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right text-green-700 font-bold">-{"\u20B9"}{discountAmount.toFixed(2)}</td>
                     </tr>
                   )}
                   <tr className="border-t-2 border-gray-400 bg-gray-100">
                     <td colSpan="4" className="px-3 py-3 border-r border-gray-400 font-extrabold text-right text-sm uppercase tracking-wide">Grand Total</td>
-                    <td className="px-3 py-3 font-extrabold text-right text-base text-gray-900">₹{order.total.toFixed(2)}</td>
+                    <td className="px-3 py-3 font-extrabold text-right text-base text-gray-900">{"\u20B9"}{totalAmount.toFixed(2)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -347,3 +369,12 @@ export default function OrderInvoice() {
     </AnimatedPage>
   )
 }
+
+
+
+
+
+
+
+
+

@@ -135,6 +135,7 @@ export const downloadFile = async ({
   type,
   silent = false,
   successMessage = "Download started successfully",
+  preferNativeShare = true,
 }) => {
   console.log(`[DownloadUtils] Starting download: ${filename} (${type})`);
 
@@ -176,11 +177,13 @@ export const downloadFile = async ({
       return true;
     }
 
-    // 3) Mobile browser share sheet
-    const shared = await tryWebShareDownload(blob, filename);
-    if (shared) {
-      showSuccess();
-      return true;
+    // 3) Mobile browser share sheet (optional)
+    if (preferNativeShare) {
+      const shared = await tryWebShareDownload(blob, filename);
+      if (shared) {
+        showSuccess();
+        return true;
+      }
     }
 
     // 4) Standard browser download (also keep-alive for Android Chrome WebView)
@@ -196,3 +199,6 @@ export const downloadFile = async ({
     throw error;
   }
 };
+
+
+
