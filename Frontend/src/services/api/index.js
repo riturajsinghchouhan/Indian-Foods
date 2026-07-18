@@ -782,14 +782,32 @@ export const restaurantAPI = {
     if (!file) return Promise.reject(new Error("File is required"));
     const formData = new FormData();
     formData.append("file", file);
-    return restaurantClient.post("/food/restaurant/profile/profile-image", formData);
+    restaurantCurrentInFlight = null;
+    restaurantCurrentCached = null;
+    restaurantCurrentCacheTime = 0;
+    return restaurantClient
+      .post("/food/restaurant/profile/profile-image", formData)
+      .finally(() => {
+        restaurantCurrentInFlight = null;
+        restaurantCurrentCached = null;
+        restaurantCurrentCacheTime = 0;
+      });
   },
   /** Upload a menu/cover image (multipart). Does not auto-attach; use updateProfile(menuImages) after. */
   uploadMenuImage: (file) => {
     if (!file) return Promise.reject(new Error("File is required"));
     const formData = new FormData();
     formData.append("file", file);
-    return restaurantClient.post("/food/restaurant/profile/menu-image", formData);
+    restaurantCurrentInFlight = null;
+    restaurantCurrentCached = null;
+    restaurantCurrentCacheTime = 0;
+    return restaurantClient
+      .post("/food/restaurant/profile/menu-image", formData)
+      .finally(() => {
+        restaurantCurrentInFlight = null;
+        restaurantCurrentCached = null;
+        restaurantCurrentCacheTime = 0;
+      });
   },
   uploadCoverImages: (files = []) => {
     const normalizedFiles = Array.from(files || []).filter(Boolean);
@@ -798,7 +816,16 @@ export const restaurantAPI = {
     }
     const formData = new FormData();
     normalizedFiles.forEach((file) => formData.append("files", file));
-    return restaurantClient.post("/food/restaurant/profile/cover-images", formData);
+    restaurantCurrentInFlight = null;
+    restaurantCurrentCached = null;
+    restaurantCurrentCacheTime = 0;
+    return restaurantClient
+      .post("/food/restaurant/profile/cover-images", formData)
+      .finally(() => {
+        restaurantCurrentInFlight = null;
+        restaurantCurrentCached = null;
+        restaurantCurrentCacheTime = 0;
+      });
   },
   uploadMenuImages: (files = []) => {
     const normalizedFiles = Array.from(files || []).filter(Boolean);
@@ -807,7 +834,16 @@ export const restaurantAPI = {
     }
     const formData = new FormData();
     normalizedFiles.forEach((file) => formData.append("files", file));
-    return restaurantClient.post("/food/restaurant/profile/menu-images", formData);
+    restaurantCurrentInFlight = null;
+    restaurantCurrentCached = null;
+    restaurantCurrentCacheTime = 0;
+    return restaurantClient
+      .post("/food/restaurant/profile/menu-images", formData)
+      .finally(() => {
+        restaurantCurrentInFlight = null;
+        restaurantCurrentCached = null;
+        restaurantCurrentCacheTime = 0;
+      });
   },
   /** Public Offers for users (global/selected restaurant) */
   getPublicOffers: () => userClient.get("/food/restaurant/offers"),

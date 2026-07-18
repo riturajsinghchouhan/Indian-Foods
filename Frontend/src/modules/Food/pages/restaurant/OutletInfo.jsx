@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import useRestaurantBackNavigation from "@food/hooks/useRestaurantBackNavigation"
 import { ArrowLeft, Star, ChevronRight } from "lucide-react"
 import { restaurantAPI } from "@food/api"
+import { API_BASE_URL } from "@food/api/config"
 import { toast } from "sonner"
 import { Button } from "@food/components/ui/button"
 import {
@@ -14,9 +15,35 @@ import {
 } from "@food/components/ui/dialog"
 import { ImageSourcePicker } from "@food/components/ImageSourcePicker"
 import { isFlutterBridgeAvailable } from "@food/utils/imageUploadUtils"
+import { normalizeImageUrl } from "@food/utils/common"
 
 const debugLog = (...args) => {}
 const debugError = (...args) => {}
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api(?:\/v\d+)?\/?$/, "")
+
+const resolveOutletImage = (media) => {
+  if (!media) return ""
+  const raw = typeof media === "string"
+    ? media
+    : media?.url || media?.secure_url || media?.imageUrl || media?.image || media?.src || ""
+  const normalizedRaw = String(raw || "").trim().replace(/\\/g, "/")
+
+  if (!normalizedRaw) return ""
+  if (/^(data:|blob:)/i.test(normalizedRaw)) return normalizedRaw
+  if (/^https?:\/\/res\.cloudinary\.com\//i.test(normalizedRaw)) return normalizedRaw
+
+  const canonicalUploadPath = normalizedRaw
+    .replace(/^https?:\/\/[^/]+/i, "")
+    .replace(/^\/api\/v1\/uploads\//i, "/uploads/")
+    .replace(/^api\/v1\/uploads\//i, "/uploads/")
+    .replace(/^uploads\//i, "/uploads/")
+
+  if (/^\/uploads\//i.test(canonicalUploadPath)) {
+    return `${BACKEND_ORIGIN}${canonicalUploadPath}`.replace(/ /g, "%20")
+  }
+
+  return normalizeImageUrl(normalizedRaw, BACKEND_ORIGIN) || ""
+}
 
 export default function OutletInfo() {
   const navigate = useNavigate()
@@ -57,21 +84,28 @@ export default function OutletInfo() {
           const mongoId = String(data.id || data._id || "")
           setRestaurantMongoId(mongoId)
           
-          if (data.profileImage?.url) {
-            setThumbnailImage(data.profileImage.url)
+          const normalizedProfileImage = resolveOutletImage(data.profileImage)
+          if (normalizedProfileImage) {
+            setThumbnailImage(normalizedProfileImage)
           }
           if (data.coverImages && Array.isArray(data.coverImages) && data.coverImages.length > 0) {
-            setCoverImages(data.coverImages.map(img => ({
-              url: img.url || img,
-              publicId: img.publicId
-            })))
-            setMainImage(data.coverImages[0].url || data.coverImages[0])
+            const normalizedCoverImages = data.coverImages
+              .map(img => ({
+                url: resolveOutletImage(img),
+                publicId: img?.publicId
+              }))
+              .filter(img => img.url)
+            setCoverImages(normalizedCoverImages)
+            if (normalizedCoverImages[0]?.url) setMainImage(normalizedCoverImages[0].url)
           } else if (data.menuImages && Array.isArray(data.menuImages) && data.menuImages.length > 0) {
-            setCoverImages(data.menuImages.map(img => ({
-              url: img.url,
-              publicId: img.publicId
-            })))
-            setMainImage(data.menuImages[0].url)
+            const normalizedMenuImages = data.menuImages
+              .map(img => ({
+                url: resolveOutletImage(img),
+                publicId: img?.publicId
+              }))
+              .filter(img => img.url)
+            setCoverImages(normalizedMenuImages)
+            if (normalizedMenuImages[0]?.url) setMainImage(normalizedMenuImages[0].url)
           } else {
             setCoverImages([])
           }
@@ -108,7 +142,7 @@ export default function OutletInfo() {
       const uploadResponse = await restaurantAPI.uploadProfileImage(file)
       const uploadedImage = uploadResponse?.data?.data?.profileImage || uploadResponse?.data?.profileImage
       if (uploadedImage?.url) {
-        setThumbnailImage(uploadedImage.url)
+        setThumbnailImage(resolveOutletImage(uploadedImage))
         const response = await restaurantAPI.getCurrentRestaurant()
         const data = response?.data?.data?.restaurant || response?.data?.restaurant
         if (data) setRestaurantData(data)
@@ -134,7 +168,7 @@ export default function OutletInfo() {
       const currentResponse = await restaurantAPI.getCurrentRestaurant()
       const currentData = currentResponse?.data?.data?.restaurant || currentResponse?.data?.restaurant
       const existingImages = currentData?.menuImages && Array.isArray(currentData.menuImages)
-        ? currentData.menuImages.map(img => ({ url: img.url, publicId: img.publicId }))
+        ? currentData.menuImages.map(img => ({ url: resolveOutletImage(img), publicId: img?.publicId })).filter(img => img.url)
         : []
 
       const uploadedImageData = []
@@ -143,7 +177,7 @@ export default function OutletInfo() {
           const uploadResponse = await restaurantAPI.uploadMenuImage(fileArray[i])
           const uploadedImage = uploadResponse?.data?.data?.menuImage || uploadResponse?.data?.menuImage
           if (uploadedImage?.url) {
-            uploadedImageData.push({ url: uploadedImage.url, publicId: uploadedImage.publicId || null })
+            uploadedImageData.push({ url: resolveOutletImage(uploadedImage), publicId: uploadedImage.publicId || null })
           }
         } catch (error) {
           debugError("Upload failed", error)
@@ -445,14 +479,14 @@ export default function OutletInfo() {
               <div>
                 <p className="text-[13px] text-gray-500 font-medium mb-0.5">FSSAI document</p>
                 <div className="flex gap-4 mt-1.5">
-                  <button className="text-[#2563EB] text-[15px] font-bold hover:underline tracking-tight" onClick={() => window.open(restaurantData?.fssaiImage?.url || restaurantData?.fssaiImage, "_blank")}>View image</button>
+                  <button className="text-[#2563EB] text-[15px] font-bold hover:underline tracking-tight" onClick={() => { const url = resolveOutletImage(restaurantData?.fssaiImage); if (url) window.open(url, "_blank") }}>View image</button>
                   <button className="text-[#2563EB] text-[15px] font-bold hover:underline tracking-tight">Upload</button>
                 </div>
               </div>
               <div>
                 <p className="text-[13px] text-gray-500 font-medium mb-0.5">PAN document</p>
                 <div className="flex gap-4 mt-1.5">
-                  <button className="text-[#2563EB] text-[15px] font-bold hover:underline tracking-tight" onClick={() => window.open(restaurantData?.panImage?.url || restaurantData?.panImage, "_blank")}>View image</button>
+                  <button className="text-[#2563EB] text-[15px] font-bold hover:underline tracking-tight" onClick={() => { const url = resolveOutletImage(restaurantData?.panImage); if (url) window.open(url, "_blank") }}>View image</button>
                   <button className="text-[#2563EB] text-[15px] font-bold hover:underline tracking-tight">Upload</button>
                 </div>
               </div>
