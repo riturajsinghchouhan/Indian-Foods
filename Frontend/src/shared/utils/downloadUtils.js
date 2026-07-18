@@ -27,6 +27,12 @@ const triggerAnchorDownload = (href, filename) => {
   link.remove();
 };
 
+const triggerDataUrlDownload = (dataUrl, filename) => {
+  triggerAnchorDownload(dataUrl, filename);
+  return dataUrl;
+};
+
+
 /**
  * Prefer native Flutter handlers when available (no blob: URL needed).
  */
@@ -167,6 +173,17 @@ export const downloadFile = async ({
         }
       } catch (bridgeErr) {
         console.warn("[DownloadUtils] Flutter bridge download failed:", bridgeErr);
+      }
+
+      // 2) Data URL fallback for wrappers that do not support blob: downloads reliably.
+      try {
+        const dataUrl = await blobToDataUrl(blob);
+        triggerDataUrlDownload(dataUrl, filename);
+        showSuccess();
+        console.log("[DownloadUtils] Flutter data URL download triggered");
+        return true;
+      } catch (dataUrlErr) {
+        console.warn("[DownloadUtils] Flutter data URL fallback failed:", dataUrlErr);
       }
 
       // 2) Existing Flutter download listeners fetch the blob: URL via injected JS.

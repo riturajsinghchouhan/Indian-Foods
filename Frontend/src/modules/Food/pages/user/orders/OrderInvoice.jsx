@@ -174,24 +174,24 @@ export default function OrderInvoice() {
   const totalRounded = Math.round(totalAmount)
 
   return (
-    <AnimatedPage className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] p-4">
-      <div className="max-w-[800px] mx-auto space-y-6">
+    <AnimatedPage className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] p-3 sm:p-4">
+      <div className="max-w-[800px] mx-auto space-y-4 sm:space-y-6">
         <ScrollReveal>
-          <div className="flex items-center justify-between no-print">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between no-print">
+            <div className="flex items-center gap-3 sm:gap-4">
               <Link to={`/user/orders/${orderId}/details`}>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
               </Link>
-              <h1 className="text-xl font-bold">Invoice Details</h1>
+              <h1 className="text-lg sm:text-xl font-bold">Invoice Details</h1>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handlePrint} className="gap-2">
+            <div className="flex w-full gap-2 sm:w-auto">
+              <Button variant="outline" onClick={handlePrint} className="hidden sm:inline-flex gap-2">
                 <Printer className="h-4 w-4" />
                 <span className="hidden sm:inline">Print</span>
               </Button>
-              <Button onClick={handleDownloadPDF} className="bg-primary hover:bg-secondary gap-2 text-white">
+              <Button onClick={handleDownloadPDF} className="w-full sm:w-auto bg-primary hover:bg-secondary gap-2 text-white">
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline">Download PDF</span>
               </Button>
@@ -200,28 +200,28 @@ export default function OrderInvoice() {
         </ScrollReveal>
 
         <ScrollReveal delay={0.1}>
-          <div className="bg-white text-black p-8 shadow-sm border mx-auto font-sans" ref={invoiceRef} style={{ width: '100%', maxWidth: '800px' }}>
+          <div className="bg-white text-black p-4 sm:p-8 shadow-sm border mx-auto font-sans rounded-2xl sm:rounded-none overflow-hidden" ref={invoiceRef} style={{ width: '100%', maxWidth: '800px' }}>
             
             {/* Header section */}
-            <div className="flex justify-between items-start pb-4 mb-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start pb-4 mb-4 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="w-24 h-24 rounded-full bg-[#dc2626] flex flex-col items-center justify-center text-white p-2 border-2 border-red-700">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#dc2626] flex flex-col items-center justify-center text-white p-2 border-2 border-red-700 mx-auto sm:mx-0">
                   <div className="bg-white rounded-full p-1 mb-1">
                     <span className="text-2xl">👩‍🍳</span>
                   </div>
                   <span className="text-[10px] font-bold tracking-wider text-center leading-tight">{companyName.toUpperCase()}</span>
                 </div>
               </div>
-              <div className="text-right">
-                <h1 className="text-3xl font-extrabold text-gray-800 uppercase tracking-wide">Tax Invoice</h1>
+              <div className="text-left sm:text-right">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-800 uppercase tracking-wide">Tax Invoice</h1>
                 <div className="mt-2 text-xs text-gray-500 uppercase font-medium">Invoice Number</div>
                 <div className="font-bold text-gray-800">{order.id}</div>
               </div>
             </div>
 
             {/* Seller and Buyer Information */}
-            <div className="flex border border-gray-400 mb-6 text-sm">
-              <div className="w-1/2 p-4 border-r border-gray-400">
+            <div className="flex flex-col sm:flex-row border border-gray-300 mb-5 sm:mb-6 text-sm rounded-xl sm:rounded-none overflow-hidden">
+              <div className="w-full sm:w-1/2 p-4 border-b sm:border-b-0 sm:border-r border-gray-300">
                 <div className="text-xs text-gray-500 uppercase mb-2 font-semibold tracking-wider">Sold By / Seller</div>
                 <div className="font-bold text-gray-800 uppercase text-base">{rest.restaurantName || companyName}</div>
                 <div className="text-gray-600 mt-1 mb-4 leading-snug">
@@ -230,7 +230,7 @@ export default function OrderInvoice() {
                   {rest.city} {rest.state} {rest.pincode}
                 </div>
                 
-                <div className="grid grid-cols-[80px_auto] gap-x-2 gap-y-1 mt-2 text-xs">
+                <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-x-2 gap-y-1 mt-2 text-xs break-words">
                   <div className="text-gray-500 font-medium">GSTIN</div>
                   <div className="font-bold">: {rest.gstNumber || "N/A"}</div>
                   
@@ -241,7 +241,7 @@ export default function OrderInvoice() {
                   <div className="font-bold">: {rest.panNumber || "N/A"}</div>
                 </div>
               </div>
-              <div className="w-1/2 p-4">
+              <div className="w-full sm:w-1/2 p-4">
                 <div className="text-xs text-gray-500 uppercase mb-2 font-semibold tracking-wider">Invoice To</div>
                 <div className="font-bold text-gray-800 text-base">{order.user?.name || "Customer"}</div>
                 <div className="text-gray-600 mt-1 mb-4 leading-snug">
@@ -249,7 +249,7 @@ export default function OrderInvoice() {
                   {custAddress.city || "Indore"}, {custAddress.state || "Madhya Pradesh"} {custAddress.zipCode || "452001"}
                 </div>
 
-                <div className="grid grid-cols-[100px_auto_1fr] gap-x-2 gap-y-1 mt-4 pt-4 border-t border-gray-200 text-xs">
+                <div className="grid grid-cols-[88px_12px_minmax(0,1fr)] sm:grid-cols-[100px_auto_1fr] gap-x-2 gap-y-1 mt-4 pt-4 border-t border-gray-200 text-xs break-words">
                   <div className="text-gray-500 font-medium">Order ID</div>
                   <div className="font-bold">:</div>
                   <div className="font-bold">{order.id}</div>
@@ -266,8 +266,8 @@ export default function OrderInvoice() {
             </div>
 
             {/* Table */}
-            <div className="border border-gray-400 mb-6">
-              <table className="w-full text-sm text-left">
+            <div className="border border-gray-300 mb-5 sm:mb-6 rounded-xl sm:rounded-none overflow-hidden">
+              <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-xs sm:text-sm text-left">
                 <thead className="bg-gray-100 border-b border-gray-400 text-gray-800">
                   <tr>
                     <th className="px-3 py-2 border-r border-gray-400 font-bold w-12 text-center text-xs uppercase tracking-wider">Sr. No</th>
@@ -333,18 +333,18 @@ export default function OrderInvoice() {
                     <td className="px-3 py-3 font-extrabold text-right text-base text-gray-900">{"\u20B9"}{totalAmount.toFixed(2)}</td>
                   </tr>
                 </tbody>
-              </table>
+              </table></div>
             </div>
 
             {/* Amount in Words */}
-            <div className="border border-gray-400 p-3 mb-6 bg-gray-50 flex items-center">
-              <span className="text-gray-500 uppercase text-xs font-semibold tracking-wider mr-2">Amount In Words:</span>
+            <div className="border border-gray-300 p-3 mb-5 sm:mb-6 bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-none">
+              <span className="text-gray-500 uppercase text-[11px] sm:text-xs font-semibold tracking-wider">Amount In Words:</span>
               <span className="font-bold text-gray-900">{numberToWords(totalRounded)}</span>
             </div>
 
             {/* Footer / T&C / Signature */}
-            <div className="flex border border-gray-400 text-[10px]">
-              <div className="w-2/3 p-4 border-r border-gray-400">
+            <div className="flex flex-col sm:flex-row border border-gray-300 text-[10px] rounded-xl sm:rounded-none overflow-hidden">
+              <div className="w-full sm:w-2/3 p-4 border-b sm:border-b-0 sm:border-r border-gray-300">
                 <div className="font-bold mb-2 uppercase text-gray-800 tracking-wider">Terms & Conditions:</div>
                 <ol className="list-decimal pl-4 space-y-1.5 text-gray-600">
                   <li>If you have any issues or queries in respect of your order, please contact customer chat support through the platform.</li>
@@ -352,8 +352,8 @@ export default function OrderInvoice() {
                   <li>Please note that we never ask for bank account details such as CVV, account number, UPI Pin, etc. across our support channels.</li>
                 </ol>
               </div>
-              <div className="w-1/3 flex flex-col">
-                <div className="flex-1 p-4 border-b border-gray-400 flex items-center justify-center bg-gray-50/50">
+              <div className="w-full sm:w-1/3 flex flex-col">
+                <div className="flex-1 p-4 border-b border-gray-300 flex items-center justify-center bg-gray-50/50 min-h-[96px]">
                   {/* Signature area */}
                   <div className="font-serif text-xl text-gray-500 italic -rotate-12 opacity-80 mt-4">{companyName}</div>
                 </div>
@@ -369,6 +369,7 @@ export default function OrderInvoice() {
     </AnimatedPage>
   )
 }
+
 
 
 
