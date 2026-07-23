@@ -249,7 +249,7 @@ const OptimizedImage = React.memo(({
       {isInView && (
         <picture className="absolute inset-0 w-full h-full">
           {/* WebP source for modern browsers */}
-          {webPSrcSet && (
+          {webPSrcSet && !hasError && (
             <source
               srcSet={webPSrcSet}
               sizes={sizes}
@@ -260,7 +260,7 @@ const OptimizedImage = React.memo(({
           {/* Fallback to original format */}
           <motion.img
             src={optimizedSrc}
-            srcSet={srcSet}
+            srcSet={hasError ? undefined : srcSet}
             sizes={supportsOptimization(finalSrc) ? sizes : undefined}
             alt={alt}
             className={`w-full h-full ${objectFit === 'cover' ? 'object-cover' : objectFit === 'contain' ? 'object-contain' : ''} ${priority || isLoaded ? 'opacity-100' : 'opacity-0'} ${!priority && 'transition-opacity duration-300'}`}
