@@ -4,35 +4,9 @@ import SplashScreen from '@/shared/components/SplashScreen.jsx'
 import PageLoader from '@/shared/components/PageLoader.jsx'
 
 function App() {
-  const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const path = window.location.pathname.toLowerCase()
-      if (
-        path.includes('/terms') ||
-        path.includes('/privacy') ||
-        path.includes('/support') ||
-        path.includes('/restaurant') ||
-        path.includes('/delivery') ||
-        path.includes('/admin')
-      ) {
-        return false
-      }
-      // Check if splash screen was already shown in this session
-      if (sessionStorage.getItem('splashShown')) {
-        return false
-      }
-    }
-    return true
-  })
+  const [showSplash, setShowSplash] = useState(false)
 
   const [isLoading, setIsLoading] = useState(false)
-
-  const handleSplashFinish = () => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('splashShown', 'true')
-    }
-    setShowSplash(false)
-  }
 
   // Normal Loading Spinner (if needed in future)
   if (isLoading) {
@@ -49,7 +23,6 @@ function App() {
 
   return (
     <>
-      {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
       <PageLoader />
       <AppRoutes />
     </>
