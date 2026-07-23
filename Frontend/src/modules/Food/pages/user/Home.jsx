@@ -247,6 +247,9 @@ export default function Home() {
   const loadMoreObserverRef = useRef(null);
   const [realCategories, setRealCategories] = useState([]);
   const [loadingRealCategories, setLoadingRealCategories] = useState(true);
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [hasMoreCategories, setHasMoreCategories] = useState(true);
+  const [isLoadingMoreCategories, setIsLoadingMoreCategories] = useState(false);
   const [menuCategories, setMenuCategories] = useState([]);
   const [loadingMenuCategories, setLoadingMenuCategories] = useState(false);
   const [showAllCategoriesModal, setShowAllCategoriesModal] = useState(false);
@@ -804,7 +807,12 @@ export default function Home() {
     const run = async () => {
       try {
         setLoadingRealCategories(true);
-        const data = await getPublicCategories(effectiveZoneId || null);
+        // Fetch 10 categories at a time
+        const data = await api.getPublicCategories({
+          zoneId: effectiveZoneId || null,
+          page: 1,
+          limit: 10
+        });
         if (cancelled) return;
 
         const list = data?.categories || (Array.isArray(data) ? data : []);
@@ -825,10 +833,20 @@ export default function Home() {
             }))
           : [];
 
+        if (list.length < 10) {
+          setHasMoreCategories(false);
+        } else {
+          setHasMoreCategories(true);
+        }
+
         setRealCategories(categories);
+        setCategoryPage(1);
       } catch (err) {
         debugWarn("Failed to fetch categories:", err);
-        if (!cancelled) setRealCategories([]);
+        if (!cancelled) {
+          setRealCategories([]);
+          setHasMoreCategories(false);
+        }
       } finally {
         if (!cancelled) setLoadingRealCategories(false);
       }
@@ -838,6 +856,52 @@ export default function Home() {
       cancelled = true;
     };
   }, [effectiveZoneId, effectiveZoneLoading, normalizeImageUrl]);
+
+  const loadMoreCategories = async () => {
+    if (isLoadingMoreCategories || !hasMoreCategories) return;
+    setIsLoadingMoreCategories(true);
+    try {
+      const nextPage = categoryPage + 1;
+      const data = await api.getPublicCategories({
+        zoneId: effectiveZoneId || null,
+        page: nextPage,
+        limit: 10
+      });
+
+      const list = data?.categories || (Array.isArray(data) ? data : []);
+      const newCategories = Array.isArray(list)
+        ? list.map((cat, idx) => ({
+            id: String(cat?.id || cat?._id || cat?.slug || idx),
+            name: cat?.name || "",
+            slug:
+              cat?.slug ||
+              String(cat?.name || "")
+                .toLowerCase()
+                .replace(/\s+/g, "-"),
+            image:
+              normalizeImageUrl(cat?.image || cat?.imageUrl) ||
+              foodImages[idx % foodImages.length] ||
+              foodImages[0],
+            type: cat?.type || "",
+          }))
+        : [];
+
+      if (list.length < 10) {
+        setHasMoreCategories(false);
+      }
+
+      setRealCategories(prev => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const filteredNew = newCategories.filter(c => !existingIds.has(c.id));
+        return [...prev, ...filteredNew];
+      });
+      setCategoryPage(nextPage);
+    } catch (err) {
+      debugWarn("Failed to load more categories:", err);
+    } finally {
+      setIsLoadingMoreCategories(false);
+    }
+  };
 
   // Fetch explore icons and landing settings from public APIs
   useEffect(() => {
@@ -2234,7 +2298,7 @@ export default function Home() {
                   </div>
 
                   {/* Categories Horizontal Slider */}
-                  <div className="flex overflow-x-auto gap-1.5 pb-2 scrollbar-hide -mx-4 px-4 mask-edge-fade">
+                  <div className="flex overflow-x-auto gap-1.5 pb-2 scrollbar-hide -mx-4 px-4 mask-edge-fade items-center">
                     {displayCategories.map((category, index) => (
                       <Link
                         key={category.id || index}
@@ -2269,6 +2333,27 @@ export default function Home() {
                         </span>
                       </Link>
                     ))}
+
+                    {/* Load More Categories Button */}
+                    {hasMoreCategories && displayCategories === realCategories && (
+                       <button 
+                         type="button"
+                         onClick={loadMoreCategories} 
+                         disabled={isLoadingMoreCategories}
+                         className="flex-shrink-0 flex flex-col items-center gap-1.5 group w-[76px] cursor-pointer"
+                       >
+                         <div className="relative w-[68px] h-[68px] sm:w-[84px] sm:h-[84px] rounded-full flex items-center justify-center bg-gray-50 dark:bg-[#1a1a1a] border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-primary transition-colors">
+                           {isLoadingMoreCategories ? (
+                             <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                           ) : (
+                             <Plus className="h-6 w-6 text-gray-400 group-hover:text-primary transition-colors" />
+                           )}
+                         </div>
+                         <span className="text-[11px] font-extrabold text-gray-900 dark:text-gray-100 text-center leading-tight w-full px-0.5">
+                           View More
+                         </span>
+                       </button>
+                    )}
                   </div>
                 </div>
 
