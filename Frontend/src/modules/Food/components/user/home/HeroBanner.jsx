@@ -142,7 +142,7 @@ export default function HeroBanner({
   if (loading) {
     return (
       <div className="px-4 py-2">
-        <HeroBannerSkeleton className="w-full aspect-[21/9] rounded-2xl" />
+        <HeroBannerSkeleton className="w-full aspect-[3/2] rounded-2xl" />
       </div>
     );
   }
@@ -154,7 +154,7 @@ export default function HeroBanner({
       <div
         ref={shellRef}
         data-home-hero-shell="true"
-        className="relative w-full overflow-hidden rounded-2xl shadow-sm group cursor-pointer bg-white"
+        className="relative w-full aspect-[3/2] overflow-hidden rounded-2xl shadow-sm group cursor-pointer bg-white"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -163,7 +163,7 @@ export default function HeroBanner({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        <div className="relative z-0 w-full min-h-[220px] sm:min-h-[280px] lg:min-h-[320px] flex items-center justify-center bg-gray-50 dark:bg-[#111]">
+        <div className="absolute inset-0 z-0 w-full h-full flex items-center justify-center bg-gray-50 dark:bg-[#111]">
           <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
             <div
               className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg] w-[150%] h-full animate-explore-shine"
@@ -184,7 +184,7 @@ export default function HeroBanner({
               <img
                 src={image}
                 alt={`Hero Banner ${index + 1}`}
-                className="w-full h-auto max-h-[280px] sm:max-h-[350px] lg:max-h-[400px] object-contain"
+                className="w-full h-full object-cover"
                 loading={index === currentIndex ? "eager" : "lazy"}
                 fetchPriority={index === currentIndex ? "high" : "low"}
                 draggable={false}
@@ -224,7 +224,13 @@ export default function HeroBanner({
             }
           }}
           aria-label={`Open hero banner ${currentIndex + 1}`}
-        />
+        >
+          {bannersData[currentIndex]?.linkedRestaurants?.length > 0 && (
+            <div className="absolute bottom-4 right-4 z-30 px-4 py-2 bg-primary text-white text-sm font-bold rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+              Go To
+            </div>
+          )}
+        </button>
       </div>
     </div>
   );
