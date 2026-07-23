@@ -55,8 +55,16 @@ const getPreferredMediaOrigin = (backendOrigin = "") => {
  */
 export const normalizeImageUrl = (imageUrl, backendOrigin = "") => {
   if (typeof imageUrl !== "string") return "";
-  const trimmed = imageUrl.trim();
+  let trimmed = imageUrl.trim();
   if (!trimmed || /^data:/i.test(trimmed) || /^blob:/i.test(trimmed)) return trimmed;
+
+  // Remap legacy Cloudinary to local uploads
+  if (trimmed.includes("res.cloudinary.com")) {
+    const match = trimmed.match(/\/image\/upload\/(?:v\d+\/)?(.+)$/i);
+    if (match && match[1]) {
+      trimmed = `/uploads/${match[1]}`;
+    }
+  }
 
   const appProtocol = typeof window !== "undefined" ? window.location?.protocol : "";
   const appHost = typeof window !== "undefined" ? window.location?.hostname : "";

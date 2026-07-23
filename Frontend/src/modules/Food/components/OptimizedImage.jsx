@@ -92,12 +92,16 @@ const OptimizedImage = React.memo(({
   const supportsOptimization = (imageSrc) => {
     if (!imageSrc || typeof imageSrc !== 'string' || imageSrc === '') return false
     if (imageSrc.startsWith('data:') || imageSrc.startsWith('/')) return false
-    // Don't proxy localhost
-    if (/localhost|127\.0\.0\.1/i.test(imageSrc)) return false;
-    // Native Cloudinary URLs can be optimized natively instead of via proxy
-    if (/res\.cloudinary\.com/i.test(imageSrc)) return true;
+    
+    // Do not proxy our own domain or localhost (we optimize natively via sharp)
+    if (/localhost|127\.0\.0\.1|theindianbite\.com/i.test(imageSrc)) return false;
+    
+    // We are migrating off Cloudinary, do not proxy it
+    if (/res\.cloudinary\.com/i.test(imageSrc)) return false;
+    
     // Don't proxy signed URLs (Firebase, AWS, etc) as they break
     if (/[?&](X-Amz-|Signature=|Expires=|AWSAccessKeyId=|GoogleAccessId=|token=|sig=|se=|sp=|sv=|alt=)/i.test(imageSrc)) return false;
+    
     // Check if it's an external URL (http/https)
     return /^https?:\/\//.test(imageSrc)
   }
