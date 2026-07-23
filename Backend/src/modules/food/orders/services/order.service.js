@@ -62,13 +62,9 @@ const COMMISSION_CACHE_MS = 10 * 1000;
 let commissionRulesCache = null;
 let commissionRulesLoadedAt = 0;
 
-const CLOUDINARY_HOST_RE = /res\.cloudinary\.com/i;
-
 const isLikelyBrokenRestaurantOrderImage = (value = "") => {
   const raw = String(value || "").trim();
-  if (!raw) return true;
-  if (CLOUDINARY_HOST_RE.test(raw)) return false;
-  return /(appzeto\/restaurant\/menu-items|food\/restaurants\/menu|uploads\/)/i.test(raw);
+  return !raw;
 };
 
 const enrichRestaurantOrderImages = async (restaurantId, docs = []) => {

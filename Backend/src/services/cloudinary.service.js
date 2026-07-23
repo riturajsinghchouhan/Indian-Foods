@@ -97,3 +97,20 @@ export const buildRawDownloadUrlFromFileUrl = (fileUrl, options = {}) => {
     // Already a local URL, just return it
     return fileUrl;
 };
+
+export const deleteLocalFile = (fileUrl) => {
+    if (!fileUrl) return;
+    try {
+        const urlStr = String(fileUrl);
+        // Extract the path after /uploads/
+        const match = urlStr.match(/\/uploads\/(.+)$/);
+        if (match && match[1]) {
+            const absolutePath = path.join(UPLOAD_BASE_DIR, match[1]);
+            if (fs.existsSync(absolutePath)) {
+                fs.unlinkSync(absolutePath);
+            }
+        }
+    } catch (error) {
+        // ignore deletion errors
+    }
+};

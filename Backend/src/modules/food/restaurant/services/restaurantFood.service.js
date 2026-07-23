@@ -33,17 +33,19 @@ const normalizeFoodType = (v) => {
     return 'Non-Veg';
 };
 
-const CLOUDINARY_HOST_RE = /res\.cloudinary\.com/i;
+const isLocalUrl = (value) => {
+    const str = String(value || '');
+    return str.startsWith('/uploads/') || (process.env.APP_URL && str.startsWith(process.env.APP_URL));
+};
+
 const MAX_BULK_ITEMS = 500;
 const BULK_CONCURRENCY = 5;
 const IMAGE_UPLOAD_FOLDER = 'food/items';
 
-const isCloudinaryUrl = (value) => CLOUDINARY_HOST_RE.test(String(value || ''));
-
 const shouldUploadImageUrl = (value) => {
     const url = toStr(value);
     if (!url) return false;
-    if (isCloudinaryUrl(url)) return false;
+    if (isLocalUrl(url)) return false;
     if (/^data:/i.test(url) || /^blob:/i.test(url)) return false;
     return /^https?:\/\//i.test(url);
 };
@@ -67,7 +69,7 @@ const downloadImageBuffer = async (url) => {
     }
 };
 
-const ensureCloudinaryImageUrl = async (value) => {
+const ensureLocalImageUrl = async (value) => {
     const url = toStr(value);
     if (!url) return '';
     if (!shouldUploadImageUrl(url)) return url;
@@ -264,7 +266,7 @@ export async function createRestaurantFood(restaurantId, body = {}) {
     const { price, variants } = getCreateFoodPricing(body);
 
     const description = toStr(body.description);
-    const image = await ensureCloudinaryImageUrl(body.image || body.imageUrl || body.photoUrl || body.photo);
+    const image = await ensureLocalImageUrl(body.image || body.imageUrl || body.photoUrl || body.photo);
     const isAvailable = body.isAvailable !== false;
     const foodType = normalizeFoodType(body.foodType);
     const preparationTime = toStr(body.preparationTime);
@@ -424,7 +426,7 @@ export async function bulkCreateFood(restaurantId, items = []) {
             });
 
             const { price: finalPrice, variants: finalVariants } = getCreateFoodPricing(item);
-            const imageUrl = await ensureCloudinaryImageUrl(item.image || item.imageUrl || item.photoUrl || item.photo);
+            const imageUrl = await ensureLocalImageUrl(item.image || item.imageUrl || item.photoUrl || item.photo);
 
             processedItems.push({
                 restaurantId,

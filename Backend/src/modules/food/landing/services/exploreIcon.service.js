@@ -1,5 +1,5 @@
 import { FoodExploreIcon } from '../models/exploreIcon.model.js';
-import { v2 as cloudinary } from 'cloudinary';
+import { uploadImageBufferDetailed, deleteLocalFile } from '../../../../services/cloudinary.service.js';
 
 const CLOUDINARY_FOLDER = 'food/explore-icons';
 
@@ -23,17 +23,9 @@ const getNextSortOrder = async () => {
 /**
  * Upload buffer to Cloudinary and return { secure_url, public_id }.
  */
-const uploadImageToCloudinary = (buffer) => {
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { folder: CLOUDINARY_FOLDER, resource_type: 'image' },
-            (err, result) => {
-                if (err) return reject(err);
-                resolve({ secure_url: result.secure_url, public_id: result.public_id });
-            }
-        );
-        stream.end(buffer);
-    });
+const uploadImageToCloudinary = async (buffer) => {
+    const result = await uploadImageBufferDetailed(buffer, CLOUDINARY_FOLDER);
+    return { secure_url: result.secure_url, public_id: result.secure_url };
 };
 
 /**
@@ -82,7 +74,7 @@ export const updateExploreIcon = async (id, payload) => {
     if (payload?.file?.buffer) {
         try {
             if (doc.publicId) {
-                await cloudinary.uploader.destroy(doc.publicId).catch(() => {});
+                deleteLocalFile(doc.iconUrl || doc.publicId);
             }
             const { secure_url, public_id } = await uploadImageToCloudinary(payload.file.buffer);
             updates.iconUrl = secure_url;
@@ -116,11 +108,7 @@ export const deleteExploreIcon = async (id) => {
         return { deleted: false };
     }
     if (doc.publicId) {
-        try {
-            await cloudinary.uploader.destroy(doc.publicId);
-        } catch {
-            // ignore
-        }
+            deleteLocalFile(doc.iconUrl || doc.publicId);
     }
     await doc.deleteOne();
     return { deleted: true };

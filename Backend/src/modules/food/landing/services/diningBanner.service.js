@@ -1,5 +1,5 @@
 import { FoodDiningBanner } from '../models/diningBanner.model.js';
-import { v2 as cloudinary } from 'cloudinary';
+import { uploadImageBufferDetailed, deleteLocalFile } from '../../../../services/cloudinary.service.js';
 
 export const listDiningBanners = async () => {
     return FoodDiningBanner.find().sort({ sortOrder: 1, createdAt: 1 }).lean();
@@ -14,20 +14,11 @@ export const createDiningBannersFromFiles = async (files, meta = {}) => {
 
     for (const file of files) {
         try {
-            const uploadResult = await new Promise((resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
-                    { folder: 'food/dining-banners', resource_type: 'image' },
-                    (error, result) => {
-                        if (error) return reject(error);
-                        return resolve(result);
-                    }
-                );
-                stream.end(file.buffer);
-            });
+            const uploadResult = await uploadImageBufferDetailed(file.buffer, 'food/dining-banners');
 
             const banner = await FoodDiningBanner.create({
                 imageUrl: uploadResult.secure_url,
-                publicId: uploadResult.public_id,
+                publicId: uploadResult.secure_url, // Using URL as publicId since we no longer use Cloudinary
                 title: meta.title,
                 ctaText: meta.ctaText,
                 ctaLink: meta.ctaLink,
@@ -52,11 +43,7 @@ export const deleteDiningBanner = async (id) => {
     }
 
     if (doc.publicId) {
-        try {
-            await cloudinary.uploader.destroy(doc.publicId);
-        } catch {
-            // ignore cloudinary deletion errors
-        }
+            deleteLocalFile(doc.imageUrl || doc.publicId);
     }
 
     await doc.deleteOne();
