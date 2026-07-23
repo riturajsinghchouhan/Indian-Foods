@@ -1,5 +1,5 @@
 import { FoodHeroBanner } from '../models/heroBanner.model.js';
-import { uploadImageBufferDetailed, deleteLocalFile } from '../../../../services/cloudinary.service.js';
+import { uploadImageBufferDetailed, deleteLocalFile } from '../../../../services/upload.service.js';
 
 export const listHeroBanners = async () => {
     return FoodHeroBanner.find()

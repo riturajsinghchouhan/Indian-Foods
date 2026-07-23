@@ -1,5 +1,5 @@
 import { FoodDiningBanner } from '../models/diningBanner.model.js';
-import { uploadImageBufferDetailed, deleteLocalFile } from '../../../../services/cloudinary.service.js';
+import { uploadImageBufferDetailed, deleteLocalFile } from '../../../../services/upload.service.js';
 
 export const listDiningBanners = async () => {
     return FoodDiningBanner.find().sort({ sortOrder: 1, createdAt: 1 }).lean();

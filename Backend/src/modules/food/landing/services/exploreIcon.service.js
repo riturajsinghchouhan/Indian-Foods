@@ -1,5 +1,5 @@
 import { FoodExploreIcon } from '../models/exploreIcon.model.js';
-import { uploadImageBufferDetailed, deleteLocalFile } from '../../../../services/cloudinary.service.js';
+import { uploadImageBufferDetailed, deleteLocalFile } from '../../../../services/upload.service.js';
 
 const CLOUDINARY_FOLDER = 'food/explore-icons';
 

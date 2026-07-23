@@ -1,6 +1,6 @@
 import { FoodBusinessSettings } from '../models/businessSettings.model.js';
 import { sendResponse } from '../../../../utils/response.js';
-import { uploadImageBufferDetailed, uploadFileBufferDetailed } from '../../../../services/cloudinary.service.js';
+import { uploadImageBufferDetailed, uploadFileBufferDetailed } from '../../../../services/upload.service.js';
 
 export async function getBusinessSettings(req, res, next) {
     try {

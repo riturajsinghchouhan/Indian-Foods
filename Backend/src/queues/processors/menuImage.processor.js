@@ -1,6 +1,6 @@
 import { logger } from '../../utils/logger.js';
 import { FoodItem } from '../../modules/food/admin/models/food.model.js';
-import { uploadImageBuffer } from '../../services/cloudinary.service.js';
+import { uploadImageBuffer } from '../../services/upload.service.js';
 import { config } from '../../config/env.js';
 import { HfInference } from '@huggingface/inference';
 

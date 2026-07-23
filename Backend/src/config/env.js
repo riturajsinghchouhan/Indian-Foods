@@ -52,10 +52,7 @@ export const config = {
     // BullMQ
     bullmqEnabled: process.env.BULLMQ_ENABLED === 'true',
 
-    // Cloudinary
-    cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
-    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY,
-    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET,
+    // Cloudinary Removed
 
     // Firebase / FCM
     firebaseProjectId: process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID,
@@ -124,9 +121,6 @@ export const updateConfig = () => {
     config.redisEnabled = process.env.REDIS_ENABLED === 'true';
     config.redisUrl = process.env.REDIS_URL || config.redisUrl;
     config.bullmqEnabled = process.env.BULLMQ_ENABLED === 'true';
-    config.cloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME || config.cloudinaryCloudName;
-    config.cloudinaryApiKey = process.env.CLOUDINARY_API_KEY || config.cloudinaryApiKey;
-    config.cloudinaryApiSecret = process.env.CLOUDINARY_API_SECRET || config.cloudinaryApiSecret;
     config.firebaseProjectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || config.firebaseProjectId;
     config.firebaseDatabaseUrl = process.env.VITE_FIREBASE_DATABASE_URL || config.firebaseDatabaseUrl;
     config.firebaseServiceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || config.firebaseServiceAccountPath;

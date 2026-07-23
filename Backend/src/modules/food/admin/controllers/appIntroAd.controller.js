@@ -1,5 +1,5 @@
 import AppIntroAd from '../models/appIntroAd.model.js';
-import { uploadImageBuffer, uploadVideoBuffer } from '../../../../services/cloudinary.service.js';
+import { uploadImageBuffer, uploadVideoBuffer } from '../../../../services/upload.service.js';
 
 export const getAppIntroAds = async (req, res) => {
     try {
