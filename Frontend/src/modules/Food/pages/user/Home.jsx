@@ -627,10 +627,10 @@ export default function Home() {
   const categoryScrollRef = useRef(null);
   const gsapAnimationsRef = useRef([]);
   // Show skeletons immediately while loading â€” delayed toggles caused visible layout swap (CLS).
-  const showBannerSkeleton = loadingBanners;
-  const showCategorySkeleton = loadingRealCategories || loadingMenuCategories;
-  const showExploreSkeleton = loadingLandingConfig;
-  const showRestaurantSkeleton = isLoadingFilterResults || loadingRestaurants;
+  const showBannerSkeleton = loadingBanners && heroBannerImages.length === 0;
+  const showCategorySkeleton = (loadingRealCategories || loadingMenuCategories) && realCategories.length === 0 && menuCategories.length === 0;
+  const showExploreSkeleton = loadingLandingConfig && landingExploreMore.length === 0;
+  const showRestaurantSkeleton = (isLoadingFilterResults || loadingRestaurants) && restaurantsData.length === 0;
   // Safely get profile context - handle case when ProfileProvider is not available
   let profileContext = null;
   try {

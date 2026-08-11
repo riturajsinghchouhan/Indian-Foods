@@ -1075,7 +1075,7 @@ Order again from this restaurant in the ${companyName} app.`
                         We apologize, but your order could not be completed.
                       </p>
                       <a 
-                        href="tel:+919755633147" 
+                        href="tel:+918882236180" 
                         className="ml-7 inline-flex items-center gap-1.5 w-fit bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-[10px] sm:text-xs font-medium py-1.5 px-3 rounded-md border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                       >
                         <Phone className="w-3 h-3" />

@@ -508,7 +508,7 @@ This Admin Panel is the engine of your business. Treat it with care, monitor the
 
 **Support Contact:**
 📧 Email: admin-support@foodelo.com
-📞 Phone: +1-888-FOODELO
+📞 Phone: 8882236180
 
 ---
 **Document Version:** 2.1.0

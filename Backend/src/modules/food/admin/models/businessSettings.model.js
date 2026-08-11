@@ -23,7 +23,7 @@ const businessSettingsSchema = new mongoose.Schema(
             publicId: { type: String, default: '' }
         },
         supportEmail: { type: String, default: 'support@indianbites.com' },
-        supportPhone: { type: String, default: '+91 1234567890' },
+        supportPhone: { type: String, default: '8882236180' },
         supportHours: { type: String, default: '24/7 Availability' },
         termsAndConditionsPdf: {
             url: { type: String, default: '' },
